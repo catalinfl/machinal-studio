@@ -49,3 +49,32 @@ The follow-up implementation makes viewing read-only and bounded:
 Local Windows benchmarks of the new transfer path allocated approximately 8 KB/op for an 8 MiB state and 11 KB/op for a 56 MiB state. A buffered project read plus JSON marshal alone allocated approximately 27 MB/op for the 8 MiB case, excluding the old fingerprint/preparation overhead. These are allocation benchmarks, not a prediction of production container RSS or filesystem cache.
 
 The follow-up does not delete or rewrite production files, deploy services, regenerate media, or change caption content. Production RSS must be checked again after this new API/client change is deployed. Tests cover exact streamed state/captions, ownership, legacy history recovery, simultaneous saves, closed file handles, bounded MCP streams and browser-side one-time compaction without render/generation requests. The active restored-3D-scene browser regression also passes; its synthetic video attachment is now explicitly supplied to the test compiler, as required by the existing media-reference validator.
+
+## After deploying `a4d06ae`: autosaves and filesystem cache
+
+The streaming change was deployed to both services on 2026-11-08. Subsequent project GETs completed in 121–390 ms in the inspected requests. They were followed by multiple full-state POSTs, including saves taking 0.7–5.5 seconds. The new GET path alone did not address those allocations.
+
+Read-only production inspection after the reported remaining spikes found:
+
+- Railway's sampled service memory: current 96,411,648 bytes, one-hour maximum 175,386,624 bytes. This window includes other work (a later completed render), not an isolated project-open benchmark.
+- Go process: RSS 32,688 KiB, subsequently 29,672 KiB; high-water mark 122,644 KiB since the deployment.
+- Cgroup accounting: 54,714,368 bytes of file cache, of which 54,591,488 were inactive file pages. This cache is reclaimable by Linux, distinct from a retained Go object per user. The inspected process list contained no Node/Chromium renderer. There was no scene-worker start during the observed opening intervals.
+- Ordinary media thumbnail/waveform generation and ffprobe metadata checks can still run on a cache miss. They are not scene preview rendering; the media runner limits ffmpeg and ffprobe to at most two concurrent processes each, across requests. These subprocesses and filesystem cache are not included in Go heap measurements.
+
+Two reproducible defects remained:
+
+1. `SaveHandler` copied the complete state through `json.RawMessage`; `Update` copied the timeline just to check its presence, copied the state again, and `write` marshaled another complete JSON response into an encoder buffer. Large request buffers could remain attached to idle keep-alive requests. A handler benchmark with an already-received 8 MiB body allocated 38,654,172 bytes per save.
+2. The media bin compared an immutable scene's pinned SHA-256 version to its S3 listing ETag. The unequal representations caused it to discard the saved asset ID and version and trigger an autosave after loading the preview. The browser regression reproduced the second POST and the changed IDs before repair.
+
+The correction borrows validated request JSON only for the synchronous atomic write, writes the state verbatim between small metadata fields, and releases oversized request-body buffers after saving. The public `Store.Update` still returns an independently owned state. Invalid JSON never replaces the published snapshot. The same handler benchmark now allocates about 28 KB per save, **excluding the already-received HTTP body**; incoming large concurrent saves still require transport memory.
+
+The media bin now preserves immutable scene identity across listing/preview hydration. Mutable media retain their ETag invalidation. The browser test covers both listed and unlisted scenes, one-time legacy compaction and reopening without a second autosave or a render/generation request.
+
+A real loopback HTTP test transfers an 8 MiB project 100 times, sequentially and concurrently, draining responses instead of buffering them in the test:
+
+| Scenario | Total allocations, client + server | Heap before / after / after explicit test GC |
+| --- | --- | --- |
+| 100 sequential opens | 4.41 MiB | 8.62 / 13.03 / 8.71 MiB |
+| 100 concurrent opens | 7.79 MiB | 8.66 / 15.18 / 11.84 MiB |
+
+These local measurements disprove linear payload retention for the project GET path. They do not measure production container RSS, cold media processing, or every editor request. GC is invoked only in the test to distinguish live memory from allocations; there is no production per-request forced collection, cache purge or memory-limit workaround.

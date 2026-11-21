@@ -315,8 +315,10 @@ export function useMediaBin() {
         const mediaKind = entry.mediaKind ?? mediaKindForFileName(entry.name) ?? 'video'
         const sourceRevision = entry.etag ? JSON.stringify([entry.s3Key ?? entry.name, entry.etag, entry.size]) : undefined
         const source = registeredByName.get(entry.name.toLowerCase())
+        // Scene filenames are immutable; an S3 ETag is not the pinned SHA-256 asset version.
+        const immutableScene = isLiveSceneFile(entry.name)
 
-        const registered = source?.sourceMode !== 'wasm' && (!source?.sourceRevision || source.sourceRevision === sourceRevision)
+        const registered = source?.sourceMode !== 'wasm' && (immutableScene || !source?.sourceRevision || source.sourceRevision === sourceRevision)
           ? source
           : undefined
 
@@ -328,7 +330,7 @@ export function useMediaBin() {
           fileName: entry.name,
           displayName: source?.displayName || entry.name,
           sourceId: registered?.sourceId,
-          sourceRevision: registered?.scene ? registered.sourceRevision : sourceRevision,
+          sourceRevision: registered && immutableScene ? registered.sourceRevision : sourceRevision,
           scene: registered?.scene,
           mediaKind,
           scrubName: mediaKind === 'video' && !isRender ? (entry.scrubName ?? scrubProxyName(entry.name)) : '',

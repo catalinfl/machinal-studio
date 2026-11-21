@@ -139,10 +139,6 @@ func (s *Store) write(owner string, project Project) error {
 	if err != nil {
 		return err
 	}
-	data, err := json.Marshal(project)
-	if err != nil {
-		return fmt.Errorf("encode project: %w", err)
-	}
 	if err := os.MkdirAll(filepath.Dir(path), privateDir); err != nil {
 		return fmt.Errorf("create project directory: %w", err)
 	}
@@ -151,7 +147,7 @@ func (s *Store) write(owner string, project Project) error {
 		return fmt.Errorf("create project save: %w", err)
 	}
 	defer os.Remove(file.Name())
-	if _, err := file.Write(data); err != nil {
+	if err := writeProjectJSON(file, project); err != nil {
 		file.Close()
 		return fmt.Errorf("write project: %w", err)
 	}
@@ -206,6 +202,15 @@ func (s *Store) Create(owner, name string) (Project, error) {
 }
 
 func (s *Store) Update(owner, id, name string, version int, state json.RawMessage) (Project, error) {
+	project, err := s.update(owner, id, name, version, state)
+	if err == nil && state != nil {
+		project.State = append(json.RawMessage(nil), state...)
+	}
+	return project, err
+}
+
+// update borrows state only through the synchronous write. HTTP saves return its summary.
+func (s *Store) update(owner, id, name string, version int, state json.RawMessage) (Project, error) {
 	projectsMu.Lock()
 	defer projectsMu.Unlock()
 	project, err := s.readForUpdate(owner, id, state)
@@ -220,14 +225,10 @@ func (s *Store) Update(owner, id, name string, version int, state json.RawMessag
 		return Project{}, err
 	}
 	if state != nil {
-		var header struct {
-			SchemaVersion int             `json:"schemaVersion"`
-			Timeline      json.RawMessage `json:"timeline"`
-		}
-		if len(state) > MaxStateBytes || json.Unmarshal(state, &header) != nil || header.SchemaVersion != 1 || len(header.Timeline) == 0 {
+		if !validEditorState(state) {
 			return Project{}, ErrInvalid
 		}
-		project.State = append(json.RawMessage(nil), state...)
+		project.State = state
 	}
 	project.Version++
 	project.UpdatedAt = s.Now().UTC()

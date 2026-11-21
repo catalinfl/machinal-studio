@@ -1,7 +1,6 @@
 package projects
 
 import (
-	"encoding/json"
 	"errors"
 	"log"
 	"path/filepath"
@@ -96,18 +95,20 @@ func (s *Store) ScopeAPI(c *fiber.Ctx) error {
 }
 
 func (s *Store) SaveHandler(c *fiber.Ctx) error {
+	// Do not keep multi-megabyte autosaves attached to idle keep-alive requests.
+	defer c.Request().ReleaseBody(maxRetainedSaveBody)
 	if len(c.Body()) > MaxStateBytes {
 		return c.SendStatus(fiber.StatusRequestEntityTooLarge)
 	}
 	var input struct {
-		Name    string          `json:"name"`
-		Version int             `json:"version"`
-		State   json.RawMessage `json:"state"`
+		Name    string       `json:"name"`
+		Version int          `json:"version"`
+		State   borrowedJSON `json:"state"`
 	}
 	if c.BodyParser(&input) != nil {
 		return projectError(c, ErrInvalid)
 	}
-	project, err := s.Update(auth.UserID(c), c.Params("projectID"), input.Name, input.Version, input.State)
+	project, err := s.update(auth.UserID(c), c.Params("projectID"), input.Name, input.Version, []byte(input.State))
 	if err != nil {
 		return projectError(c, err)
 	}
