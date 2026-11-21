@@ -74,6 +74,20 @@ describe('opening prepared projects', () => {
     expect(JSON.stringify(prepared)).toBe(before)
   })
 
+  it('opens reference-only presentations without losing or regenerating their saved caption cache', () => {
+    const prepared = fixture()
+    prepared.preparedTextRef = { id: 'a'.repeat(64), key: 'saved-caption-key' }
+    const before = JSON.stringify(prepared)
+    const restored = preparedProjectState(prepared)!
+    expect(restored.timeline.documentSession?.preparedTextRef).toEqual(prepared.preparedTextRef)
+    expect(restored.timeline.documentSession?.composition.preparedTextRef).toEqual(prepared.preparedTextRef)
+    expect(restored.timeline.documentSession?.preparedText).toBeUndefined()
+    expect(restored.timeline.textItems).toEqual(prepared.composition!.textItems)
+    expect(restored.timeline.documentSession?.document.jobs?.[0].resultTextIds).toEqual(['caption'])
+    expect(JSON.stringify(prepared)).toBe(before)
+    expect(() => preparedCompositionJSON(prepared)).toThrow('must be loaded')
+  })
+
   it('hydrates both never-opened projects and previously autosaved empty projects', () => {
     expect(projectStateForOpen(null, { prepared: fixture() })?.timeline.channels[0].clips).toHaveLength(1)
     expect(projectStateForOpen(emptyState(), { prepared: fixture() })?.timeline.channels[0].clips).toHaveLength(1)

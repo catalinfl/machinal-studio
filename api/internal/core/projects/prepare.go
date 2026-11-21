@@ -9,10 +9,7 @@ func (s *Store) ApplyPrepared(owner, session string, prepared PreparedCompositio
 	if prepared.Document == nil || prepared.Composition == nil || prepared.Composition.ID == "" {
 		return Project{}, ErrInvalid
 	}
-	id := session
-	if session == "u_"+owner {
-		id = "default"
-	}
+	id := projectIDForSession(owner, session)
 	projectsMu.Lock()
 	defer projectsMu.Unlock()
 	project, err := s.read(owner, id)
@@ -35,6 +32,10 @@ func (s *Store) ApplyPrepared(owner, session string, prepared PreparedCompositio
 		if saved.Prepared != nil && saved.Prepared.UpdatedAt.After(prepared.UpdatedAt) {
 			return project, nil
 		}
+	}
+	prepared, err = s.referencePreparedText(owner, id, prepared)
+	if err != nil {
+		return Project{}, err
 	}
 	state, err := preparedEditorState(prepared, previous)
 	if err != nil {

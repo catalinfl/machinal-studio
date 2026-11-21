@@ -1,18 +1,35 @@
 import { expect, test, type BrowserContext } from '@playwright/test'
 import { createHash } from 'node:crypto'
 import { readFile } from 'node:fs/promises'
+import { createServer } from 'node:http'
+import type { AddressInfo } from 'node:net'
 import type { ProjectState } from '../src/lib/project-state'
 import type { TextItem } from '../src/lib/editor-types'
 
-async function fixture(context: BrowserContext) {
+async function fixture(context: BrowserContext, cloud = false) {
   const user = { id: 'projectregression', name: 'Regression', email: 'regression@example.test', isPaid: true, collectionName: 'users' }
   const token = (revision: number) => `test.${Buffer.from(JSON.stringify({ exp: Math.floor(Date.now() / 1000) + 3600, revision })).toString('base64url')}.fixture`
   const now = new Date().toISOString()
   const state: ProjectState = { schemaVersion: 1, media: [], timeline: { channels: [], effectBlocks: [], transitions: [], textItems: [], fps: 30,
     resolution: '720p', projectAspect: null, videoFit: 'contain', documentSession: null, currentTime: 0, selectedClipIds: [], selectedEffectBlockIds: [], selectedTextItemIds: [] } }
   const record = { id: 'p_regression', name: 'Regression film', sessionId: 'p_regression', version: 2, createdAt: now, updatedAt: now, state }
-  const requests: { page: number; method: string; status: number; bytes?: number }[] = []
+  const requests: { page: number; method: string; status: number; bytes?: number; authorization?: boolean }[] = []
   const assets = new Map<string, string>()
+  let cloudOrigin = ''
+  if (cloud) {
+    // Playwright routing intercepts only a redirect chain's first URL; use a real loopback storage fixture.
+    const server = createServer((request, response) => {
+      const assetId = new URL(request.url!, 'http://localhost').pathname.slice(1)
+      const source = assets.get(assetId)
+      const status = source && !request.headers.authorization ? 200 : 403
+      requests.push({ page: -1, method: 'GET cloud asset', status, authorization: Boolean(request.headers.authorization) })
+      response.writeHead(status, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' })
+      response.end(status === 200 ? source : 'Invalid test storage request')
+    })
+    await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve))
+    cloudOrigin = `http://127.0.0.1:${(server.address() as AddressInfo).port}`
+    context.once('close', () => { server.closeAllConnections(); server.close() })
+  }
   let refresh = 0
   await context.addInitScript(({ user, token }) => {
     if (!localStorage.getItem('pocketbase_auth')) localStorage.setItem('pocketbase_auth', JSON.stringify({ record: user, token }))
@@ -34,14 +51,17 @@ async function fixture(context: BrowserContext) {
     const [, , projectId, category, assetId] = url.pathname.split('/')
     if (category === 'text-assets') {
       requests.push({ page, method: `${request.method()} asset`, status: 200, bytes: request.postData()?.length })
-      if (request.method() === 'GET') return route.fulfill({ body: assets.get(assetId), contentType: 'application/json' })
+      if (request.method() === 'GET') {
+        if (cloud) return route.fulfill({ status: 302, headers: { Location: `${cloudOrigin}/${assetId}`, 'Access-Control-Allow-Origin': '*' } })
+        return route.fulfill({ body: assets.get(assetId), contentType: 'application/json' })
+      }
       const body = request.postData()!
       expect(createHash('sha256').update(body).digest('hex')).toBe(assetId)
       assets.set(assetId, body)
       return route.fulfill({ status: 204 })
     }
     if (request.method() === 'GET') {
-      requests.push({ page, method: projectId ? 'GET project' : 'GET list', status: 200 })
+      requests.push({ page, method: projectId ? 'GET project' : 'GET list', status: 200, bytes: projectId ? Buffer.byteLength(JSON.stringify(record)) : undefined })
       const { state, ...summary } = record
       return route.fulfill({ json: projectId ? record : [summary] })
     }
@@ -148,7 +168,7 @@ test('large caption rasters upload once and do not return in autosaves after reo
   expect(record.state.timeline.documentSession!.preparedText).toBeUndefined()
   await page.reload()
   await expect(page.locator('.save-feedback')).toHaveText('Saved')
-  expect(requests.filter(item => item.method === 'GET asset')).toHaveLength(2)
+  expect(requests.filter(item => item.method === 'GET asset')).toHaveLength(1)
   const restored = await page.evaluate(async () => (await import('/src/stores/editor.svelte.ts')).editor.documentSession!.preparedText!.overlays[0].image.length)
   expect(restored).toBe(4_000_000)
   await page.evaluate(async () => (await import('/src/lib/media-bin.ts')).renameMediaBinSource('poster.png', 'My poster'))
@@ -156,4 +176,42 @@ test('large caption rasters upload once and do not return in autosaves after reo
   await expect.poll(() => record.state.media[0]?.displayName).toBe('My poster')
   expect(requests.filter(item => item.method === 'POST asset')).toHaveLength(1)
   expect(requests.filter(item => item.method === 'POST').every(item => item.bytes! < 20_000)).toBe(true)
+})
+
+test('reference-only projects download caption rasters directly from storage once across reloads and tabs', async ({ context, page }) => {
+  const { requests, record, assets } = await fixture(context, true)
+  const preparedText = { key: 'cloud-caption-key', overlays: [{ start: 0, duration: 1, x: 0, y: 100, image: 'x'.repeat(4_000_000) }] }
+  const source = JSON.stringify(preparedText)
+  const reference = { id: createHash('sha256').update(source).digest('hex'), key: preparedText.key }
+  assets.set(reference.id, source)
+  record.state.timeline.documentSession = {
+    kind: 'ready', assets: [], bindings: {}, document: { version: 1, mode: 'assemble', texts: [], jobs: [] }, preparedTextRef: reference,
+    composition: { id: 'cloud-fixture', compilerVersion: '1', catalogVersion: '1', documentRevision: 'revision', duration: 1,
+      output: { aspect: 'landscape', resolution: '720p', fps: 30, format: 'mp4', quality: 'normal' },
+      assets: [], tracks: [], effects: [], transitions: [], textItems: [], textRenderKey: preparedText.key, preparedTextRef: reference, segments: {} },
+  }
+  const prepared = { updatedAt: record.updatedAt, document: record.state.timeline.documentSession.document,
+    composition: record.state.timeline.documentSession.composition, preparedTextRef: reference }
+  Object.assign(record, { presentation: { prepared, lastRender: { ...prepared, filename: 'render_fixture.mp4' } } })
+  record.state.preparedCompositionId = 'cloud-fixture'
+  await page.goto('/editor')
+  await expect(page.locator('.save-feedback')).toHaveText('Saved')
+  expect(requests.filter(item => item.method === 'GET cloud asset')).toHaveLength(1)
+  expect(requests.filter(item => item.method === 'GET cloud asset').every(item => item.status === 200 && !item.authorization)).toBe(true)
+  expect(requests.filter(item => item.method === 'GET project').every(item => item.bytes! < 20_000)).toBe(true)
+  await page.reload()
+  await expect(page.locator('.save-feedback')).toHaveText('Saved')
+  const second = await context.newPage()
+  await second.goto('/editor')
+  await expect(second.locator('.save-feedback')).toHaveText('Saved')
+  expect(requests.filter(item => item.method === 'GET asset')).toHaveLength(1)
+  expect(requests.filter(item => item.method === 'GET cloud asset')).toHaveLength(1)
+  expect(await second.evaluate(async () => (await import('/src/stores/editor.svelte.ts')).editor.documentSession!.preparedText!.overlays[0].image.length)).toBe(4_000_000)
+  await second.getByRole('button', { name: 'Projects', exact: true }).click()
+  const downloading = second.waitForEvent('download')
+  await second.getByRole('button', { name: 'Download render JSON' }).click()
+  const download = await downloading
+  const exported = JSON.parse(await readFile((await download.path())!, 'utf8'))
+  expect(exported.preparedText).toEqual(preparedText)
+  expect(requests.filter(item => item.method === 'GET cloud asset')).toHaveLength(1)
 })

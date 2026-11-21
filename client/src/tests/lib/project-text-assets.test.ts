@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { webcrypto } from 'node:crypto'
 import { compactSessionText, prepareSessionText, sessionTextAssets, textAssetDigest } from '../../lib/project-text-assets'
-import { loadProjectTextAsset, projectConflict, ProjectRequestError } from '../../lib/project-api'
+import { loadProjectTextAsset, loadPreparedComposition, projectConflict, ProjectRequestError } from '../../lib/project-api'
+import { preparedCompositionJSON, type PreparedComposition } from '../../lib/project-presentation'
 import type { DocumentSession, PreparedText } from '../../lib/composition-types'
 
 function session(prepared: PreparedText): DocumentSession {
@@ -74,5 +75,22 @@ describe('immutable project text assets', () => {
     const conflict = projectConflict()
     expect(conflict).toBeInstanceOf(ProjectRequestError)
     expect(conflict.status).toBe(409)
+  })
+
+  it('hydrates reference-only JSON exports with the exact existing raster cache', async () => {
+    vi.stubGlobal('crypto', webcrypto)
+    const value = { key: 'export-key', overlays: [{ start: 1.1, duration: 1.3, x: 12, y: 1400, image: 'exact-PNG' }] }
+    const source = JSON.stringify(value)
+    const original = session(value)
+    const { preparedText: _, ...composition } = original.composition
+    const prepared: PreparedComposition = { updatedAt: '2026-11-10T12:00:00Z', document: original.document, bindings: {}, composition,
+      preparedTextRef: { id: await textAssetDigest(source), key: value.key } }
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(source)))
+    const loaded = await loadPreparedComposition('film', prepared)
+    const result = JSON.parse(preparedCompositionJSON(loaded))
+    expect(result.preparedText).toEqual(value)
+    expect(result.document).toEqual(original.document)
+    expect(result.document.jobs[0].resultTextIds).toEqual(['caption'])
+    expect(prepared.composition?.preparedText).toBeUndefined()
   })
 })

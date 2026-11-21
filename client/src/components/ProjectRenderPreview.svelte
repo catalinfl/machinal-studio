@@ -2,11 +2,12 @@
   import { mediaSourceUrl } from '../lib/api'
   import { preparedCompositionJSON, type ProjectPresentation, type PreparedComposition } from '../lib/project-presentation'
 
-  let { presentation, warning = '', disabled = false, onopen }: {
+  let { presentation, warning = '', disabled = false, onopen, onexport = async snapshot => preparedCompositionJSON(snapshot) }: {
     presentation?: ProjectPresentation
     warning?: string
     disabled?: boolean
     onopen: (snapshot: PreparedComposition) => Promise<void>
+    onexport?: (snapshot: PreparedComposition) => Promise<string>
   } = $props()
 
   let failedFile = $state('')
@@ -26,10 +27,11 @@
     }
   }
 
-  function downloadJSON(snapshot: PreparedComposition): void {
+  async function downloadJSON(snapshot: PreparedComposition): Promise<void> {
     downloadError = ''
     try {
-      const url = URL.createObjectURL(new Blob([preparedCompositionJSON(snapshot)], { type: 'application/json;charset=utf-8' }))
+      const source = await onexport(snapshot)
+      const url = URL.createObjectURL(new Blob([source], { type: 'application/json;charset=utf-8' }))
       const link = document.createElement('a')
       link.href = url
       link.download = snapshot.filename ? `${snapshot.filename}.edit.json` : 'composition.edit.json'

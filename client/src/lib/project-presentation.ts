@@ -1,4 +1,4 @@
-import type { Composition, EditDocument } from './composition-types'
+import type { Composition, EditDocument, PreparedTextReference } from './composition-types'
 import type { ProjectState } from './project-state'
 import { cloneJSON, compositionTimeline, revisionFingerprint } from './composition-adapter'
 import type { MediaBinSource } from './media-bin'
@@ -12,6 +12,7 @@ export interface PreparedComposition {
   document?: EditDocument
   bindings?: Record<string, string[]>
   composition?: Composition
+  preparedTextRef?: PreparedTextReference
 }
 
 export interface ProjectPresentation {
@@ -47,6 +48,7 @@ export function preparedProjectState(prepared: PreparedComposition, media: Media
   if (!prepared.document || !prepared.composition) return null
   const references = media.map(projectMediaReference)
   const composition = cloneJSON(prepared.composition)
+  if (prepared.preparedTextRef) composition.preparedTextRef = cloneJSON(prepared.preparedTextRef)
   const timeline = compositionTimeline(composition, () => null)
   const state: ProjectState = {
     schemaVersion: 1,
@@ -57,7 +59,7 @@ export function preparedProjectState(prepared: PreparedComposition, media: Media
       projectAspect: timeline.aspect, videoFit: timeline.fit ?? 'contain',
       documentSession: {
         kind: 'ready', document: cloneJSON(prepared.document), bindings: cloneJSON(prepared.bindings ?? {}),
-        assets: composition.assets, composition, preparedText: composition.preparedText,
+        assets: composition.assets, composition, preparedText: composition.preparedText, preparedTextRef: composition.preparedTextRef,
       },
       currentTime: 0, selectedClipIds: [], selectedEffectBlockIds: [], selectedTextItemIds: [],
     },
@@ -92,6 +94,7 @@ export function projectStateForOpen(state: ProjectState | null, presentation?: P
 
 export function preparedCompositionJSON(prepared: PreparedComposition): string {
   if (!prepared.document || !prepared.composition) throw new Error('This older render has no retained editable snapshot.')
+  if (prepared.preparedTextRef && !prepared.composition.preparedText) throw new Error('The saved caption images must be loaded before downloading this snapshot.')
   return JSON.stringify({
     document: prepared.document, bindings: prepared.bindings ?? {}, assets: prepared.composition.assets,
     preparedText: prepared.composition.preparedText,

@@ -52,6 +52,7 @@ type Store struct {
 	Now           func() time.Time
 	Session       func(owner, id string) string
 	Presentations *PresentationStore
+	textCloud     func() textAssetCloud
 }
 
 func ValidID(id string) bool {

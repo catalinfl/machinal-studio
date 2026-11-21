@@ -44,12 +44,22 @@ func (s *Store) GetTextAssetHandler(c *fiber.Ctx) error {
 		return projectError(c, err)
 	}
 	info, err := file.Stat()
-	if err != nil || !info.Mode().IsRegular() || info.Size() > MaxStateBytes {
+	if err != nil || !info.Mode().IsRegular() || info.Size() <= 0 || info.Size() > MaxStateBytes {
 		file.Close()
 		return projectError(c, ErrInvalid)
 	}
+	cloud := s.textAssetCloud()
+	if cloud.Enabled() || cloudTextDeliveryRequired() {
+		file.Close()
+		return redirectTextAsset(c, owner, project, reference, path, cloud)
+	}
 	c.Set(fiber.HeaderContentType, fiber.MIMEApplicationJSONCharsetUTF8)
-	c.Set(fiber.HeaderCacheControl, "private, no-store")
+	c.Set(fiber.HeaderCacheControl, "private, no-cache")
+	c.Set(fiber.HeaderETag, `"`+reference.ID+`"`)
+	if c.Get(fiber.HeaderIfNoneMatch) == c.GetRespHeader(fiber.HeaderETag) {
+		file.Close()
+		return c.SendStatus(fiber.StatusNotModified)
+	}
 	stream := &projectStream{Reader: io.LimitReader(file, info.Size()), size: info.Size(), files: []*os.File{file}}
 	return c.SendStream(stream, int(stream.size))
 }

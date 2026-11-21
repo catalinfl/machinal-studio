@@ -76,6 +76,9 @@ func (s *PresentationStore) openSnapshot(owner, session string) (*storedJSON, er
 	if err != nil {
 		return nil, err
 	}
+	if err := s.compactLegacyFile(owner, session, path); err != nil {
+		return nil, err
+	}
 	return openStoredJSON(path)
 }
 

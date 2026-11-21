@@ -58,7 +58,7 @@
       {/each}
     </div>
     <div class="current-actions"><span>{saveStatus}</span><button class="quiet" disabled={disabled || !projects.current} onclick={() => { action = 'rename'; name = projects.current?.name ?? '' }}>Rename current</button></div>
-    <ProjectRenderPreview presentation={projects.presentation} warning={projects.presentationWarning} disabled={timelineDisabled} onopen={projects.openPrepared} />
+    <ProjectRenderPreview presentation={projects.presentation} warning={projects.presentationWarning} disabled={timelineDisabled} onopen={projects.openPrepared} onexport={projects.exportPrepared} />
     <form onsubmit={submit}>
       <label for="project-name">{action === 'create' ? 'New project name' : 'Project name'}</label>
       <div class="name-controls"><input id="project-name" bind:value={name} maxlength="120" required disabled={disabled} placeholder="e.g. Summer film" /><button type="submit" disabled={disabled || !name.trim()}>{action === 'create' ? 'Create' : 'Rename'}</button></div>

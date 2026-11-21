@@ -1,9 +1,10 @@
 import { API_BASE } from './api-origin'
 import { selectProjectSession, startProjectSession } from './session'
 import type { ProjectState } from './project-state'
-import type { ProjectPresentation } from './project-presentation'
+import type { ProjectPresentation, PreparedComposition } from './project-presentation'
 import type { PreparedText, PreparedTextReference } from './composition-types'
-import { textAssetDigest, type ProjectTextAsset } from './project-text-assets'
+import type { ProjectTextAsset } from './project-text-assets'
+import { loadCachedProjectText } from './project-text-cache'
 
 export interface ProjectSummary {
   id: string
@@ -37,13 +38,18 @@ function textAssetURL(projectId: string, reference: PreparedTextReference): stri
 }
 
 export async function loadProjectTextAsset(projectId: string, reference: PreparedTextReference): Promise<PreparedText> {
-  const response = await fetch(textAssetURL(projectId, reference), { credentials: 'omit' })
-  if (!response.ok) throw new Error('The saved caption images could not be loaded. Your project has not been changed; retry loading it.')
-  const source = await response.text()
-  if (await textAssetDigest(source) !== reference.id) throw new Error('The saved caption images failed their integrity check.')
-  const value = JSON.parse(source) as PreparedText
-  if (value.key !== reference.key || !Array.isArray(value.overlays)) throw new Error('The saved caption images do not match their reference.')
-  return value
+  const url = textAssetURL(projectId, reference)
+  return loadCachedProjectText(projectOwner(), projectId, reference, async () => {
+    const response = await fetch(url, { credentials: 'omit', referrerPolicy: 'no-referrer' })
+    if (!response.ok) throw new Error('The saved caption images could not be loaded. Your project has not been changed; retry loading it.')
+    return response.text()
+  })
+}
+
+export async function loadPreparedComposition(projectId: string, prepared: PreparedComposition): Promise<PreparedComposition> {
+  if (!prepared.preparedTextRef || !prepared.composition || prepared.composition.preparedText) return prepared
+  const preparedText = await loadProjectTextAsset(projectId, prepared.preparedTextRef)
+  return { ...prepared, composition: { ...prepared.composition, preparedText } }
 }
 
 export async function saveProjectTextAsset(projectId: string, asset: ProjectTextAsset): Promise<void> {

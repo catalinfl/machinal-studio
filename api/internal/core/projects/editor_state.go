@@ -127,13 +127,22 @@ func preparedEditorState(prepared PreparedComposition, previous editorState) (js
 	if bindings == nil {
 		bindings = document.Bindings{}
 	}
+	session := map[string]any{"kind": "ready", "document": prepared.Document, "bindings": bindings,
+		"assets": compiled.Assets, "composition": compiled, "preparedText": compiled.PreparedText}
+	if prepared.PreparedTextRef != nil {
+		delete(session, "preparedText")
+		session["preparedTextRef"] = prepared.PreparedTextRef
+		session["composition"] = struct {
+			*composition.Composition
+			PreparedTextRef *textAssetReference `json:"preparedTextRef"`
+		}{compiled, prepared.PreparedTextRef}
+	}
 	timeline, err := json.Marshal(map[string]any{
 		"channels": channels, "effectBlocks": projectEffects(compiled.Effects), "transitions": projectTransitions(compiled.Transitions),
 		"textItems": append([]document.TextItem{}, compiled.TextItems...),
 		"fps":       compiled.Output.FPS, "resolution": compiled.Output.Resolution, "projectAspect": compiled.Output.Aspect, "videoFit": fit,
 		"currentTime": 0, "selectedClipIds": []string{}, "selectedEffectBlockIds": []string{}, "selectedTextItemIds": []string{},
-		"documentSession": map[string]any{"kind": "ready", "document": prepared.Document, "bindings": bindings,
-			"assets": compiled.Assets, "composition": compiled, "preparedText": compiled.PreparedText},
+		"documentSession": session,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("encode prepared timeline: %w", err)

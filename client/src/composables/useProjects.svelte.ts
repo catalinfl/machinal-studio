@@ -1,10 +1,10 @@
 import { onMount, untrack } from 'svelte'
-import { projectOwner, projectRequest, activateProject, projectConflict, ProjectRequestError, loadProjectTextAsset, saveProjectTextAsset, type ProjectSummary, type SavedProject } from '../lib/project-api'
+import { projectOwner, projectRequest, activateProject, projectConflict, ProjectRequestError, loadProjectTextAsset, loadPreparedComposition, saveProjectTextAsset, type ProjectSummary, type SavedProject } from '../lib/project-api'
 import { captureProjectState, restoreProjectState } from '../lib/project-state'
 import { clearMediaBinSources, subscribeMediaBinSources, subscribeMediaBinRemovals } from '../lib/media-bin'
 import { setLocalMediaScope, flushLocalSources } from '../lib/local-media'
 import { selectProjectSession } from '../lib/session'
-import { isPreparedProjectPristine, preparedProjectState, projectStateForOpen, projectStateFingerprint, type PreparedComposition, type ProjectPresentation } from '../lib/project-presentation'
+import { isPreparedProjectPristine, preparedCompositionJSON, preparedProjectState, projectStateForOpen, projectStateFingerprint, type PreparedComposition, type ProjectPresentation } from '../lib/project-presentation'
 import { prepareSessionText, sessionTextAssets } from '../lib/project-text-assets'
 import { editor } from '../stores/editor.svelte'
 import type { ProjectState } from '../lib/project-state'
@@ -210,6 +210,11 @@ export function useProjects() {
     setTimeout(() => URL.revokeObjectURL(url), 1000)
   }
 
+  async function exportPrepared(prepared: PreparedComposition): Promise<string> {
+    if (!current) throw new Error('No project is open.')
+    return preparedCompositionJSON(await loadPreparedComposition(current.id, prepared))
+  }
+
   $effect(() => {
     const nextOwner = accountId
     untrack(() => { void initialize(nextOwner) })
@@ -248,6 +253,7 @@ export function useProjects() {
     create,
     rename,
     openPrepared,
+    exportPrepared,
     downloadDraft,
     retry: () => { if (!conflicted) void (retryAction ? retryAction() : loaded ? save() : initialize(projectOwner())).catch(() => {}) },
     reload: () => window.location.reload(),

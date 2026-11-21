@@ -20,13 +20,14 @@ import (
 )
 
 type PreparedComposition struct {
-	JobID         string                   `json:"jobId,omitempty"`
-	UpdatedAt     time.Time                `json:"updatedAt"`
-	Filename      string                   `json:"filename,omitempty"`
-	CompositionID string                   `json:"compositionId,omitempty"`
-	Document      *document.Document       `json:"document,omitempty"`
-	Bindings      document.Bindings        `json:"bindings,omitempty"`
-	Composition   *composition.Composition `json:"composition,omitempty"`
+	JobID           string                   `json:"jobId,omitempty"`
+	UpdatedAt       time.Time                `json:"updatedAt"`
+	Filename        string                   `json:"filename,omitempty"`
+	CompositionID   string                   `json:"compositionId,omitempty"`
+	Document        *document.Document       `json:"document,omitempty"`
+	Bindings        document.Bindings        `json:"bindings,omitempty"`
+	Composition     *composition.Composition `json:"composition,omitempty"`
+	PreparedTextRef *textAssetReference      `json:"preparedTextRef,omitempty"`
 }
 
 type Presentation struct {
@@ -40,15 +41,16 @@ type presentationJobs interface {
 }
 
 type PresentationStore struct {
-	Root string
-	Jobs presentationJobs
+	Root           string
+	Jobs           presentationJobs
+	TextAssetsRoot string
 }
 
 // Jobs and HTTP readers use separate store instances, but publish one atomic snapshot.
 var presentationMu sync.Mutex
 
 func NewPresentationStore() *PresentationStore {
-	return &PresentationStore{Root: filepath.Join(storage.DataDir, ".project-presentations")}
+	return &PresentationStore{Root: filepath.Join(storage.DataDir, ".project-presentations"), TextAssetsRoot: filepath.Join(storage.DataDir, ".projects")}
 }
 
 func (s *PresentationStore) path(owner, session string) (string, error) {
@@ -108,13 +110,21 @@ func (s *PresentationStore) Save(owner, session string, prepared PreparedComposi
 }
 
 func (s *PresentationStore) write(owner, session string, saved Presentation) error {
-	path, err := s.path(owner, session)
-	if err != nil {
-		return err
-	}
 	data, err := json.Marshal(saved)
 	if err != nil {
 		return fmt.Errorf("encode project presentation: %w", err)
+	}
+	data, err = s.compactTextAssets(owner, session, data)
+	if err != nil {
+		return err
+	}
+	return s.writeData(owner, session, data)
+}
+
+func (s *PresentationStore) writeData(owner, session string, data []byte) error {
+	path, err := s.path(owner, session)
+	if err != nil {
+		return err
 	}
 	if err := os.MkdirAll(filepath.Dir(path), privateDir); err != nil {
 		return fmt.Errorf("create project presentation directory: %w", err)
