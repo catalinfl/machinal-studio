@@ -3,6 +3,7 @@ package compositions
 import (
 	"context"
 	"fmt"
+	"log"
 	"slices"
 	"sort"
 	"strings"
@@ -239,11 +240,15 @@ func captionWindows(doc document.Document, assets []document.Asset, job document
 	return unique
 }
 
-func materializeCaptionJob(ctx context.Context, root, session string, doc document.Document, assets []document.Asset, job document.Job) (document.Document, error) {
+func materializeCaptionJob(ctx context.Context, root, session string, doc document.Document, assets []document.Asset, job document.Job) (_ document.Document, err error) {
 	windows := captionWindows(doc, assets, job)
 	if len(windows) == 0 {
 		return doc, fmt.Errorf("job %q has no transcribable clips with audio", job.ID)
 	}
+	started := time.Now()
+	defer func() {
+		log.Printf("render_caption_transcription windows=%d elapsed_ms=%d success=%t", len(windows), time.Since(started).Milliseconds(), err == nil)
+	}()
 	language := strings.ToLower(strings.TrimSpace(job.Language))
 	if language == "auto" {
 		language = ""

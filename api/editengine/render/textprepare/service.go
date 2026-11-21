@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"strings"
@@ -25,10 +26,18 @@ func Configured() bool {
 	return strings.TrimSpace(os.Getenv("SCENE_SERVICE_URL")) != ""
 }
 
-func Prepare(ctx context.Context, resolved *composition.Composition) error {
+func Prepare(ctx context.Context, resolved *composition.Composition) (err error) {
 	if _, err := resolved.PreparedText.Resolve(resolved.TextItems, resolved.Output); err == nil {
 		return nil
 	}
+	started := time.Now()
+	defer func() {
+		overlays := 0
+		if err == nil {
+			overlays = len(resolved.PreparedText.Overlays)
+		}
+		log.Printf("render_text_prepare items=%d overlays=%d elapsed_ms=%d success=%t", len(resolved.TextItems), overlays, time.Since(started).Milliseconds(), err == nil)
+	}()
 	base := strings.TrimRight(strings.TrimSpace(os.Getenv("SCENE_SERVICE_URL")), "/")
 	if base == "" {
 		return fmt.Errorf("text preparation needs SCENE_SERVICE_URL, or preparedText exported from the editor")

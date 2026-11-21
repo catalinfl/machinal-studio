@@ -32,7 +32,8 @@ func TestFusedEncodingAppliesTextAndAudioInDeliveryPass(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	args, err := fusedEncodingArgs([]string{"-i", "video.mp4"}, "setpts=PTS-STARTPTS", []textItem{{Start: 0, Duration: 1, X: 20, Y: 30, data: []byte("raster")}}, "audio.w64", t.TempDir(), renderPlan{fps: 30, totalDuration: 1, output: settings}, nil)
+	items := []textItem{{Start: 0, Duration: 1, X: 20, Y: 30, data: []byte("raster")}}
+	args, err := fusedEncodingArgs([]string{"-i", "video.mp4"}, "setpts=PTS-STARTPTS", items, []fusedTextInput{{index: 0}}, "audio.w64", t.TempDir(), renderPlan{fps: 30, output: settings}, 30, nil)
 	if err != nil || !slices.Contains(args, "medium") || !slices.Contains(args, "18") || !slices.Contains(args, "2:a:0") {
 		t.Fatal("fused output changed delivery quality or lost audio mapping", args, err)
 	}

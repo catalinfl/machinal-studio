@@ -339,6 +339,29 @@ encoding, and `render_text_plan` / `render_video_plan` for bounded task parallel
 provider generation/queue waits, source staging, stream-copy concatenation and
 cloud publication; do not present them as end-to-end job latency.
 
+For caption-heavy MP4 exports, the API packs runs of nonoverlapping Canvas
+rasters without cue-level motion into cropped, transparent inputs. Word
+animation is already in those rasters. FFmpeg composites the inputs during the
+delivery encode, with any separate titles kept in draw order. This also works
+for captions on a black background with no video clips. If the layer or input
+budget is exceeded, the API still uses the existing chunked compositor.
+
+- `render_caption_transcription` measures materialization of a pending caption
+  job, including extraction and any provider calls. A resolved caption job
+  does not enter this stage.
+- `render_text_prepare` measures server-side preparation (including any wait
+  for the text service) and reports the input cue and output raster counts.
+- `render_caption_layer` measures packing the existing PNG states into the
+  transparent layer, separately from `render_stage` for the delivery encode.
+- Re-export with materialized `texts` and `resultTextIds` to measure rendering
+  without transcription. For new captions, `highlightMode: word` with
+  `highlightAnimation: none` retains word highlighting without the intermediate
+  animation states. Do not change an existing caption style just to benchmark.
+
+Compare the two compositors on the same prepared caption states with
+`FFMPEG_INTEGRATION=1 go test ./internal/core/editor/render -run TestNativeCaptionLayerMatchesStagedExport -v`
+from `api/`, using a current FFmpeg. The test does not invoke a speech provider.
+
 Follow both services after rebuilding to activate changed logging code:
 
 ```powershell
