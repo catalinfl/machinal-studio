@@ -6,6 +6,7 @@ import { validateEmbeddedSceneModels } from './scene-models'
 
 export interface LiveSceneSource {
   version: 1
+  title?: string
   component: string
   explanation?: string
   text?: string

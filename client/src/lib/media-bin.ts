@@ -3,6 +3,7 @@ import type { ScrubMode } from '../stores/scrub.svelte'
 import type { LiveSceneSource } from './live-scene'
 import { peekProjectSessionId } from './session'
 import { SvelteMap, SvelteSet } from 'svelte/reactivity'
+import { conciseSceneName, sceneFileDisplayName } from './scene-name'
 
 export const MEDIA_NAME_MAX_LENGTH = 120
 
@@ -88,6 +89,9 @@ export function registerMediaBinSource(source: MediaBinSource): void {
       ?? sources.get(key)?.generated
       ?? isGeneratedMediaSource(key)
   const registered = { ...sources.get(key), ...source, id: source.id || source.name, generated }
+  if (!registered.displayName && registered.scene) {
+    registered.displayName = conciseSceneName(registered.scene.title, registered.scene.text, registered.scene.explanation)
+  }
   sources.set(key, registered)
   if (nameImpliesGenerated || source.generated !== undefined) persistGeneratedSource(key, generated)
   for (const listener of sourceListeners) listener({ ...registered })
@@ -102,7 +106,7 @@ export function getMediaBinSource(name: string): Readonly<MediaBinSource> | unde
 }
 
 export function mediaDisplayName(name: string): string {
-  return getMediaBinSource(name)?.displayName || name
+  return getMediaBinSource(name)?.displayName || sceneFileDisplayName(name) || name
 }
 
 export function renameMediaBinSource(name: string, displayName: string): void {

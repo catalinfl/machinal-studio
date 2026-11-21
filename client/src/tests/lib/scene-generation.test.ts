@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { appendGeneratedScene, sceneRequest, sceneEditRequest, type GeneratedScene, type SceneDraft } from '../../lib/scene-generation'
+import { appendGeneratedScene, registerGeneratedScene, sceneRequest, sceneEditRequest, type GeneratedScene, type SceneDraft } from '../../lib/scene-generation'
 import { editor } from '../../stores/editor.svelte'
-import { clearMediaBinSources, getMediaBinSources, isAIGeneratedFileName } from '../../lib/media-bin'
+import { clearMediaBinSources, getMediaBinSources, isAIGeneratedFileName, renameMediaBinSource } from '../../lib/media-bin'
 
 const api = vi.hoisted(() => ({ download: vi.fn(), audio:vi.fn() }))
 
@@ -85,7 +85,7 @@ describe('scene-to-editor adapter', () => {
     const audio = editor.getClipById(video.linkedClipId!)!.clip
     expect(video).toMatchObject({ start: 3, outPoint: 2, sourceMode: 'proxy' })
     expect(audio).toMatchObject({ start: 3, outPoint: 2, scrubBlobUrl: 'blob:scene', linkedClipId: video.id })
-    expect(getMediaBinSources()[0]).toMatchObject({ generated: true, isRender: false, sourceRevision: scene.asset.version })
+    expect(getMediaBinSources()[0]).toMatchObject({ name: scene.asset.file, displayName: 'Roots unfold', generated: true, isRender: false, sourceRevision: scene.asset.version })
     expect(isAIGeneratedFileName(scene.asset.file)).toBe(true)
     editor.undo()
     expect(editor.getClipById(id)).toBeNull()
@@ -108,6 +108,7 @@ describe('scene-to-editor adapter', () => {
     const audio = editor.getClipById(video.linkedClipId!)!.clip
     expect(api.download).not.toHaveBeenCalled()
     expect(video).toMatchObject({fileName:live.asset.file,scrubBlobUrl:null,inPoint:0,outPoint:2})
+    expect(getMediaBinSources()[0]).toMatchObject({ name: live.asset.file, displayName: 'Roots unfold' })
     expect(audio).toMatchObject({fileName:'voice.wav',inPoint:3,outPoint:5,scrubBlobUrl:'audio:voice',linkedClipId:id})
     editor.undo()
     expect(editor.getClipById(id)).toBeNull()
@@ -121,5 +122,13 @@ describe('scene-to-editor adapter', () => {
     expect(editor.projectResolution).toEqual({ w: 1080, h: 1920 })
     editor.undo()
     expect(editor.effectiveProjectAspect).toBe('landscape')
+  })
+
+  it('uses the subject brief for generic scene titles and preserves manual names on re-registration', () => {
+    registerGeneratedScene({ ...scene, title: 'Generated scene' })
+    expect(getMediaBinSources()[0].displayName).toBe('An animated seed')
+    renameMediaBinSource(scene.asset.file, 'My seed scene')
+    registerGeneratedScene(scene)
+    expect(getMediaBinSources()[0].displayName).toBe('My seed scene')
   })
 })

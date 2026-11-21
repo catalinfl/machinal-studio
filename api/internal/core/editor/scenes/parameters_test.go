@@ -18,7 +18,7 @@ func floatParameter(value float64) *float64 { return &value }
 func TestParameterEditPreservesExactComponentConfigMediaAndOriginalBytes(t *testing.T) {
 	root := t.TempDir()
 	file := "ai_scene_0123456789abcdef0123456789abcdef_01.scene.json"
-	base := LiveSource{Version: 1, Component: "<p>Exact source: șț</p>", JavaScript: "old-bundle", Explanation: "Original explanation", Text: "Exact copy",
+	base := LiveSource{Version: 1, Title: "Signal receiver", Component: "<p>Exact source: șț</p>", JavaScript: "old-bundle", Explanation: "Original explanation", Text: "Exact copy",
 		Config: Config{Width: 320, Height: 180, FPS: 30, Frames: 90, Transparent: true, CaptionSafeBottom: 0.24},
 		Images: map[string]string{"image_1": "data:image/png;base64,AAAA"}, Audio: &Narration{File: "voice.wav", Start: 7, Duration: 3},
 		Parameters: SceneParameters{"receiver": {X: floatParameter(100), Y: floatParameter(80), Opacity: floatParameter(1)}},
@@ -57,6 +57,9 @@ func TestParameterEditPreservesExactComponentConfigMediaAndOriginalBytes(t *test
 	}
 	if calls != 1 || edited.Asset.File == file || edited.Source.Component != base.Component || edited.Source.Text != base.Text || edited.Source.Explanation != base.Explanation || !reflect.DeepEqual(edited.Source.Audio, base.Audio) {
 		t.Fatal("edit replaced content or narration", edited)
+	}
+	if edited.Source.Title != base.Title || edited.Title != base.Title {
+		t.Fatal("parameter edit lost the scene title", edited)
 	}
 	after, err := os.ReadFile(filepath.Join(root, file))
 	if err != nil || string(after) != string(before) {

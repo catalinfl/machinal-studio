@@ -17,7 +17,7 @@ import (
 func TestSceneEditUsesExistingSourceAndKeepsImagesAndNarration(t *testing.T) {
 	root := t.TempDir()
 	filename := "ai_scene_" + strings.Repeat("a", 32) + "_01.scene.json"
-	base := LiveSource{Version: 1, Component: "<p>Original scene</p>", JavaScript: "original bundle", Config: Config{Width: 320, Height: 180, FPS: 24, Frames: 48, Transparent: true, CaptionSafeBottom: 0.24},
+	base := LiveSource{Version: 1, Title: "Pădurea prinde viață", Component: "<p>Original scene</p>", JavaScript: "original bundle", Config: Config{Width: 320, Height: 180, FPS: 24, Frames: 48, Transparent: true, CaptionSafeBottom: 0.24},
 		Text: "Original scene", VisualMode: "3d", Videos: map[string]string{"video_1": "data:video/mp4;base64,aGVsbG8="},
 		Images: map[string]string{"image_1": "data:image/png;base64,aGVsbG8="}, Audio: &Narration{File: "voice.wav", Start: 3, Duration: 10}}
 	if err := saveJSON(filepath.Join(root, filename), base); err != nil {
@@ -74,6 +74,9 @@ func TestSceneEditUsesExistingSourceAndKeepsImagesAndNarration(t *testing.T) {
 		t.Fatalf("calls=%d scenes=%d", calls, len(job.Scenes))
 	}
 	edited := job.Scenes[0].Source
+	if edited.Title != base.Title || job.Scenes[0].Title != base.Title {
+		t.Fatal("edit replaced the descriptive title", edited.Title, job.Scenes[0].Title)
+	}
 	if edited.Audio == nil || *edited.Audio != *base.Audio || edited.Images["image_1"] != base.Images["image_1"] || edited.Videos["video_1"] != base.Videos["video_1"] || edited.Text != base.Text || edited.VisualMode != base.VisualMode || edited.Config.FPS != 24 || !edited.Config.Transparent {
 		t.Fatalf("edit lost attachments: %+v", edited)
 	}

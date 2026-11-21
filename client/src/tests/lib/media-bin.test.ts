@@ -91,6 +91,35 @@ describe('project media names', () => {
     expect(JSON.stringify(captureProjectState())).toBe(before)
   })
 
+  it('uses persisted scene titles for MCP scenes and keeps them after reopening without the bundle', async () => {
+    const name = `ai_scene_${'a'.repeat(32)}_01.scene.json`
+    expect(mediaDisplayName(name)).toBe('Scene 1')
+    const scene: LiveSceneSource = { version: 1, title: 'Rădăcini în creștere', component: '<p>Roots</p>', javascript: 'bundle',
+      config: { width: 320, height: 180, fps: 30, durationInFrames: 60 } }
+    registerMediaBinSource({ id: 'scene', name, kind: 'video', duration: 2, scene })
+    expect(mediaDisplayName(name)).toBe('Rădăcini în creștere')
+    const saved = captureProjectState()
+    expect(saved.media[0]).toMatchObject({ name, displayName: 'Rădăcini în creștere' })
+    expect(saved.media[0]).not.toHaveProperty('scene')
+    clearMediaBinSources()
+    await restoreProjectState(saved, 'named-scenes')
+    expect(mediaDisplayName(name)).toBe('Rădăcini în creștere')
+    registerMediaBinSource({ id: 'scene', name, kind: 'video', duration: 2, scene: { ...scene, title: 'Other title' } })
+    expect(mediaDisplayName(name)).toBe('Rădăcini în creștere')
+  })
+
+  it('derives legacy scene names from available copy without changing that copy or manual names', () => {
+    const name = `ai_scene_${'a'.repeat(32)}_02.scene.json`
+    const scene: LiveSceneSource = { version: 1, text: '  Pădurea\nprinde viață  ', component: '<p>Forest</p>', javascript: 'bundle',
+      config: { width: 320, height: 180, fps: 30, durationInFrames: 60 } }
+    registerMediaBinSource({ id: 'scene', name, kind: 'video', duration: 2, scene })
+    expect(mediaDisplayName(name)).toBe('Pădurea prinde viață')
+    expect(scene.text).toBe('  Pădurea\nprinde viață  ')
+    renameMediaBinSource(name, 'My forest')
+    registerMediaBinSource({ id: 'scene', name, kind: 'video', duration: 2, scene: { ...scene, title: 'New title' } })
+    expect(mediaDisplayName(name)).toBe('My forest')
+  })
+
   it('validates names and can return to the original filename', () => {
     registerMediaBinSource({ id: 'poster', name: 'poster.png', kind: 'image', duration: 10 })
     expect(() => renameMediaBinSource('poster.png', '  ')).toThrow('Enter a name')

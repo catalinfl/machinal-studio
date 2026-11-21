@@ -167,7 +167,7 @@ func (r *Runner) generate(ctx context.Context, session, root string, request Req
 		}
 	}
 	progress("planning", "Designing scenes around your ideas", 0.15)
-	plan := []Definition{{Title: "Generated scene", Brief: request.Prompt, End: request.Duration}}
+	plan := []Definition{{Title: defaultSceneTitle(request.Text, request.Prompt), Brief: request.Prompt, End: request.Duration}}
 	if request.AudioFile != "" {
 		var err error
 		plan, err = provider.plan(ctx, request, cues, voiceDuration)
@@ -233,7 +233,7 @@ func (r *Runner) prepareSceneSource(ctx context.Context, root string, request Re
 		return Scene{}, compileErr
 	}
 	d.Component, d.Explanation = component.Component, component.Explanation
-	source := LiveSource{Version: 1, Component: component.Component, Explanation: component.Explanation, Text: request.Text, VisualMode: request.VisualMode, JavaScript: javascript, Config: config, Images: imageSources(request.Images), Videos: videoSources(request.Videos), EnvironmentVersion: previewEnvironmentVersion}
+	source := LiveSource{Version: 1, Title: d.Title, Component: component.Component, Explanation: component.Explanation, Text: request.Text, VisualMode: request.VisualMode, JavaScript: javascript, Config: config, Images: imageSources(request.Images), Videos: videoSources(request.Videos), EnvironmentVersion: previewEnvironmentVersion}
 	if base != nil {
 		source.Images, source.Videos, source.Audio = base.Images, base.Videos, base.Audio
 		source.Parameters = base.Parameters

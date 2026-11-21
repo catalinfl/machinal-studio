@@ -227,7 +227,8 @@ describe('MediaBin', () => {
     sources.forEach(source => registerMediaBinSource({ ...source, duration: 10 }))
     const view = render(MediaBin)
     for (const source of sources.slice(0, 3)) {
-      await fireEvent.click(await view.findByRole('button', { name: `Rename ${source.name}` }))
+      const displayName = source.id === 'scene' ? 'Scene 1' : source.name
+      await fireEvent.click(await view.findByRole('button', { name: `Rename ${displayName}` }))
       const input = view.getByRole('textbox', { name: `Project name for ${source.name}` })
       await fireEvent.input(input, { target: { value: `Named ${source.id}` } })
       await fireEvent.submit(input.closest('form')!)
@@ -252,6 +253,27 @@ describe('MediaBin', () => {
       await fireEvent.input(search, { target: { value } })
       expect(view.getByRole('listitem', { name: 'Clip Opening title' })).toBeInTheDocument()
     }
+  })
+
+  it('loads concise scene titles from the server without changing technical references or manual names', async () => {
+    const name = `ai_scene_${'d'.repeat(32)}_01.scene.json`
+    const scene = { version: 1, title: 'Rădăcini în creștere', component: '<p>Roots</p>', javascript: 'bundle',
+      config: { width: 320, height: 180, fps: 30, durationInFrames: 60 } }
+    vi.mocked(api.listProxySources).mockResolvedValue([{ name, size: 200, mediaKind: 'video' }])
+    vi.mocked(api.downloadFile).mockResolvedValue(new Blob([JSON.stringify(scene)]))
+    const view = render(MediaBin)
+    await view.findByRole('listitem', { name: 'Clip Rădăcini în creștere' })
+    expect(view.container.querySelector('.name')).toHaveTextContent('Rădăcini în creștere')
+    expect(view.container.querySelector('.name')?.textContent).not.toContain('.json')
+    expect(getMediaBinSources()[0]).toMatchObject({ name, displayName: 'Rădăcini în creștere' })
+    await fireEvent.click(view.getByRole('button', { name: 'Rename Rădăcini în creștere' }))
+    const input = view.getByRole('textbox', { name: `Project name for ${name}` })
+    await fireEvent.input(input, { target: { value: 'My roots' } })
+    await fireEvent.submit(input.closest('form')!)
+    await fireEvent.click(view.getByLabelText('Reload scrub list'))
+    await waitForMediaBinLoads()
+    expect(view.getByRole('listitem', { name: 'Clip My roots' })).toBeInTheDocument()
+    expect(getMediaBinSources()[0].name).toBe(name)
   })
 
   it('keeps timeline deletion safeguards after a project rename', async () => {

@@ -3,7 +3,8 @@ import { withSession, sessionHeader } from './session'
 import { editor, projectResolution, type ProjectAspect } from '../stores/editor.svelte'
 import type { CompositionAsset } from './composition-types'
 import { sceneMediaBinSource } from './scene-assets'
-import { registerMediaBinSource } from './media-bin'
+import { getMediaBinSource, registerMediaBinSource } from './media-bin'
+import { conciseSceneName } from './scene-name'
 import { insertPreparedMedia, type PreparedMediaInsertion } from './drop'
 import { isLiveSceneFile, rememberLiveScene, type LiveSceneSource } from './live-scene'
 import { sceneImageInputs, type SceneImageDraft, type SceneImageInput } from './scene-images'
@@ -158,13 +159,14 @@ async function uploadSceneFile(file: File, name: string, signal: AbortSignal): P
 }
 
 export function registerGeneratedScene(scene: GeneratedScene): void {
+  const displayName = getMediaBinSource(scene.asset.file)?.displayName || conciseSceneName(scene.title, scene.brief)
   if (scene.source) {
     rememberLiveScene(scene.asset.file, scene.source)
-    registerMediaBinSource({ id: scene.asset.id, name: scene.asset.file, kind: 'video', duration: scene.asset.duration, width: scene.asset.width, height: scene.asset.height, sourceId: scene.asset.id, sourceMode: 'proxy', sourceRevision: scene.asset.version, generated: true, isRender: false, scene: scene.source })
+    registerMediaBinSource({ id: scene.asset.id, name: scene.asset.file, displayName, kind: 'video', duration: scene.asset.duration, width: scene.asset.width, height: scene.asset.height, sourceId: scene.asset.id, sourceMode: 'proxy', sourceRevision: scene.asset.version, generated: true, isRender: false, scene: scene.source })
     return
   }
   const source = sceneMediaBinSource(scene.manifest, { id: scene.asset.id, file: scene.asset.file }, withSession(`${API_BASE}/download?file=${encodeURIComponent(scene.asset.file)}`))
-  registerMediaBinSource({ ...source, generated: true, isRender: false })
+  registerMediaBinSource({ ...source, displayName, generated: true, isRender: false })
 }
 
 export async function appendGeneratedScene(scene: GeneratedScene): Promise<string> {

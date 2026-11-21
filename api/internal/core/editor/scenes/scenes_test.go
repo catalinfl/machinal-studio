@@ -230,6 +230,10 @@ func TestPrepareRepairsComponentWithoutRenderingVideo(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(root, scene.Asset.File)); err != nil {
 		t.Fatal(err)
 	}
+	source, err := ReadSource(root, scene.Asset.File)
+	if err != nil || source.Title != "Roots" {
+		t.Fatal("generated source lost its title", source.Title, err)
+	}
 	if outputs, _ := filepath.Glob(filepath.Join(root, "*.mp4")); len(outputs) != 0 {
 		t.Fatal("generation rendered a video")
 	}
@@ -286,6 +290,9 @@ func TestPromptGenerationNeedsOneAIRequestAndNoVideo(t *testing.T) {
 	}
 	if turns != 1 || len(job.Scenes) != 1 || job.Scenes[0].Source == nil {
 		t.Fatalf("turns=%d scenes=%+v", turns, job.Scenes)
+	}
+	if job.Scenes[0].Title != "Bouncing ball" || job.Scenes[0].Source.Title != "Bouncing ball" {
+		t.Fatal("prompt generation lost its descriptive title", job.Scenes[0])
 	}
 	if files, _ := filepath.Glob(filepath.Join(root, "*.mp4")); len(files) != 0 {
 		t.Fatal("unexpected MP4")

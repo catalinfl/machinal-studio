@@ -21,6 +21,7 @@ import {
   getMediaBinSource,
   getMediaBinSources,
   isGeneratedMediaSource,
+  mediaDisplayName,
   registerMediaBinSource,
   renameMediaBinSource,
   subscribeMediaBinRemovals,
@@ -156,7 +157,7 @@ export function useMediaBin() {
 
     const registeredItem: MediaItem = {
       fileName: source.name,
-      displayName: source.displayName || source.name,
+      displayName: mediaDisplayName(source.name),
       sourceId: source.sourceId,
       sourceRevision: source.sourceRevision,
       mediaKind: source.kind,
@@ -328,7 +329,7 @@ export function useMediaBin() {
         const isRender = entry.isRender ?? registered?.isRender ?? false
         return {
           fileName: entry.name,
-          displayName: source?.displayName || entry.name,
+          displayName: mediaDisplayName(entry.name),
           sourceId: registered?.sourceId,
           sourceRevision: registered && immutableScene ? registered.sourceRevision : sourceRevision,
           scene: registered?.scene,
@@ -480,7 +481,7 @@ export function useMediaBin() {
     registerMediaBinSource({
       id: item.sourceId ?? item.fileName,
       name: item.fileName,
-      displayName: item.displayName === item.fileName ? undefined : item.displayName,
+      displayName: getMediaBinSource(item.fileName)?.displayName,
       kind: item.mediaKind,
       duration: item.duration,
       width: item.sourceWidth,

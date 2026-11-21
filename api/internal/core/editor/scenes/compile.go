@@ -29,7 +29,7 @@ const maxSceneTitleBytes = 200
 
 type CompileRequest struct {
 	Component       string          `json:"component"`
-	Title           string          `json:"title,omitempty"`
+	Title           string          `json:"title,omitempty" jsonschema:"Concise subject-specific media-bin name, ideally 2-6 words without extensions or technical IDs. Supply a descriptive title for every new scene; edits preserve the existing title when omitted."`
 	Explanation     string          `json:"explanation,omitempty"`
 	Text            string          `json:"text,omitempty"`
 	Duration        float64         `json:"duration"`
@@ -124,7 +124,7 @@ func (r *Runner) CompileSource(c *fiber.Ctx) error {
 		return compilationFailure(c, err)
 	}
 	return c.JSON(fiber.Map{"asset": scene.Asset, "file": scene.Asset.File,
-		"explanation": scene.Explanation, "cost": freeCompilationCost()})
+		"title": scene.Title, "explanation": scene.Explanation, "cost": freeCompilationCost()})
 }
 
 func (r *Runner) compileSource(ctx context.Context, session, root string, input CompileRequest) (Scene, error) {
@@ -145,6 +145,12 @@ func (r *Runner) compileSource(ctx context.Context, session, root string, input 
 	}
 	source.Component, source.JavaScript = input.Component, javascript
 	source.Explanation, source.EnvironmentVersion = input.Explanation, previewEnvironmentVersion
+	if title := strings.TrimSpace(input.Title); title != "" {
+		source.Title = title
+	}
+	if source.Title == "" {
+		source.Title = defaultSceneTitle(source.Text, input.Explanation)
+	}
 	id := jobqueue.ID(ctx)
 	if id != "" && !jobIDPattern.MatchString(id) {
 		return Scene{}, fmt.Errorf("invalid scene job identity")
@@ -164,11 +170,7 @@ func (r *Runner) compileSource(ctx context.Context, session, root string, input 
 	if err != nil {
 		return Scene{}, err
 	}
-	title := strings.TrimSpace(input.Title)
-	if title == "" {
-		title = "Scene"
-	}
-	scene := Scene{ID: id, Definition: Definition{Title: title, End: asset.Duration.Seconds(), Component: input.Component, Explanation: input.Explanation}, Asset: asset, Source: &source}
+	scene := Scene{ID: id, Definition: Definition{Title: source.Title, End: asset.Duration.Seconds(), Component: input.Component, Explanation: input.Explanation}, Asset: asset, Source: &source}
 	jobqueue.Report(ctx, jobqueue.Update{Progress: 0.9, Message: "Saving reusable scene source"})
 	if err := r.persistScene(ctx, session, root, request, scene); err != nil {
 		return Scene{}, err
@@ -270,7 +272,7 @@ func ClientSource(c *fiber.Ctx) error {
 	}
 	slices.Sort(modelIDs)
 	c.Set(fiber.HeaderCacheControl, "private, no-store")
-	return c.JSON(fiber.Map{"file": filename, "sourceVersion": version, "component": source.Component, "explanation": source.Explanation,
+	return c.JSON(fiber.Map{"file": filename, "sourceVersion": version, "title": source.Title, "component": source.Component, "explanation": source.Explanation,
 		"text": source.Text, "visualMode": source.VisualMode, "config": source.Config,
 		"imageIds": imageIDs, "videoIds": videoIDs, "modelIds": modelIDs, "audio": source.Audio, "parameters": source.Parameters, "handoff": source.Handoff})
 }

@@ -30,6 +30,7 @@ type Narration struct {
 
 type LiveSource struct {
 	Version            int               `json:"version"`
+	Title              string            `json:"title,omitempty"`
 	Component          string            `json:"component"`
 	Explanation        string            `json:"explanation,omitempty"`
 	Text               string            `json:"text,omitempty"`

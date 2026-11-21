@@ -20,7 +20,11 @@ func (r *Runner) generateEdit(ctx context.Context, session, root string, request
 	request.Images = existingImageInputs(base.Images)
 	request.Videos = existingVideoInputs(base.Videos)
 	request.Text, request.VisualMode = base.Text, base.VisualMode
-	definition := Definition{Title: "Edited scene", Brief: request.Prompt, End: request.Duration}
+	title := base.Title
+	if title == "" {
+		title = defaultSceneTitle(base.Text, base.Explanation, request.Prompt)
+	}
+	definition := Definition{Title: title, Brief: request.Prompt, End: request.Duration}
 	progress("generating", "Editing the current scene component", 0.2)
 	scene, err := r.prepareSceneSource(ctx, root, request, provider, job.ID, 0, definition, 0, &base, func() {
 		progress("compiling", "Preparing the edited live preview", 0.8)

@@ -61,6 +61,9 @@ func TestClientSceneCompilesWithoutConfiguredAIOrVideoEncoding(t *testing.T) {
 	if err != nil || source.Component != clientSceneRequest().Component || source.JavaScript != "compiled-client-preview" {
 		t.Fatal(source, err)
 	}
+	if source.Title != "Growth" || scene.Title != source.Title {
+		t.Fatal("scene title was not saved with its immutable source", source.Title, scene.Title)
+	}
 	if files, _ := filepath.Glob(filepath.Join(root, "*.mp4")); len(files) != 0 {
 		t.Fatal("source compilation encoded a video")
 	}
@@ -91,6 +94,31 @@ func TestClientSceneFailureReturnsDiagnosticsWithoutServerAIRepair(t *testing.T)
 	files, err := os.ReadDir(root)
 	if err != nil || len(files) != 0 {
 		t.Fatal("failed source was published", files, err)
+	}
+}
+
+func TestClientSceneTitleSurvivesEditsWithoutAnExplicitReplacement(t *testing.T) {
+	root := t.TempDir()
+	runner := NewRunner()
+	runner.compile = func(context.Context, string, Config, compilationMedia) (string, error) {
+		return "preview-bundle", nil
+	}
+	input := clientSceneRequest()
+	input.Title = "  Rădăcini în creștere  "
+	original, err := runner.compileSource(context.Background(), "", root, input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	input.SourceFile, input.Title = original.Asset.File, ""
+	edited, err := runner.compileSource(context.Background(), "", root, input)
+	if err != nil || edited.Source.Title != "Rădăcini în creștere" || edited.Title != edited.Source.Title {
+		t.Fatal("edit lost scene title", edited, err)
+	}
+	input.SourceFile, input.Title = "", ""
+	input.Text = "Pădurea prinde viață"
+	fromCopy, err := runner.compileSource(context.Background(), "", root, input)
+	if err != nil || fromCopy.Source.Title != input.Text {
+		t.Fatal("untitled scene lost its subject copy", fromCopy, err)
 	}
 }
 
