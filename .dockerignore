@@ -9,7 +9,6 @@
 **/.env.*
 **/*.exe
 **/*.machinal-backup-*
-**/*.directional-backup-*
 **/dist
 **/out
 **/reports

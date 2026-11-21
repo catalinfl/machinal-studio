@@ -10,7 +10,7 @@ The browser editor captures a document/snapshot, the Go compiler resolves it to 
 - `api/internal/core/editor`: application orchestration, generation and native export.
 - `api/internal/platform`: authentication, storage, persistent jobs, credits and MCP transport.
 
-The independently published `@machinal/scenes` npm package owns explicit frame time, resource readiness and Chromium/FFmpeg capture. The client consumes its public `/runtime` entrypoint; `services/scene-renderer` compiles application scenes and invokes the native renderer included in the same package. Library sources, native builds and library release CI live in [the separate repository](https://github.com/catalinfl/machinal-scenes), not this checkout. The private service remains an authenticated application adapter, not a public render endpoint. Saved scenes using the former `@direction/scene-*` imports are mapped to the installed public entrypoints by the compiler. Reproducibility controls do not make generated JavaScript safe for arbitrary host execution; container/process isolation remains required.
+The `@machinal/scenes` npm package owns explicit frame time, resource readiness and Chromium/FFmpeg capture. The client consumes its `/runtime` entrypoint; `services/scene-renderer` compiles application scenes and invokes the native renderer included in the same package. Reproducibility controls do not make generated JavaScript safe for arbitrary host execution; container/process isolation remains required.
 
 ## Client boundaries
 
@@ -29,8 +29,8 @@ Keep new functionality behind these boundaries rather than adding more unrelated
 
 ## Persistence and operation
 
-PocketBase supplies accounts and the durable hosted job queue; versioned migrations/hooks and an opt-in isolated installation ship under `pocketbase/`. Operators must stage and verify them rather than automatically modifying an existing deployment. Owned project state, named checkpoints, media and the bbolt credit ledger use persistent API storage, with optional S3 integration. Browser-local originals use account/project-scoped IndexedDB and are not automatically available on another device. Missing local sources open offline and can be relinked without retiming the edit.
+Durable job state lives in `/data/.jobs.db` (bbolt), and saved projects live in `/data/.projects`. Browser-local originals use IndexedDB and are not automatically available on another device. Missing sources open offline and can be relinked without retiming the edit.
 
-Run one API instance with its persistent volume. Queue atomicity alone does not make the local ledger or media volume horizontally scalable. Interrupted running jobs are not blindly replayed because provider calls may already have incurred costs. Credits settle actual usage rather than reserving a wallet in advance.
+Run one API instance with its persistent volume. Interrupted running jobs are not blindly replayed because provider calls may already have incurred costs.
 
-See [projects](PROJECTS.md), [jobs](BACKGROUND_JOBS.md), [credits](API_CREDITS.md) and [testing](TESTING.md) for detailed contracts.
+See [projects](PROJECTS.md) and [testing](TESTING.md) for detailed contracts.

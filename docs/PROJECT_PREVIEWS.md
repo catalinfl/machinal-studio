@@ -49,11 +49,11 @@ When no presentation is retained, the backend makes a best-effort recovery from 
 
 Expired/unavailable job results, absent original sources and missing output files are not guaranteed recoverable. Recovery does not replay generation or rendering. A presentation read failure returns a warning while preserving the saved working timeline.
 
-## Local-only wiring
+## Runtime wiring
 
-`api/internal/routes/local.go` attaches presentation recovery to the local durable job repository (`store.Presentations.Jobs = jobs.Store`). `localJobs` uses the installation's queue and enables local execution. Presentation files, source media and exports use local volume storage; this feature does not introduce a hosted queue or cloud fallback.
+`api/internal/routes/local.go` attaches presentation recovery to the durable job repository (`store.Presentations.Jobs = jobs.Store`). Presentation files, source media and exports use volume storage.
 
-The local runtime stays **keyless, single-user and without machinal billing, accounts, Premium gates or S3**. Opening/playing a project or downloading its retained JSON does not call an AI provider. Separately requested AI work still requires the installation owner's explicitly configured OpenRouter key and can incur provider charges; this feature neither configures nor tests that key. Preserve loopback-only exposure and Host/Origin checks. [README.md](../README.md) and [LOCAL_FORK.md](../LOCAL_FORK.md) remain authoritative for local boundaries.
+Opening/playing a project or downloading its retained JSON does not call an AI provider. Separately requested AI work still requires the installation owner's explicitly configured OpenRouter key and can incur provider charges; this feature neither configures nor tests that key. Preserve loopback-only exposure and Host/Origin checks. [README.md](../README.md) remains authoritative for runtime boundaries.
 
 ## Implementation and inherited design
 
@@ -79,11 +79,9 @@ The table below is historical evidence for the original presentation feature, no
 | Go race tests, projects/compositions | Pass |
 | Changed-UI detector | `[]` |
 
-New tests are `client/e2e/project-previews.spec.ts`, `client/src/tests/lib/project-presentation.test.ts`, `api/internal/core/projects/presentation_test.go` and `api/internal/core/editor/compositions/project_presentation_test.go`. The hosted sibling additionally reported two existing `projects.spec.ts` passes and a clean `git diff --check`; those are not claimed as local results.
+New tests are `client/e2e/project-previews.spec.ts`, `client/src/tests/lib/project-presentation.test.ts`, `api/internal/core/projects/presentation_test.go` and `api/internal/core/editor/compositions/project_presentation_test.go`.
 
 The Chromium tests use mocked APIs but actual browser-decoded synthetic PNG/WebM, play the fixture through completion and inspect the downloaded JSON. They cover prepared timeline hydration, persistence across reload, manual-edit preservation, no generation/render requests and viewport bounds. The WebM is test data served for a synthetic render filename, not proof of native MP4 encoding.
-
-The independent reviewer checked all eight final screenshots across the hosted and local repositories and issued **SHIP at this narrow scope**, with no material findings. Local captures: `.impeccable/review/project-previews-local-{1440,390}-{light,dark}.png`. See [the verdict](../.impeccable/review/project-previews-verdict.md) and [surface finish evidence](../.impeccable/surfaces/project-previews.md).
 
 ### Reproduction commands (not executed by the documenter)
 
