@@ -158,7 +158,7 @@ func TestGenerateImageKeepsOpaqueTransparentResultWithWarning(t *testing.T) {
 		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 			t.Errorf("decode request: %v", err)
 		}
-		if request.Model != "openai/gpt-image-2.5-sunburst" || request.Resolution != "" || request.Quality != "low" || request.Background != "transparent" || request.OutputFormat != "" {
+		if request.Model != "openai/gpt-image-2.6-sunburst" || request.Resolution != "" || request.Quality != "low" || request.Background != "transparent" || request.OutputFormat != "" {
 			t.Errorf("request = %+v", request)
 		}
 		writeProviderImage(t, w, opaque, "image/png")
@@ -166,7 +166,7 @@ func TestGenerateImageKeepsOpaqueTransparentResultWithWarning(t *testing.T) {
 	defer provider.Close()
 
 	app, dataDir := testApp(t, provider.URL)
-	response := performRequest(t, app, `{"prompt":"isolated product","model":"openai/gpt-image-2.5-sunburst","background":"transparent"}`)
+	response := performRequest(t, app, `{"prompt":"isolated product","model":"openai/gpt-image-2.6-sunburst","background":"transparent"}`)
 	if response.StatusCode != fiber.StatusOK {
 		t.Fatalf("status = %d, body = %s", response.StatusCode, readBody(t, response))
 	}
@@ -202,7 +202,7 @@ func TestGenerateImageUsesSunburstAsDefault(t *testing.T) {
 		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 			t.Errorf("decode request: %v", err)
 		}
-		if request.Model != "openai/gpt-image-2.5-sunburst" || request.Resolution != "" || request.Quality != "low" || len(request.InputReferences) != 1 {
+		if request.Model != "openai/gpt-image-2.6-sunburst" || request.Resolution != "" || request.Quality != "low" || len(request.InputReferences) != 1 {
 			t.Errorf("request = %+v", request)
 		}
 		writeProviderImage(t, w, testPNG(t, 1, 1, false), "image/png")

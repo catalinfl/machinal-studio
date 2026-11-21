@@ -192,7 +192,7 @@ export async function prepareAIImageJob(job: AIImageJob, signal?: AbortSignal): 
   assertEditableSource(job.sourceName)
 
   const background = job.background ?? (job.placement === 'overlay' ? 'transparent' : 'auto')
-  const model = job.model ?? 'openai/gpt-image-2.5-sunburst'
+  const model = job.model ?? 'openai/gpt-image-2.6-sunburst'
   const asset = await requestAIImage({
     prompt: generatedPrompt(job, background),
     ...(job.sourceName ? { sourceName: job.sourceName } : {}),

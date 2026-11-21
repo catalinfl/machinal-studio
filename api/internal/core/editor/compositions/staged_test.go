@@ -31,7 +31,7 @@ const emptyTimelineImageProject = `document:
     - id: image-1
       type: image.generate
       prompt: dfsf
-      model: openai/gpt-image-2.5-sunburst
+      model: openai/gpt-image-2.6-sunburst
       aspect: 16:9
       background: opaque
       imageStyle: ""
@@ -62,7 +62,7 @@ func TestCompileAndGenerateStagedImageOnEmptyTimeline(t *testing.T) {
 	previous := generateImageCall
 	generateImageCall = func(_ context.Context, _ string, safeJoin func(string) (string, error), prompt, model, aspect, background string) (imagegen.GeneratedImage, error) {
 		calls++
-		if prompt != "dfsf" || model != "openai/gpt-image-2.5-sunburst" || aspect != "16:9" || background != "opaque" {
+		if prompt != "dfsf" || model != "openai/gpt-image-2.6-sunburst" || aspect != "16:9" || background != "opaque" {
 			t.Errorf("unexpected generation settings: %q %q %q %q", prompt, model, aspect, background)
 		}
 		path, err := safeJoin("empty-timeline-image.png")

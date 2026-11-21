@@ -32,7 +32,7 @@ const (
 	providerTimeout     = 240 * time.Second
 	maxSourceNameLength = 255
 
-	defaultImageModel = "openai/gpt-image-2.5-sunburst"
+	defaultImageModel = "openai/gpt-image-2.6-sunburst"
 )
 
 // Closed sets for request validation. Wire values stay plain strings at the

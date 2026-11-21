@@ -38,7 +38,7 @@ The API verifies the key against OpenRouter's key-status endpoint without genera
 
 Optional environment configuration belongs in a root `.env` on your installation. Editing, recipe compilation, source inspection, scene compilation and native/browser export work without an AI key.
 
-Blank model settings receive defaults: `deepseek/deepseek-v4.1-flash` for editing/scene planning, `qwen/qwen3.7-flash` for vision, timestamped `openai/whisper-large-v3` via Groq, `openai/gpt-image-2.5-sunburst` for images, and `fish-audio/s2.1-pro` for speech. Explicit model overrides and per-request choices are preserved.
+Blank model settings receive defaults: `deepseek/deepseek-v4.1-flash` for editing/scene planning, `qwen/qwen3.7-flash` for vision, timestamped `openai/whisper-large-v3` via Groq, `openai/gpt-image-2.6-sunburst` for images, and `fish-audio/s2.1-pro` for speech. Explicit model overrides and per-request choices are preserved.
 
 ## MCP integration
 
