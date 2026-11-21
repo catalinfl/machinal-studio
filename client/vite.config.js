@@ -1,9 +1,30 @@
 import { defineConfig } from 'vitest/config'
 import { svelte } from '@sveltejs/vite-plugin-svelte'
 import { svelteTesting } from '@testing-library/svelte/vite'
-import { existsSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { createRequire } from 'node:module'
+
+const hyperframesMimeByExt = {
+  '.woff2': 'font/woff2', '.woff': 'font/woff', '.ttf': 'font/ttf', '.otf': 'font/otf',
+  '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.gif': 'image/gif',
+  '.json': 'application/json', '.bin': 'application/octet-stream', '.mp4': 'video/mp4', '.mp3': 'audio/mpeg', '.wav': 'audio/wav', '.glb': 'model/gltf-binary',
+}
+
+function hyperframesSharedPlugin() {
+  return {
+    name: 'hyperframes-shared-assets',
+    enforce: 'pre',
+    load(id) {
+      const clean = id.split('?')[0]
+      if (!/[\\/]hyperframes[\\/]shared[\\/][^\\/]+$/.test(clean)) return null
+      const ext = clean.slice(clean.lastIndexOf('.')).toLowerCase()
+      const mime = hyperframesMimeByExt[ext] || 'application/octet-stream'
+      const bytes = readFileSync(clean)
+      return `export default ${JSON.stringify(`data:${mime};base64,${bytes.toString('base64')}`)};`
+    },
+  }
+}
 
 const workspaceRoot = fileURLToPath(new URL('..', import.meta.url))
 const scenesPackage = fileURLToPath(new URL('./node_modules/@machinal/scenes/dist/', import.meta.url))
@@ -34,7 +55,7 @@ function resolveRendererAliases() {
 }
 
 export default defineConfig({
-  plugins: [svelte(), svelteTesting()],
+  plugins: [hyperframesSharedPlugin(), svelte(), svelteTesting()],
   resolve: {
     alias: [
       ...resolveRendererAliases(),

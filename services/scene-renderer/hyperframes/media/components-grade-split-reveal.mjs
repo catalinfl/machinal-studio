@@ -1,7 +1,8 @@
 // Local Hyperframes sample artwork; originals retain upstream notices. Substitutes are project-authored.
+import m0 from '../shared/6e203cb833637d81.svg';
 const assets={};
 export default function asset(path){
-if(!path)return "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI2NDAiIGhlaWdodD0iNjQwIiB2aWV3Qm94PSIwIDAgNjQwIDY0MCI+CjxyZWN0IHdpZHRoPSI2NDAiIGhlaWdodD0iNjQwIiBmaWxsPSJoc2woMTI3IDQ4JSA0MCUpIi8+PGNpcmNsZSBjeD0iNDI3IiBjeT0iMjUwIiByPSIxODAiIGZpbGw9ImhzbCgxODIgODAlIDY1JSkiLz4KPHBhdGggZD0iTS04MCA2NTBRMjAwIDk1IDcyMCA1MDBMNzIwIDcyMEgtODBaIiBmaWxsPSJoc2woMzA3IDQ1JSAyMyUpIi8+CjxwYXRoIGQ9Ik0tNDAgNjkwUTI5MCAyMTAgNjkwIDYwMCIgc3Ryb2tlPSIjZmZmM2Q0IiBzdHJva2Utd2lkdGg9IjQyIiBmaWxsPSJub25lIi8+Cjx0ZXh0IHg9IjQ0IiB5PSI1OTAiIGZpbGw9IiNmZmY0ZGYiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIiBmb250LXNpemU9IjI4IiBsZXR0ZXItc3BhY2luZz0iNCI+PC90ZXh0Pjwvc3ZnPg==";
+if(!path)return m0;
 const value=String(path);if(/^(data:|blob:)/.test(value)||value.endsWith('/'))return value;
-const clean=value.split(/[?#]/)[0];return assets[value]||assets[clean]||assets[clean.split('/').pop()]||"data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI2NDAiIGhlaWdodD0iNjQwIiB2aWV3Qm94PSIwIDAgNjQwIDY0MCI+CjxyZWN0IHdpZHRoPSI2NDAiIGhlaWdodD0iNjQwIiBmaWxsPSJoc2woMTI3IDQ4JSA0MCUpIi8+PGNpcmNsZSBjeD0iNDI3IiBjeT0iMjUwIiByPSIxODAiIGZpbGw9ImhzbCgxODIgODAlIDY1JSkiLz4KPHBhdGggZD0iTS04MCA2NTBRMjAwIDk1IDcyMCA1MDBMNzIwIDcyMEgtODBaIiBmaWxsPSJoc2woMzA3IDQ1JSAyMyUpIi8+CjxwYXRoIGQ9Ik0tNDAgNjkwUTI5MCAyMTAgNjkwIDYwMCIgc3Ryb2tlPSIjZmZmM2Q0IiBzdHJva2Utd2lkdGg9IjQyIiBmaWxsPSJub25lIi8+Cjx0ZXh0IHg9IjQ0IiB5PSI1OTAiIGZpbGw9IiNmZmY0ZGYiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIiBmb250LXNpemU9IjI4IiBsZXR0ZXItc3BhY2luZz0iNCI+PC90ZXh0Pjwvc3ZnPg==";
+const clean=value.split(/[?#]/)[0];return assets[value]||assets[clean]||assets[clean.split('/').pop()]||m0;
 }

@@ -5,3 +5,6 @@
 /api/internal/platform/mcpserver/reference/hyperframes-library/** -text
 /packages/mcp-installer/skills/machinal-hyperframes/references/hyperframes-library/** -text
 /.opencode/skills/machinal-hyperframes/references/hyperframes-library/** -text
+/services/scene-renderer/hyperframes/fonts/*.mjs linguist-generated=true
+/services/scene-renderer/hyperframes/media/*.mjs linguist-generated=true
+/services/scene-renderer/hyperframes/shared/** -text linguist-vendored=true

@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="640" viewBox="0 0 640 640">
+<rect width="640" height="640" fill="hsl(138 48% 40%)"/><circle cx="318" cy="250" r="180" fill="hsl(193 80% 65%)"/>
+<path d="M-80 650Q200 95 720 500L720 720H-80Z" fill="hsl(318 45% 23%)"/>
+<path d="M-40 690Q290 210 690 600" stroke="#fff3d4" stroke-width="42" fill="none"/>
+<text x="44" y="590" fill="#fff4df" font-family="sans-serif" font-size="28" letter-spacing="4"></text></svg>

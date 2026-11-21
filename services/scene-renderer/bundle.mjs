@@ -11,6 +11,12 @@ import { SceneDiagnosticError } from './diagnostics.mjs';
 import { validateMediaReferences } from './media-references.mjs';
 import { validateSceneParameters, validateSceneModels } from '@machinal/scenes/runtime';
 
+const hyperframesMimeByExt = {
+  '.woff2': 'font/woff2', '.woff': 'font/woff', '.ttf': 'font/ttf', '.otf': 'font/otf',
+  '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.gif': 'image/gif',
+  '.json': 'application/json', '.bin': 'application/octet-stream', '.mp4': 'video/mp4', '.mp3': 'audio/mpeg', '.wav': 'audio/wav', '.glb': 'model/gltf-binary',
+};
+
 const allowedImports = new Set(['svelte', '@machinal/scenes', '@machinal/scenes/svelte', '@machinal/scenes/runtime', '@direction/scene-svelte', '@direction/scene-runtime', 'three', 'gsap', 'gsap/dist/CustomEase', 'gsap/dist/MotionPathPlugin', 'gsap/dist/TextPlugin', 'd3', 'd3-delaunay', 'lottie-web/build/player/lottie_light.js', 'clipper-lib', 'topojson-client']);
 const bundles = new BundleCache();
 
@@ -101,6 +107,12 @@ try {
         }));
         builder.onResolve({ filter: /^scene-font-css$/ }, () => ({ path: 'fonts', namespace: 'scene-fonts' }));
         builder.onLoad({ filter: /.*/, namespace: 'scene-fonts' }, () => ({ contents: `export default ${JSON.stringify(fonts)};`, loader: 'js' }));
+        builder.onLoad({ filter: /[\\/]hyperframes[\\/]shared[\\/][^\\/]+$/ }, async args => {
+          const ext = args.path.slice(args.path.lastIndexOf('.')).toLowerCase();
+          const mime = hyperframesMimeByExt[ext] || 'application/octet-stream';
+          const bytes = await readFile(args.path);
+          return { contents: `export default ${JSON.stringify(`data:${mime};base64,${bytes.toString('base64')}`)};`, loader: 'js' };
+        });
         builder.onLoad({ filter: /\.svelte\.js$/ }, async args => {
           const contents = await readFile(args.path, 'utf8');
           return { contents: compileModule(contents, { filename: args.path, generate: 'client' }).js.code, loader: 'js' };
