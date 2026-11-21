@@ -82,17 +82,26 @@ export function textFontCSS(item: TextItem, scale = 1): string {
 }
 
 const pendingTextFonts = new Map<string, Promise<FontFace[]>>()
+const failedTextFonts = new Set<string>()
+
+export function loadTextFont(item: TextItem): Promise<FontFace[]> {
+  if (!document.fonts?.load) return Promise.resolve([])
+  const font = textFontCSS(item)
+  const key = `${font}|${item.text}`
+  const pending = pendingTextFonts.get(key)
+  if (pending) return pending
+  const loading = Promise.resolve().then(() => document.fonts.load(font, item.text))
+  pendingTextFonts.set(key, loading)
+  void loading.catch(() => { failedTextFonts.add(font) }).finally(() => pendingTextFonts.delete(key))
+  return loading
+}
 
 export function textFontsReady(item: TextItem): boolean {
   if (!document.fonts?.check) return true
   const font = textFontCSS(item)
-  if (document.fonts.check(font, item.text)) return true
-  const key = `${font}|${item.text}`
-  if (!pendingTextFonts.has(key)) {
-    const loading = document.fonts.load(font, item.text)
-    pendingTextFonts.set(key, loading)
-    void loading.catch(() => {}).finally(() => pendingTextFonts.delete(key))
-  }
+  try { if (document.fonts.check(font, item.text)) return true } catch { return true }
+  if (failedTextFonts.has(font)) return true
+  void loadTextFont(item).catch(() => {})
   return false
 }
 
@@ -512,9 +521,9 @@ async function canvasBase64(canvas: HTMLCanvasElement, synchronous = false): Pro
 export async function buildRenderTextOverlays(items: TextItem[], width: number, height: number, aspect: ProjectAspect, options: { synchronousPNG?: boolean } = {}): Promise<RenderTextPayload[]> {
   if (items.length === 0) return []
   for (const item of items) {
-    await document.fonts.load(textFontCSS(item), item.text)
+    try { await loadTextFont(item) } catch { throw new Error(`Could not load the font for “${item.text.slice(0, 40)}”. Check your connection and retry export.`) }
   }
-  await document.fonts.ready
+  await document.fonts?.ready
   const overlays: RenderTextPayload[] = []
   for (const item of items) {
     overlays.push(...await buildRenderTextPayloads(item, width, height, aspect, options.synchronousPNG))

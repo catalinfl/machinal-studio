@@ -37,7 +37,7 @@ async function fixture(context: BrowserContext, cloud = false) {
   }, { user, token: token(0) })
   await context.route('**/*', route => {
     const url = new URL(route.request().url())
-    if (url.hostname === '127.0.0.1' && url.port === '5173') return route.continue()
+    if (url.hostname === '127.0.0.1' && url.port === (process.env.PLAYWRIGHT_PORT || '5173')) return route.continue()
     return route.fulfill({ json: {} })
   })
   await context.route('**/api/collections/users/auth-refresh', route => route.fulfill({ json: { token: token(++refresh), record: user } }))

@@ -2,6 +2,7 @@
   import type { useProjects } from '../composables/useProjects.svelte'
   import { mediaProcessing } from '../stores/media-processing.svelte'
   import ProjectRenderPreview from './ProjectRenderPreview.svelte'
+  import ProjectVersions from './ProjectVersions.svelte'
 
   let { projects }: { projects: ReturnType<typeof useProjects> } = $props()
   let panel: HTMLDivElement | undefined
@@ -64,6 +65,8 @@
       <div class="name-controls"><input id="project-name" bind:value={name} maxlength="120" required disabled={disabled} placeholder="e.g. Summer film" /><button type="submit" disabled={disabled || !name.trim()}>{action === 'create' ? 'Create' : 'Rename'}</button></div>
       {#if action === 'rename'}<button type="button" class="quiet" onclick={() => { action = 'create'; name = '' }}>Cancel rename</button>{/if}
     </form>
+    <button class="quiet" disabled={disabled || !projects.current} onclick={async () => { working = true; try { await projects.duplicate() } catch { /* The project remains intact. */ } finally { working = false } }}>Duplicate project with originals</button>
+    <ProjectVersions {projects} />
   {:else if projects.phase.kind === 'loading'}
     <p role="status">Loading your projects…</p>
   {:else if projects.phase.kind !== 'error'}

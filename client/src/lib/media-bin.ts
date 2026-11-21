@@ -23,6 +23,7 @@ export interface MediaBinSource {
   thumbnailUrl?: string | null
   generated?: boolean
   isRender?: boolean
+  missing?: boolean
   scene?: LiveSceneSource
 }
 

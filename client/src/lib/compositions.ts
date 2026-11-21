@@ -234,7 +234,7 @@ export function projectForRender(settings: { format: 'mp4' | 'avi' | 'mp3'; qual
   return project
 }
 
-export async function renderDocument(project: DocumentProject, onProgress: (progress: { ratio: number; message: string }) => void): Promise<{ blob: Blob; filename: string }> {
+export async function renderDocument(project: DocumentProject, onProgress: (progress: { ratio: number; message: string }) => void, options: { preserveTimeline?: boolean } = {}): Promise<{ blob: Blob; filename: string }> {
   const captured = await captureCompileInput(project)
   const used = new Set([...Object.values(project.bindings).flat(), ...(project.document.tracks ?? []).flatMap((track) => track.clips.map((clip) => clip.assetId))])
   for (const job of project.document.jobs ?? []) {
@@ -243,7 +243,7 @@ export async function renderDocument(project: DocumentProject, onProgress: (prog
   }
   captured.input.assets = await pinServerAssets(project.assets.filter((asset) => used.has(asset.id)))
   const result = await compileDocument(captured.input)
-  await applyCompiledDocument(result, captured.input, captured.revision, captured.stateRevision, false)
+  if (!options.preserveTimeline) await applyCompiledDocument(result, captured.input, captured.revision, captured.stateRevision, false)
   const preparedText = result.composition!.output.format === 'mp3' ? undefined : await prepareCompositionText(result.composition!)
   const request: DocumentProject = { document: result.document!, bindings: project.bindings, assets: captured.input.assets, preparedText }
   const job = await postJSON<{ id: string }>('/renders', request)

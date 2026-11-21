@@ -2,7 +2,7 @@ import { onDestroy, onMount } from 'svelte'
 import { API_BASE, authHeader } from '../lib/api'
 import type { ProjectSummary } from '../lib/project-api'
 import { peekProjectSessionId } from '../lib/session'
-import { activeJob, downloadableJob, safeDownloadURL, sortJobs, type JobSummary } from '../lib/job-monitor'
+import { activeJob, downloadableJob, jobsForCategory, safeDownloadURL, sortJobs, type JobSummary, type JobCategory } from '../lib/job-monitor'
 
 type Phase = { kind: 'loading' } | { kind: 'error'; message: string }
   | { kind: 'ready'; jobs: JobSummary[]; updatedAt: Date; warning?: string }
@@ -19,6 +19,8 @@ export function useJobMonitor() {
   let projectId = $state('')
   let notifications = $state<'off' | 'enabled' | 'denied' | 'unsupported'>('off')
   let refreshing = $state(false)
+  let category = $state<JobCategory>('renders')
+  const visibleJobs = $derived(phase.kind === 'ready' ? jobsForCategory(phase.jobs, category) : [])
   let controller: AbortController | undefined
   let actionController: AbortController | undefined
   let timer: ReturnType<typeof setTimeout> | undefined
@@ -194,6 +196,7 @@ export function useJobMonitor() {
     download,
     cancelJob,
     enableNotifications,
+    selectCategory: (value: JobCategory) => { category = value },
     confirmCancel: (id: string) => { if (!busy) setAction({ kind: 'confirm-cancel', id }) },
     dismiss: () => { if (!busy) setAction({ kind: 'idle' }) },
     get phase() { return phase },
@@ -203,6 +206,8 @@ export function useJobMonitor() {
     get refreshing() { return refreshing },
     get busy() { return busy },
     get notifications() { return notifications },
+    get category() { return category },
+    get visibleJobs() { return visibleJobs },
   }
 }
 

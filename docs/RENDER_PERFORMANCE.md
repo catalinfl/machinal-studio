@@ -2,6 +2,16 @@
 
 Commands and code paths are relative to the repository root unless stated otherwise. See [testing](TESTING.md) for reproducible checks; measurements below describe specific workloads, not a general performance guarantee.
 
+## Browser editing budget
+
+Autosave observes committed edit/media notifications and defers project capture/JSON serialization until the debounce, rather than cloning and traversing a large project throughout a drag. Active text lookup uses a start-time index with prefix end bounds, preserving original overlay order and half-open cue endpoints. Preview caches fitted text layouts and keeps GPU text sprites only for currently active cues; completed captions no longer accumulate resident text textures across the whole film.
+
+On browsers reporting at most 4 GiB device memory or four hardware threads, preview work is capped at 30 updates/second and pixel ratio 1. Other previews cap pixel ratio at 2. These are preview-only budgets: output resolution, cadence, fonts, captions, scene assets and local/server export settings are not lowered. Browsers without FontFaceSet retain readable canvas fallback; font-load failures are bounded to the requested font rather than retried every frame. Export reports a failed required font load instead of silently changing saved captions.
+
+The CPU-throttled Chromium regression uses 2,000 synthetic captions and verifies culling, advancing playback and no page errors with FontFaceSet unavailable. It is not a physical-device memory benchmark or a reproduction of every reported `fontFamily` stack trace.
+
+A warmed, isolated JavaScript lookup check in this Windows workspace used 2,000 non-overlapping cues and 20,000 point queries: full-array filtering took 225.81 ms; `activeTimedItems` took 3.38 ms. Both returned 18,000 active items in total. This measures only cue lookup, not browser frame rate, input latency, overlapping-cue worst cases or overall editor speed; timings vary by device.
+
 ## What the API actually exports
 
 Both editor exports and recipe/composition exports use the same renderer in

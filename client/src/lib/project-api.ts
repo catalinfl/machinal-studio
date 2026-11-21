@@ -73,6 +73,6 @@ export async function projectRequest<T>(path = '', body?: unknown, keepalive = f
     throw new Error('Could not reach the local API. Start the local Docker services and retry.')
   })
   if (response.status === 409) throw projectConflict()
-  if (!response.ok) throw new ProjectRequestError(response.status, `Could not ${body === undefined ? 'load' : 'save'} local projects. Check that the local API is running, then retry.`)
+  if (!response.ok) throw new ProjectRequestError(response.status, (await response.text()).slice(0, 500) || `Could not ${body === undefined ? 'load' : 'save'} local projects. Check that the local API is running, then retry.`)
   return response.json() as Promise<T>
 }

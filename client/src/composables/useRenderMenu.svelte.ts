@@ -3,7 +3,7 @@ import { render } from '../stores/render.svelte'
 import { auth } from '../stores/auth.svelte'
 import type { AIFeature } from '../lib/ai-access'
 import { fetchIsPaid, isPaidRequiredError } from '../lib/paid'
-import { friendlyErrorMessage, type RenderClipPayload, type RenderFormat, type RenderPayload, type RenderQuality } from '../lib/api'
+import { API_BASE, authHeader, friendlyErrorMessage, type RenderClipPayload, type RenderFormat, type RenderPayload, type RenderQuality } from '../lib/api'
 import { compileProjectLocal } from '../lib/local-render'
 import { xfadeName } from '../lib/effects'
 import { buildRenderTextOverlays } from '../lib/text-render'
@@ -11,6 +11,9 @@ import { clipFadeIn, clipFadeOut, clipOpacity } from '../lib/clip-compositing'
 import { estimateRenderWork, formatRenderTime, hasSceneRenderWork, RenderProgressEstimator, type RenderProgressSnapshot } from '../lib/render-progress'
 import { renderDocument, projectForRender, reconcileDocument } from '../lib/compositions'
 import type { VideoFit } from '../lib/video-fit'
+import { exportWarnings, offlineExportSources, uploadExportSources } from '../lib/export-preflight'
+import type { CreditSummary } from '../lib/credits'
+import { formatCredits } from '../lib/credits'
 
 export const FORMAT_OPTIONS: Array<{ value: RenderFormat; label: string; detail: string }> = [
   { value: 'mp4', label: 'MP4', detail: 'Compatible video' },
@@ -152,6 +155,23 @@ export function useRenderMenu(options?: { getOnRequireAccess?: () => ((feature: 
   let dialogEl = $state<HTMLDialogElement>()
   let exportState = $state<RenderExportState>({ kind: 'idle' })
   let renderSettings = $state<RenderSettings>({ format: 'mp4', quality: 'normal' })
+  let uploadApproved = $state(false)
+  let pricing = $state<{ kind: 'loading' } | { kind: 'ready'; value: CreditSummary } | { kind: 'unavailable' }>({ kind: 'unavailable' })
+  const warnings = $derived(exportWarnings(editor.channels, editor.textItems, renderSettings.format))
+  const hasOfflineMedia = $derived(offlineExportSources(editor.channels, renderSettings.format).length > 0)
+  const estimatedRenderCredits = $derived.by(() => {
+    if (pricing.kind !== 'ready' || !pricing.value.pricing.configured) return null
+    const rate = Number(pricing.value.pricing.renderPerMinute)
+    if (!Number.isFinite(rate) || rate <= 0) return null
+    const scenes = new Map<string, number>()
+    for (const channel of editor.channels) {
+      if (channel.hidden || channel.muted || renderSettings.format === 'mp3') continue
+      for (const clip of channel.clips) {
+        if (clip.fileName.endsWith('.scene.json')) scenes.set(clip.fileName, clip.sourceDuration)
+      }
+    }
+    return rate * (editor.totalDuration + [...scenes.values()].reduce((sum, duration) => sum + duration, 0)) / 60
+  })
   let exportProgressTimer: ReturnType<typeof setInterval> | null = null
 
   const hasLocalMedia = $derived(editor.channels.some((channel) => (
@@ -169,6 +189,7 @@ export function useRenderMenu(options?: { getOnRequireAccess?: () => ((feature: 
       requireAccess('render')
       return
     }
+    uploadApproved = false
     open = true
   }
 
@@ -266,6 +287,10 @@ export function useRenderMenu(options?: { getOnRequireAccess?: () => ((feature: 
 
   async function onExport(target: 'server' | 'local'): Promise<void> {
     if (isCompiling()) return
+    if (hasOfflineMedia) {
+      exportState = { kind: 'error', message: 'Relink offline files before exporting. No upload or render has started.' }
+      return
+    }
 
     const settings = { ...renderSettings }
     const activeChannels = editor.channels.filter((channel) => !channel.hidden && !channel.muted && channel.clips.length > 0)
@@ -274,7 +299,7 @@ export function useRenderMenu(options?: { getOnRequireAccess?: () => ((feature: 
       ? activeChannels.some((channel) => channel.type === 'audio')
       : activeChannels.length > 0 || editor.textItems.length > 0
 
-    const validationError = validateRender(target, settings.format, hasLocalMedia, hasExportContent)
+    const validationError = validateRender(target, settings.format, hasLocalMedia && !uploadApproved, hasExportContent)
     if (validationError) {
       exportState = { kind: 'error', message: validationError }
       return
@@ -290,12 +315,18 @@ export function useRenderMenu(options?: { getOnRequireAccess?: () => ((feature: 
 
     try {
       if (target === 'local' && editor.documentSession) await reconcileDocument()
+      const revision = editor.stateRevision
+      let project = projectForRender(settings)
+      if (target === 'server' && hasLocalMedia) {
+        project = await uploadExportSources(project, message => setCompiling(target, message))
+        if (editor.stateRevision !== revision) throw new Error('The timeline changed during upload. Review the export and try again; uploaded files are retained.')
+      }
       const payload = await buildExportPayload(settings, target === 'local')
       const onProgress = startProgressEstimation(target, payload)
 
       const result = target === 'local'
         ? await compileProjectLocal(payload, { onProgress })
-        : await renderDocument(projectForRender(settings), onProgress)
+        : await renderDocument(project, onProgress, { preserveTimeline: uploadApproved && hasLocalMedia })
 
       downloadExport(result)
       exportState = { kind: 'done', message: `exported ${result.filename}` }
@@ -318,11 +349,26 @@ export function useRenderMenu(options?: { getOnRequireAccess?: () => ((feature: 
 
   $effect(() => () => stopProgressTimer())
 
+  $effect(() => {
+    if (!open || !auth.isLogged) return
+    const controller = new AbortController()
+    pricing = { kind: 'loading' }
+    void fetch(`${API_BASE}/billing/credits`, { headers: authHeader(), signal: controller.signal })
+      .then(async response => {
+        if (!response.ok) throw new Error('Pricing unavailable')
+        const value = await response.json() as CreditSummary
+        if (!value.pricing || !value.balance) throw new Error('Invalid pricing response')
+        if (!controller.signal.aborted) pricing = { kind: 'ready', value }
+      }).catch(() => { if (!controller.signal.aborted) pricing = { kind: 'unavailable' } })
+    return () => controller.abort()
+  })
+
   return {
     editor,
     formatOptions: FORMAT_OPTIONS,
     qualityOptions: QUALITY_OPTIONS,
     formatRenderTime,
+    formatCredits,
     openDialog,
     closeDialog,
     selectFormat,
@@ -338,5 +384,11 @@ export function useRenderMenu(options?: { getOnRequireAccess?: () => ((feature: 
     get outputFormat() { return renderSettings.format },
     get outputQuality() { return renderSettings.quality },
     get hasLocalMedia() { return hasLocalMedia },
+    get hasOfflineMedia() { return hasOfflineMedia },
+    get warnings() { return warnings },
+    get uploadApproved() { return uploadApproved },
+    set uploadApproved(value: boolean) { uploadApproved = value },
+    get pricing() { return pricing },
+    get estimatedRenderCredits() { return estimatedRenderCredits },
   }
 }

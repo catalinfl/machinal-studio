@@ -5,8 +5,9 @@
   import { editor } from '../stores/editor.svelte'
   import EditorEmptyState from './EditorEmptyState.svelte'
   import WorkspaceExpandButton from './WorkspaceExpandButton.svelte'
+  import type { EditorWorkflow } from '../lib/editor-workflows'
 
-  let { onOpenClipInspector, onAddMedia, onGenerateScenes, inactive = false, expanded = false, onToggleExpand }: { onOpenClipInspector?: () => void; onAddMedia?: () => void; onGenerateScenes?: () => void; inactive?: boolean; expanded?: boolean; onToggleExpand?: () => void } = $props()
+  let { onOpenClipInspector, onAddMedia, onGenerateScenes, onStartWorkflow, inactive = false, expanded = false, onToggleExpand }: { onOpenClipInspector?: () => void; onAddMedia?: () => void; onGenerateScenes?: () => void; onStartWorkflow?: (workflow: EditorWorkflow) => void; inactive?: boolean; expanded?: boolean; onToggleExpand?: () => void } = $props()
   const preview = usePreview({ get onOpenClipInspector() { return onOpenClipInspector } })
 
 </script>
@@ -29,7 +30,7 @@
     </div>
     <div class="stage" class:image-selected={preview.selectedImageActive} class:dragging-image={preview.draggingImage} class:resizing-image={preview.resizingImage} bind:this={preview.stageEl} onpointerdown={preview.onStagePointerDown} role="application" aria-label="Video preview canvas">
       {#if editor.totalDuration === 0 && onAddMedia}
-        <EditorEmptyState {onAddMedia} {onGenerateScenes} />
+        <EditorEmptyState {onAddMedia} {onGenerateScenes} {onStartWorkflow} />
       {/if}
       {#if preview.sceneError}<p class="scene-error" role="alert">{preview.sceneError}</p>{/if}
       {#if preview.imageSelectionRect}

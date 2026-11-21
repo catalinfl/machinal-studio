@@ -2,7 +2,7 @@ import { onMount, untrack } from 'svelte'
 import { projectOwner, projectRequest, activateProject, projectConflict, ProjectRequestError, loadProjectTextAsset, loadPreparedComposition, saveProjectTextAsset, type ProjectSummary, type SavedProject } from '../lib/project-api'
 import { captureProjectState, restoreProjectState } from '../lib/project-state'
 import { clearMediaBinSources, subscribeMediaBinSources, subscribeMediaBinRemovals } from '../lib/media-bin'
-import { setLocalMediaScope, flushLocalSources } from '../lib/local-media'
+import { setLocalMediaScope, flushLocalSources, copyLocalSourcesToScope } from '../lib/local-media'
 import { selectProjectSession } from '../lib/session'
 import { isPreparedProjectPristine, preparedCompositionJSON, preparedProjectState, projectStateForOpen, projectStateFingerprint, type PreparedComposition, type ProjectPresentation } from '../lib/project-presentation'
 import { prepareSessionText, sessionTextAssets } from '../lib/project-text-assets'
@@ -18,7 +18,9 @@ export function useProjects() {
   let presentationWarning = $state('')
   let phase = $state<Phase>({ kind: 'loading' })
   let loaded = $state(false)
-  let mediaRevision = $state(0)
+  let changeRevision = 0
+  let savedRevision = 0
+  let savedEditorRevision = 0
   let generation = 0
   let timer: ReturnType<typeof setTimeout> | undefined
   let pending: Promise<void> = Promise.resolve()
@@ -95,6 +97,7 @@ export function useProjects() {
       if (state) await restoreProjectState(state, scope)
       if (token !== generation) return
       current = project
+      savedEditorRevision = editor.stateRevision
       remember(project.id)
       preparedStateFingerprint = recovered || pristine ? projectStateFingerprint(captureProjectState()) : state?.preparedStateFingerprint
       const compacted = state?.media.some(source => source.scene !== undefined)
@@ -112,6 +115,8 @@ export function useProjects() {
     const selected = current
     if (!selected || !loaded) return Promise.resolve()
     const token = generation
+    const revision = changeRevision
+    const editorRevision = editor.stateRevision
     const state = captureState()
     const source = JSON.stringify(state)
     const textAssets = sessionTextAssets(editor.documentSession)
@@ -119,6 +124,8 @@ export function useProjects() {
       if (token !== generation || selected.id !== current?.id) return
       if (conflicted) throw projectConflict()
       if (source === lastSaved && current.version > 1) {
+        savedRevision = revision
+        savedEditorRevision = editorRevision
         if (phase.kind === 'pending') phase = { kind: 'ready' }
         return
       }
@@ -139,7 +146,9 @@ export function useProjects() {
         current = summary
         items = items.map(item => item.id === summary.id ? summary : item)
         lastSaved = source
-        phase = { kind: 'ready' }
+        savedRevision = revision
+        savedEditorRevision = editorRevision
+        phase = changeRevision === revision ? { kind: 'ready' } : { kind: 'pending' }
         retryAction = null
       } catch (cause) { if (token === generation) report(cause, save); throw cause }
     })
@@ -174,6 +183,21 @@ export function useProjects() {
       phase = { kind: 'ready' }
       retryAction = null
     } catch (cause) { report(cause, () => rename(name)); throw cause }
+  }
+
+  async function duplicate(): Promise<void> {
+    try {
+      await save()
+      if (!current || !loaded) return
+      const revision = editor.stateRevision
+      const selectedId = current.id
+      const project = await projectRequest<SavedProject>(`/${current.id}/duplicate`, { name: `${current.name} copy`.slice(0, 120), version: current.version })
+      items = [project, ...items]
+      await copyLocalSourcesToScope(`${owner}:${project.id}`, (project.state?.media ?? []).flatMap(source => source.sourceMode === 'wasm' && source.sourceId ? [source.sourceId] : []))
+      if (current.id !== selectedId || editor.stateRevision !== revision) throw new Error('The copy was created and is available in Projects. Your current edit changed meanwhile, so it has been kept open.')
+      remember(project.id)
+      window.location.reload()
+    } catch (cause) { report(cause); throw cause }
   }
 
   async function openPrepared(prepared: PreparedComposition): Promise<void> {
@@ -215,36 +239,45 @@ export function useProjects() {
     return preparedCompositionJSON(await loadPreparedComposition(current.id, prepared))
   }
 
+  async function restoreVersion(state: ProjectState | null): Promise<void> {
+    if (!current || !loaded || !state) throw new Error('This version has no editable timeline.')
+    await save()
+    const projectId = current.id
+    const revision = editor.stateRevision
+    const restored = await restoreText(state, projectId)
+    if (!restored) throw new Error('This version could not be read.')
+    if (current.id !== projectId || editor.stateRevision !== revision) throw new Error('The edit changed while loading this version. Your current edit has been kept; try restoring again.')
+    await restoreProjectState(restored, `${owner}:${current.id}`)
+    preparedCompositionId = restored.preparedCompositionId
+    preparedStateFingerprint = restored.preparedStateFingerprint
+    changeRevision++
+    await save()
+  }
+
   $effect(() => {
     const nextOwner = accountId
     untrack(() => { void initialize(nextOwner) })
   })
 
-  $effect(() => {
-    if (!loaded || !current || conflicted) return
-    mediaRevision
-    const source = JSON.stringify(captureState())
-    if (source === lastSaved) {
-      untrack(() => { if (phase.kind === 'pending') phase = { kind: 'ready' } })
-      return
-    }
-    untrack(() => { if (phase.kind === 'ready') phase = { kind: 'pending' } })
-    clearTimeout(timer)
-    timer = setTimeout(() => { void save().catch(() => {}) }, 600)
-    return () => clearTimeout(timer)
-  })
-
   onMount(() => {
-    const changed = () => { mediaRevision++ }
+    const changed = () => {
+      if (!loaded || !current || conflicted) return
+      changeRevision++
+      if (phase.kind === 'ready') phase = { kind: 'pending' }
+      clearTimeout(timer)
+      timer = setTimeout(() => { void save().catch(() => {}) }, 600)
+    }
+
+    const unsubscribeDocument = editor.subscribeDocumentChanges(changed)
     const unsubscribe = subscribeMediaBinSources(changed)
     const unsubscribeRemoval = subscribeMediaBinRemovals(changed)
     const flush = () => { if (document.hidden) void save().catch(() => {}) }
     const beforeUnload = (event: BeforeUnloadEvent) => {
-      if (current && JSON.stringify(captureState()) !== lastSaved) { event.preventDefault(); void save().catch(() => {}) }
+      if (current && (changeRevision !== savedRevision || editor.stateRevision !== savedEditorRevision)) { event.preventDefault(); void save().catch(() => {}) }
     }
     document.addEventListener('visibilitychange', flush)
     window.addEventListener('beforeunload', beforeUnload)
-    return () => { generation++; unsubscribe(); unsubscribeRemoval(); clearTimeout(timer); stopSession(); document.removeEventListener('visibilitychange', flush); window.removeEventListener('beforeunload', beforeUnload) }
+    return () => { generation++; unsubscribeDocument(); unsubscribe(); unsubscribeRemoval(); clearTimeout(timer); stopSession(); document.removeEventListener('visibilitychange', flush); window.removeEventListener('beforeunload', beforeUnload) }
   })
 
   return {
@@ -252,8 +285,10 @@ export function useProjects() {
     select,
     create,
     rename,
+    duplicate,
     openPrepared,
     exportPrepared,
+    restoreVersion,
     downloadDraft,
     retry: () => { if (!conflicted) void (retryAction ? retryAction() : loaded ? save() : initialize(projectOwner())).catch(() => {}) },
     reload: () => window.location.reload(),

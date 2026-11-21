@@ -1,4 +1,6 @@
-const localSources = new Map<string, File>()
+import { SvelteMap } from 'svelte/reactivity'
+
+const localSources = new SvelteMap<string, File>()
 let scope = 'guest'
 const dirtySources = new Map<string, File | undefined>()
 
@@ -29,8 +31,9 @@ async function persistSource(key: string, file?: File): Promise<void> {
 }
 
 export async function flushLocalSources(): Promise<void> {
+  const targetScope = scope
   for (const [id, file] of [...dirtySources]) {
-    await persistSource(`${scope}:${id}`, file)
+    await persistSource(`${targetScope}:${id}`, file)
     if (dirtySources.get(id) === file) dirtySources.delete(id)
   }
 }
@@ -41,7 +44,8 @@ export async function restoreLocalSources(value: string): Promise<Map<string, st
   const db = await database()
   try {
     await new Promise<void>((resolve, reject) => {
-      const request = db.transaction('files').objectStore('files').openCursor()
+      const prefix = `${value}:`
+      const request = db.transaction('files').objectStore('files').openCursor(IDBKeyRange.bound(prefix, `${prefix}\uffff`))
       request.onsuccess = () => {
         const cursor = request.result
         if (!cursor) { resolve(); return }
@@ -69,6 +73,18 @@ export function rememberLocalSource(file: File): string {
 
 export function getLocalSource(sourceId: string): File | undefined {
   return localSources.get(sourceId)
+}
+
+export function replaceLocalSource(sourceId: string, file: File): void {
+  localSources.set(sourceId, file)
+  dirtySources.set(sourceId, file)
+}
+
+export async function copyLocalSourcesToScope(targetScope: string, ids: string[]): Promise<void> {
+  for (const id of new Set(ids)) {
+    const file = localSources.get(id)
+    if (file) await persistSource(`${targetScope}:${id}`, file)
+  }
 }
 
 export function forgetLocalSource(sourceId: string): void {

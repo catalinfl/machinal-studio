@@ -17,6 +17,8 @@
   import AIPanel from '../components/AIPanel.svelte'
   import SceneGenerationDialog from '../components/SceneGenerationDialog.svelte'
   import MobilePanelBar from '../components/MobilePanelBar.svelte'
+  import MissingMediaPanel from '../components/MissingMediaPanel.svelte'
+  import EditorWorkflowGuide from '../components/EditorWorkflowGuide.svelte'
   import ToolDeck from '../components/ToolDeck.svelte'
   import { useEditorPage } from '../composables/useEditorPage.svelte'
 
@@ -47,6 +49,8 @@
 />
 
 {#if page.projects.ready}
+<MissingMediaPanel />
+{#if page.workflow}<EditorWorkflowGuide workflow={page.workflow} onMedia={() => page.selectPanel('media')} onSpeech={() => page.requestFeatureGrant('tts')} onCaptions={() => page.requestFeatureGrant('captions')} onReviewCaptions={() => page.selectPanel('text')} onDismiss={page.dismissWorkflow} />{/if}
 <div class="editor-tool-ribbon">
 <div class="editor-tool-ribbon-track">
 <EditorToolBar active={page.activePanel} busy={page.mediaProcessing.active} onSelect={page.selectPanel} />
@@ -98,7 +102,7 @@
       {/if}
       {/if}
     </ToolDeck>
-    <Preview inactive={page.overlayTools && page.mobilePanelOpen} expanded={page.workspaceFocus === 'preview'} onToggleExpand={() => page.toggleWorkspaceFocus('preview')} onOpenClipInspector={page.openClipInspector} onAddMedia={() => page.selectPanel('media')} onGenerateScenes={() => page.requestFeatureGrant('scenes')} />
+    <Preview inactive={page.overlayTools && page.mobilePanelOpen} expanded={page.workspaceFocus === 'preview'} onToggleExpand={() => page.toggleWorkspaceFocus('preview')} onOpenClipInspector={page.openClipInspector} onAddMedia={() => page.selectPanel('media')} onGenerateScenes={() => page.requestFeatureGrant('scenes')} onStartWorkflow={page.startWorkflow} />
   </div>
   <div
     id="editor-timeline"

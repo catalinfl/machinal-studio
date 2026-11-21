@@ -37,4 +37,21 @@ describe('caption safe-area layout', () => {
     expect(fitted.fontSize).toBeLessThan(caption.fontSize)
     expect(fitted.text).not.toContain('\n')
   })
+
+  it.each([undefined, Number.NaN, Infinity, 0])('rejects an invalid font size (%s) without looping or changing saved data', fontSize => {
+    const item = { ...caption, fontSize } as TextItem
+    const words = item.words
+    expect(() => fitCaptionLayout(item, 'portrait', measure)).toThrow('incomplete or invalid')
+    expect(item.fontSize).toBe(fontSize)
+    expect(item.text).toBe(caption.text)
+    expect(item.words).toBe(words)
+  })
+
+  it('bounds fitting even for an enormous finite font with unusable measurements', () => {
+    let calls = 0
+    const item = { ...caption, text: 'word', fontSize: 1e300 }
+    expect(() => fitCaptionLayout(item, 'portrait', () => { calls++; return Infinity })).toThrow('safe limit')
+    expect(calls).toBeLessThanOrEqual(256)
+    expect(item.fontSize).toBe(1e300)
+  })
 })

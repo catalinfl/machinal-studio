@@ -7,6 +7,7 @@ import { useProjects } from './useProjects.svelte'
 import { startDocumentSync } from '../lib/compositions'
 import type { AIFeature } from '../lib/ai-access'
 import { useAIFeatureAccess } from './useAIFeatureAccess.svelte'
+import { EDITOR_WORKFLOWS, type EditorWorkflow } from '../lib/editor-workflows'
 
 export type EditorPanel = 'media' | 'effects' | 'presets' | 'transitions' | 'text' | 'speech' | 'image' | 'ai'
 
@@ -14,6 +15,7 @@ export function useEditorPage() {
   const projects = useProjects()
   const aiAccess = useAIFeatureAccess()
   let selectedPanel = $state<EditorPanel | null>('media')
+  let workflow = $state<EditorWorkflow | null>(null)
   let sceneDialogOpen = $state(false)
   let aiInstruction = $state('')
   let aiPanelVisible = $state(false)
@@ -232,6 +234,14 @@ export function useEditorPage() {
     togglePanel(panel)
   }
 
+  function startWorkflow(next: EditorWorkflow): void {
+    if (editor.totalDuration > 0) return
+    workflow = next
+    editor.setProjectAspect(EDITOR_WORKFLOWS.find(item => item.id === next)!.aspect)
+    if (next === 'narrated') requestFeatureGrant('tts')
+    else openPanel('media')
+  }
+
   function dockAIPanel(): void {
     openPanel('ai')
   }
@@ -306,6 +316,9 @@ export function useEditorPage() {
   })
 
   return {
+    startWorkflow,
+    dismissWorkflow: () => { workflow = null },
+    get workflow() { return workflow },
     projects,
     get showMediaBin() { return showMediaBin },
     get showEffects() { return showEffects },

@@ -21,6 +21,16 @@ export function downloadableJob(job: JobSummary): boolean {
   return job.status === 'completed' && ['render', 'editor-render', 'automation-render'].includes(job.kind) && Boolean(job.filename || job.file)
 }
 
+export type JobCategory = 'renders' | 'ai' | 'all'
+
+export function isRenderJob(job: Pick<JobSummary, 'kind'>): boolean {
+  return ['render', 'editor-render', 'automation-render'].includes(job.kind)
+}
+
+export function jobsForCategory(jobs: JobSummary[], category: JobCategory): JobSummary[] {
+  return jobs.filter(job => category === 'all' || (category === 'renders' ? isRenderJob(job) : !isRenderJob(job)))
+}
+
 function durationLabel(seconds: number): string {
   if (seconds < 60) return 'less than a minute'
   const minutes = Math.ceil(seconds / 60)

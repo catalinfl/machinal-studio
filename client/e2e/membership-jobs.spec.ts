@@ -73,7 +73,7 @@ test('jobs stay project-scoped and links are renewed without submitting another 
   await page.route('**/jobs?view=summary', route => {
     const session = route.request().headers()['x-session-id']
     expect(['u_accountfixture', 'p_second']).toContain(session)
-    return route.fulfill({ json: session === 'p_second' ? [] : [completed, running] })
+    return route.fulfill({ json: session === 'p_second' ? [] : [completed, running, { ...running, id: 'e'.repeat(32), kind: 'ai-speech' }] })
   })
   let downloads = 0
   await page.route(`**/jobs/${completed.id}/download`, route => {
@@ -83,12 +83,16 @@ test('jobs stay project-scoped and links are renewed without submitting another 
   })
   await page.goto('/jobs')
   await expect(page.getByText('About 2 min remaining')).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Speech generation', exact: true })).toHaveCount(0)
+  await page.getByLabel('Job category', { exact: true }).selectOption('ai')
+  await expect(page.getByRole('heading', { name: 'Speech generation', exact: true })).toBeVisible()
+  await page.getByLabel('Job category', { exact: true }).selectOption('renders')
   await page.getByRole('button', { name: 'Get download link' }).click()
   await expect(page.getByRole('link', { name: 'Download from S3' })).toHaveAttribute('href', /fixture-1/)
   await page.getByRole('button', { name: 'Renew download link' }).click()
   await expect(page.getByRole('link', { name: 'Download from S3' })).toHaveAttribute('href', /fixture-2/)
   await page.getByLabel('Project', { exact: true }).selectOption('p_second')
-  await expect(page.getByRole('heading', { name: 'No server jobs yet' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'No server exports yet' })).toBeVisible()
   expect(await page.evaluate(() => localStorage.getItem('scrub-project-session-id'))).toBe('u_accountfixture')
   expect(downloads).toBe(2)
 })

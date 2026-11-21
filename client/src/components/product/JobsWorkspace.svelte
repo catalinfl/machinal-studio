@@ -7,6 +7,7 @@
 
 <header><h1>Jobs &amp; downloads</h1><p>Follow your server work. Download when it is ready.</p></header>
 <div class="jobs-toolbar">
+  <label class="field">Show<select aria-label="Job category" value={monitor.category} onchange={event => monitor.selectCategory(event.currentTarget.value as 'renders' | 'ai' | 'all')}><option value="renders">Exports &amp; downloads</option><option value="ai">AI operations</option><option value="all">All activity</option></select></label>
   <label class="field">Project<select aria-label="Project" value={monitor.projectId} disabled={!monitor.projects.length} onchange={event => monitor.selectProject(event.currentTarget.value)}>
     {#if !monitor.projects.length}<option value="">No projects loaded</option>{/if}
     {#each monitor.projects as project (project.id)}<option value={project.id}>{project.name}</option>{/each}
@@ -22,10 +23,10 @@
 {:else}
   {#if monitor.phase.warning}<p class="error" role="alert">Showing the last known status. {monitor.phase.warning}</p>{/if}
   <p class="updated">Last checked <time datetime={monitor.phase.updatedAt.toISOString()}>{monitor.phase.updatedAt.toLocaleTimeString()}</time> · Up to 100 recent jobs in this project</p>
-  {#if monitor.phase.jobs.length}
-    <ul aria-label="Project jobs">{#each monitor.phase.jobs as job (job.id)}<JobEntry {job} {monitor} />{/each}</ul>
+   {#if monitor.visibleJobs.length}
+     <ul aria-label="Project jobs">{#each monitor.visibleJobs as job (job.id)}<JobEntry {job} {monitor} />{/each}</ul>
   {:else}
-    <section class="empty"><h2>No server jobs yet</h2><p>Exports and generation tasks for this project will appear here. Local browser exports do not use the server queue.</p><a class="quiet-button" href="/editor">Open editor</a></section>
+     <section class="empty"><h2>{monitor.category === 'renders' ? 'No server exports yet' : 'No operations in this category'}</h2><p>Exports appear here by default. Choose AI operations to recover generation tasks. Local browser exports do not use the server queue.</p><a class="quiet-button" href="/editor">Open editor</a></section>
   {/if}
 {/if}
 <p class="retention">Job history is retained for 30 days. Download links expire independently; request a new link here rather than rendering again.</p>

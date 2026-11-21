@@ -102,6 +102,7 @@ const MAX_IMAGE_PREVIEW_EDGE = 2048
 const VIDEO_PREWARM_SEC = 0.75
 const VIDEO_PREWARM_EPS = 0.08
 const MEDIA_PRELOAD_SEC = 2
+const LOW_POWER_FRAME_INTERVAL_MS = 1000 / 30
 
 export function usePreview(props: PreviewProps) {
   let stageEl = $state<HTMLDivElement | undefined>(undefined)
@@ -110,6 +111,7 @@ export function usePreview(props: PreviewProps) {
   let resizeObserver: ResizeObserver | null = null
   let previewDestroyed = false
   let sceneError = $state('')
+  let textError = $state('')
   const directLayers = new DirectPreviewLayers(() => stageEl ?? document.body)
   const directEffects = new DirectPreviewEffects(() => stageEl ?? document.body)
   const previewFilters = new PixiPreviewFilters()
@@ -128,6 +130,7 @@ export function usePreview(props: PreviewProps) {
   const effectHistories = new Map<string, { signature: string; history: PixiHistory }>()
   const imageSourceSizes = new WeakMap<Sprite, PixiFrameSize>()
   const textSpriteCache = new Map<string, { signature: string; sprite: Sprite }>()
+  const textLayoutCache = new Map<string, { signature: string; item: TextItem }>()
 
   let textDrag: { id: string; pointerId: number; clientX: number; clientY: number; x: number; y: number } | null = null
   let lastImageTap: { time: number; clipId: string } = { time: 0, clipId: '' }
@@ -156,6 +159,9 @@ export function usePreview(props: PreviewProps) {
   let volume = $state(100)
   let pixiFps = $state(60)
   let lastTickMs = 0
+  const device = navigator as Navigator & { deviceMemory?: number }
+  const lowPowerPreview = (device.deviceMemory !== undefined && device.deviceMemory <= 4) || (device.hardwareConcurrency > 0 && device.hardwareConcurrency <= 4)
+  let lastPresentedMs = 0
   // Last successfully drawn video textures, held for a single frame when the
   // incoming clip's element is still seeking (first preview after a cut).
   // Holding one frozen frame hides the 1-black-frame flash; showing the new
@@ -460,11 +466,22 @@ export function usePreview(props: PreviewProps) {
   function getOrCreateTextSprite(item: TextItem): Sprite | null {
     if (!app) return null
     if (!textFontsReady(item)) return null
-    item = layoutTextItem(item, editor.effectiveProjectAspect)
+    const layoutSignature = `${textItemSignature(item, 1)}|${item.x}|${item.y}|${item.start}|${item.duration}|${item.animation}|${item.animationDuration}|${JSON.stringify(item.words)}|${editor.effectiveProjectAspect}`
+    let layout = textLayoutCache.get(item.id)
+    if (layout?.signature !== layoutSignature) {
+      try {
+        layout = { signature: layoutSignature, item: layoutTextItem(item, editor.effectiveProjectAspect) }
+      } catch (cause) {
+        textError = cause instanceof Error ? cause.message : 'Text preview is unavailable. Review the text style; saved captions have not been changed.'
+        return null
+      }
+      textLayoutCache.set(item.id, layout)
+    }
+    item = layout!.item
     const design = textDesignSize(editor.effectiveProjectAspect)
     const scale = app.screen.height / design.h
     const wordState = activeCaptionWordState(item, editor.currentTime)
-    const signature = textItemSignature(item, scale, wordState.index, wordState.progress)
+    const signature = `${layoutSignature}|${textItemSignature(item, scale, wordState.index, wordState.progress)}`
     const cached = textSpriteCache.get(item.id)
     let sprite = cached?.sprite
     if (!sprite || cached?.signature !== signature) {
@@ -1154,13 +1171,16 @@ export function usePreview(props: PreviewProps) {
       lastVideoHoldKeys = []
     }
 
-    const liveTextIds = new Set(editor.textItems.map((item) => item.id))
+    const activeTextItems = editor.getActiveTextItemsAt(editor.currentTime)
+    textError = ''
+    const liveTextIds = new Set(activeTextItems.map((item) => item.id))
     for (const [id, cached] of textSpriteCache) {
       if (liveTextIds.has(id)) continue
       if ('destroy' in cached.sprite) destroyOwnedSprite(cached.sprite)
       textSpriteCache.delete(id)
+      textLayoutCache.delete(id)
     }
-    for (const item of editor.getActiveTextItemsAt(editor.currentTime)) {
+    for (const item of activeTextItems) {
       const sprite = getOrCreateTextSprite(item)
       if (sprite) app.stage.addChild(sprite)
     }
@@ -1220,6 +1240,11 @@ export function usePreview(props: PreviewProps) {
   let playStartTime = 0
 
   function tick(now: number) {
+    if (lowPowerPreview && lastPresentedMs > 0 && now - lastPresentedMs < LOW_POWER_FRAME_INTERVAL_MS - 1) {
+      rafId = requestAnimationFrame(tick)
+      return
+    }
+    lastPresentedMs = now
     if (lastTickMs > 0 && now > lastTickMs) {
       const instant = 1000 / Math.max(1, now - lastTickMs)
       pixiFps = pixiFps * 0.92 + Math.min(120, instant) * 0.08
@@ -1291,7 +1316,7 @@ export function usePreview(props: PreviewProps) {
       // WebGL must be created with alpha for the caption canvas above live layers.
       backgroundAlpha: 0,
       antialias: true,
-      resolution: window.devicePixelRatio || 1,
+      resolution: lowPowerPreview ? 1 : Math.min(window.devicePixelRatio || 1, 2),
       autoDensity: true,
       preference: 'webgl',
       // Transition filters sample the stage behind the incoming clip via
@@ -1344,6 +1369,7 @@ export function usePreview(props: PreviewProps) {
       if ('destroy' in sprite) destroyOwnedSprite(sprite)
     })
     textSpriteCache.clear()
+    textLayoutCache.clear()
     if (app) {
       app.destroy(true, { children: true })
       app = null
@@ -1351,7 +1377,7 @@ export function usePreview(props: PreviewProps) {
   })
 
   return {
-    get sceneError() { return sceneError },
+    get sceneError() { return sceneError || textError },
     get stageEl() { return stageEl },
     set stageEl(value: HTMLDivElement | undefined) { stageEl = value },
     get imageSelectionRect() { return imageSelectionRect },

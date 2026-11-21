@@ -3,7 +3,19 @@ import { mockPaidAuth } from './helpers/paid-auth'
 
 test('reviews multiple timed captions and applies one style to the resulting selection', async ({ page }) => {
   await mockPaidAuth(page)
-  await page.route('**/ai/subtitles', async (route) => {
+  const project = { id: 'caption-fixture', name: 'Caption fixture', sessionId: 'p_caption_fixture', version: 1, createdAt: '', updatedAt: '' }
+  await page.route('**/projects**', route => {
+    if (route.request().method() === 'POST') {
+      project.version++
+      return route.fulfill({ json: project })
+    }
+    return route.fulfill({ json: new URL(route.request().url()).pathname.endsWith('/projects') ? [project] : { ...project, state: null } })
+  })
+  await page.route('**/sessions**', route => route.fulfill({ json: {} }))
+  await page.route('**/billing/access', route => route.fulfill({ json: { paid: true } }))
+  await page.route(url => url.pathname === '/list', route => route.fulfill({ json: [] }))
+  await page.route('**/waveform?**', route => route.fulfill({ json: { sampleRate: 48000, length: 480000, binSamples: 400, min: [0], max: [0] } }))
+  await page.route(url => url.pathname === '/ai/subtitles', async (route) => {
     await route.fulfill({
       contentType: 'application/json',
       body: JSON.stringify({

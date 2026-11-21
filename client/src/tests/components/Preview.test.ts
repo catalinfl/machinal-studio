@@ -246,6 +246,28 @@ describe('Preview', () => {
     expect(sprite).toMatchObject({ x: 480, y: 270 })
   })
 
+  it('reports an incomplete saved caption without stopping preview and recovers after style repair', async () => {
+    const item = editor.addTextItem(0, { text: '  Știință\nși țară! ', duration: 2, isCaption: true, fontFamily: 'montserrat' })
+    const state = editor.captureProjectState()
+    Reflect.deleteProperty(state.textItems[0], 'fontSize')
+    editor.restoreProjectState(state)
+    const baseline = JSON.stringify(editor.textItems[0])
+    const { queryByRole, getByRole } = render(Preview)
+    await new Promise((resolve) => setTimeout(resolve, 10))
+
+    expect(() => rafCallback?.(100)).not.toThrow()
+    await tick()
+    expect(getByRole('alert')).toHaveTextContent('Caption style is incomplete or invalid')
+    expect(JSON.stringify(editor.textItems[0])).toBe(baseline)
+
+    editor.updateTextItem(item.id, { fontSize: 54 })
+    expect(() => rafCallback?.(200)).not.toThrow()
+    await tick()
+    expect(queryByRole('alert')).toBeNull()
+    expect(pixiMocks.textureFrom).toHaveBeenCalled()
+    expect(editor.textItems[0].text).toBe(item.text)
+  })
+
   it('shows "no active channel" when none are active', () => {
     const { getByText } = render(Preview)
     expect(getByText(/No active channel/i)).toBeTruthy()

@@ -8,6 +8,7 @@ import { renderDocument } from '../../lib/compositions'
 import { compileProjectLocal } from '../../lib/local-render'
 import { TEXT_DRAG_MIME } from '../../lib/text-render'
 import { mediaProcessing } from '../../stores/media-processing.svelte'
+import { rememberLocalSource } from '../../lib/local-media'
 
 vi.mock('../../lib/wasm', () => ({
   getFFmpeg: vi.fn().mockResolvedValue(undefined),
@@ -517,10 +518,11 @@ describe('Timeline', () => {
   })
 
   it('renders locally without calling the server render route', async () => {
+    const sourceId = rememberLocalSource(new File(['synthetic'], 'local.mp4', { type: 'video/mp4' }))
     addClip(editor.channels[0].id, {
       fileName: 'local.mp4',
       sourceMode: 'wasm',
-      sourceId: 'local-source',
+      sourceId,
     })
     vi.mocked(compileProject).mockClear()
     vi.mocked(compileProjectLocal).mockRejectedValueOnce(new Error('stop after local payload capture'))
@@ -534,19 +536,24 @@ describe('Timeline', () => {
     expect(compileProject).not.toHaveBeenCalled()
   })
 
-  it('disables server rendering when the timeline contains WASM media', async () => {
+  it('requires explicit upload permission before enabling server export of WASM media', async () => {
+    const sourceId = rememberLocalSource(new File(['synthetic'], 'browser-only.mp4', { type: 'video/mp4' }))
     addClip(editor.channels[0].id, {
       fileName: 'browser-only.mp4',
       sourceMode: 'wasm',
-      sourceId: 'browser-source',
+      sourceId,
     })
     const { getByRole, getByTitle } = render(Timeline)
 
     await fireEvent.click(getByRole('button', { name: 'Render' }))
 
-    const serverRender = getByTitle('Browser-only media must be rendered in this browser')
+    const serverRender = getByTitle('Approve uploading the required local originals to enable server export')
     expect(serverRender).toBeDisabled()
-    expect(serverRender).toHaveTextContent('Unavailable: project has browser-only media')
+    expect(serverRender).toHaveTextContent('Upload required originals, then render')
+    const approval = getByRole('checkbox', { name: /Upload this export/ })
+    expect(approval).not.toBeChecked()
+    await fireEvent.click(approval)
+    expect(serverRender).toBeEnabled()
   })
 
   it('exports volumes changed by dragging a line on multiple selected audio clips', async () => {

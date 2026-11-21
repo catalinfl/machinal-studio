@@ -76,6 +76,7 @@
           </div>
         </fieldset>
         <div class="summary" role="status">
+          <p>{renderMenu.editor.totalDuration.toFixed(2)}s · {renderMenu.editor.projectResolution.w} × {renderMenu.editor.projectResolution.h} · {renderMenu.editor.fps} FPS · {renderMenu.editor.videoFit === 'cover' ? 'Fill (crop)' : 'Fit'}</p>
            {#if renderMenu.outputFormat === 'mp3'}
             Only active, unmuted audio tracks will be exported.
           {:else}
@@ -86,20 +87,24 @@
 
       <div class="destinations">
         <span class="section-label">Where to export</span>
+        {#each renderMenu.warnings as warning}<p class="summary">{warning}</p>{/each}
+        {#if renderMenu.hasLocalMedia}
+          <label class="upload-consent"><input type="checkbox" bind:checked={renderMenu.uploadApproved} disabled={renderMenu.exportState.kind === 'compiling' || renderMenu.hasOfflineMedia} />Upload this export’s local originals to my project for server rendering. Originals stay on this device; unused files are not uploaded.</label>
+        {/if}
         <button
           class="destination server"
           type="button"
           class:running={renderMenu.exportState.kind === 'compiling' && renderMenu.exportState.target === 'server'}
           onclick={renderMenu.exportThrough('server')}
-          disabled={renderMenu.exportState.kind === 'compiling' || renderMenu.hasLocalMedia}
+          disabled={renderMenu.exportState.kind === 'compiling' || renderMenu.hasOfflineMedia || (renderMenu.hasLocalMedia && !renderMenu.uploadApproved)}
           title={renderMenu.hasLocalMedia
-            ? 'Browser-only media must be rendered in this browser'
+            ? 'Approve uploading the required local originals to enable server export'
             : 'Render on the server'}
         >
           <span class="destination-icon" aria-hidden="true"><svg viewBox="0 0 16 16"><rect x="2.5" y="2.5" width="11" height="4.6" rx="1" /><rect x="2.5" y="8.9" width="11" height="4.6" rx="1" /><path d="M5 4.8h.01M5 11.2h.01" /></svg></span>
           <span class="destination-copy">
             <strong>Server <span class="paid-badge">Paid</span></strong>
-            <small>{renderMenu.hasLocalMedia ? 'Unavailable: project has browser-only media' : 'Render on the server from uploaded media · uses credits'}</small>
+            <small>{renderMenu.hasLocalMedia ? 'Upload required originals, then render · uses credits' : 'Render on the server from uploaded media · uses credits'}</small>
           </span>
           <svg class="arrow" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 8h9m0 0-4.2-4.2M12.5 8l-4.2 4.2" /></svg>
         </button>
@@ -108,7 +113,7 @@
           type="button"
           class:running={renderMenu.exportState.kind === 'compiling' && renderMenu.exportState.target === 'local'}
           onclick={renderMenu.exportThrough('local')}
-          disabled={renderMenu.exportState.kind === 'compiling'}
+          disabled={renderMenu.exportState.kind === 'compiling' || renderMenu.hasOfflineMedia}
           title="Render on this device"
         >
           <span class="destination-icon" aria-hidden="true"><svg viewBox="0 0 16 16"><rect x="2" y="2.8" width="12" height="8" rx="1" /><path d="M6 13.2h4M8 10.8v2.4" /></svg></span>
@@ -119,6 +124,9 @@
           <svg class="arrow" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 8h9m0 0-4.2-4.2M12.5 8l-4.2 4.2" /></svg>
         </button>
         <CreditUsageNotice />
+        {#if renderMenu.pricing.kind === 'ready'}
+          <p class="summary">Balance: {renderMenu.formatCredits(renderMenu.pricing.value.balance.remaining)} credits. {#if renderMenu.estimatedRenderCredits !== null}Approximate rendering: {renderMenu.formatCredits(renderMenu.estimatedRenderCredits)} credits, including full referenced scenes. Actual usage is settled after processing; AI generation is separate.{:else}Rendering estimate unavailable.{/if}</p>
+        {:else}<p class="summary">{renderMenu.pricing.kind === 'loading' ? 'Loading balance and rendering rates…' : 'Rendering estimate unavailable. Check Balance & rates before server export.'}</p>{/if}
       </div>
 
         {#if renderMenu.exportState.kind !== 'idle'}
@@ -164,6 +172,9 @@
 </div>
 
 <style>
+  .upload-consent { display: flex; align-items: flex-start; gap: 10px; color: var(--foreground); font-size: 12px; line-height: 1.5; }
+  .upload-consent input { flex: 0 0 auto; margin-top: 3px; accent-color: var(--primary); }
+  .summary p { margin: 0 0 6px; }
   .render-menu { position: relative; }
   .trigger {
     height: var(--height-control); display: inline-flex; align-items: center; gap: var(--space-4);

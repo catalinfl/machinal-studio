@@ -2,6 +2,7 @@ import type { ProjectAspect, TextItem } from '../stores/editor.svelte'
 import { textDesignSize, textSafeInsets } from './text-geometry'
 
 type MeasureText = (text: string, fontSize: number) => number
+const MAX_CAPTION_FIT_ATTEMPTS = 64
 
 function wrapCaption(words: string[], available: number, fontSize: number, measure: MeasureText): string[] {
   const lines = ['']
@@ -16,6 +17,10 @@ function wrapCaption(words: string[], available: number, fontSize: number, measu
 
 export function fitCaptionLayout(item: TextItem, aspect: ProjectAspect, measure: MeasureText): TextItem {
   if (!item.isCaption) return item
+  if (![item.fontSize, item.strokeWidth, item.x, item.y].every(Number.isFinite) || item.fontSize <= 0 || item.strokeWidth < 0
+    || (item.backgroundOpacity > 0 && !Number.isFinite(item.backgroundPadding))) {
+    throw new Error('Caption style is incomplete or invalid. Review its font size and position in Text; saved text and timing have not been changed.')
+  }
 
   const design = textDesignSize(aspect)
   const safe = textSafeInsets(aspect)
@@ -26,7 +31,7 @@ export function fitCaptionLayout(item: TextItem, aspect: ProjectAspect, measure:
   const minimumReadableSize = Math.min(fontSize, 24)
   const anchor = item.anchor === 'left' ? 0 : item.anchor === 'right' ? 1 : 0.5
 
-  for (;;) {
+  for (let attempt = 0; attempt < MAX_CAPTION_FIT_ATTEMPTS; attempt++) {
     const widestWord = Math.max(0, ...words.map(word => measure(word, fontSize)))
     const lineHeight = fontSize * 1.2
     const glow = item.highlightAnimation === 'glow' ? fontSize * 0.55 : 0
@@ -54,4 +59,5 @@ export function fitCaptionLayout(item: TextItem, aspect: ProjectAspect, measure:
     if (fontSize <= minimumReadableSize) throw new Error('Caption cannot fit legibly in two lines; split it into shorter timed captions')
     fontSize = Math.max(minimumReadableSize, fontSize * 0.9)
   }
+  throw new Error('Caption fitting exceeded its safe limit. Review the caption style in Text; saved text and timing have not been changed.')
 }

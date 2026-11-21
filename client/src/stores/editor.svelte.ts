@@ -8,6 +8,7 @@ import { compactSessionText } from '../lib/project-text-assets'
 import type { DocumentSession, TimelineState } from '../lib/composition-types'
 import type { Clip, Channel, EffectBlock, TextItem, TimedTextWord, Transition, Resolution, ProjectAspect } from '../lib/editor-types'
 import { useEditorHistory } from '../composables/useEditorHistory.svelte'
+import { activeTimedItems, indexTimedItems } from '../lib/timed-index'
 import type { VideoFit } from '../lib/video-fit'
 import { clipPlaybackRate, clipTimelineDuration, clipEnd, clipSourceTimeAt } from '../lib/clip-time'
 import { MIN_CLIP_LEN, maxClipTransitionOverlap, edgeBounds, packEffectLanes, packTextLanes, clipOverlapInChannel, clipOverlapsInChannel, clampClipStart } from '../lib/timeline-geometry'
@@ -153,6 +154,7 @@ interface EditorSnapshot {
   documentSession: DocumentSession | null
 }
 
+const textTimeIndex = $derived(indexTimedItems(textItems))
 let stateRevision = 0
 
 const history = useEditorHistory<EditorSnapshot>({
@@ -750,6 +752,16 @@ function moveClipGroup(
 }
 
 export const editor = {
+  relinkMediaSource(sourceId: string, preview: string) {
+    for (const channel of channels) {
+      for (const clip of channel.clips) {
+        if (clip.sourceId === sourceId) clip.scrubBlobUrl = preview
+      }
+    }
+    stateRevision += 1
+    for (const listener of documentListeners) listener()
+  },
+
   captureProjectState(includeTextAssets = false) {
     return cloneJSON({ channels, effectBlocks, transitions, textItems, fps, resolution, projectAspect, videoFit, documentSession: includeTextAssets ? documentSession : compactSessionText(documentSession),
       currentTime: 0, selectedClipIds: [], selectedEffectBlockIds: [], selectedTextItemIds: [] })
@@ -2748,7 +2760,7 @@ export const editor = {
   },
 
   getActiveTextItemsAt(time: number): TextItem[] {
-    return textItems.filter((item) => time >= item.start && time < item.start + item.duration)
+    return activeTimedItems(textTimeIndex, time)
   },
 
   getClipById(clipId: string): { channel: Channel; clip: Clip } | null {
