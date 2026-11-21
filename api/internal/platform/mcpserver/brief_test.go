@@ -65,7 +65,15 @@ func TestBriefGuideIsDiscoverableAsToolTopicAndResource(t *testing.T) {
 		t.Fatal("brief topic unavailable", result, output)
 	}
 	data := output.Data.(map[string]any)
-	guide := data["guide"].(string)
+	apiGuide := data["guide"].(string)
+	if !strings.Contains(apiGuide, "@machinal/mcp") || !strings.Contains(apiGuide, "get_library_reference") {
+		t.Fatal("API did not direct the client to the installed authoring guide")
+	}
+	source, err := clientReferenceFixtures.ReadFile("guides/brief.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	guide := string(source)
 	for _, content := range []string{
 		"3–5 short", "Video type", "Duration", "output resolution", "Aspect ratio is not resolution",
 		"Audio and text", "wait for the user's reply", "Do not re-ask answered questions",
@@ -89,7 +97,7 @@ func TestBriefGuideIsDiscoverableAsToolTopicAndResource(t *testing.T) {
 	if err := json.Unmarshal(envelope["result"], &resource); err != nil {
 		t.Fatal(err)
 	}
-	if len(resource.Contents) != 1 || resource.Contents[0].Text != guide {
+	if len(resource.Contents) != 1 || resource.Contents[0].Text != apiGuide {
 		t.Fatal("brief tool topic and resource diverged")
 	}
 }
@@ -109,12 +117,19 @@ func TestEditingEntryPointsLinkToBriefBeforeAuthoring(t *testing.T) {
 			if len(resource.Contents) != 1 {
 				t.Fatal("missing editing resource")
 			}
+			if uri != "machinal://recipes/guide" {
+				if !strings.Contains(resource.Contents[0].Text, "get_library_reference") {
+					t.Fatal("API did not direct authoring to the local library", uri)
+				}
+				return
+			}
+			clientContent := clientPolicyFixture("recipe-workflow.md")
 			for _, content := range []string{
 				"get_editing_reference(topic=brief)", "output resolution", "Do not automatically add production labels",
 				"native question tool", "not a numbered chat questionnaire", "After the user answers",
 				"proceed immediately", "same turn", "separate plan confirmation", "cancelled form",
 			} {
-				if !strings.Contains(resource.Contents[0].Text, content) {
+				if !strings.Contains(clientContent, content) {
 					t.Errorf("%s lacks %s", uri, content)
 				}
 			}
@@ -123,7 +138,7 @@ func TestEditingEntryPointsLinkToBriefBeforeAuthoring(t *testing.T) {
 }
 
 func TestNarratedExampleUsesSubjectHeadingWithoutDefaultProductionLabel(t *testing.T) {
-	source, err := bundledGuides.ReadFile("reference/examples/narrated-documentary.yaml")
+	source, err := clientReferenceFixtures.ReadFile("reference/examples/narrated-documentary.yaml")
 	if err != nil {
 		t.Fatal(err)
 	}

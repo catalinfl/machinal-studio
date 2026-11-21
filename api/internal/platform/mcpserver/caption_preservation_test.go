@@ -18,7 +18,7 @@ import (
 func TestAIEntryPointsPreserveExistingCaptionConfiguration(t *testing.T) {
 	guides := map[string]string{"initialization": instructions, "recipe guide": recipeGuide}
 	for _, topic := range []string{"overview", "yaml", "audio", "text", "scene-authoring", "production"} {
-		reference, err := editingReference(referenceInput{Topic: topic}, nil)
+		reference, err := clientAuthoringReference(referenceInput{Topic: topic}, nil)
 		if err != nil {
 			t.Fatal(err)
 		}

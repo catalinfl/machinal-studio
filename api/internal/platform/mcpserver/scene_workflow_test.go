@@ -36,15 +36,14 @@ func TestSceneGuideExplainsPlanningAndRealImageAttachments(t *testing.T) {
 	if result.IsError || output.StatusCode != http.StatusOK {
 		t.Fatal("scene guide is unavailable", result, output)
 	}
-	guide := output.Data.(map[string]any)["guide"].(string)
+	clientGuide := clientAuthoringGuide(t, "scenes")
 	for _, content := range []string{
 		"beat sheet", "timeline start/duration", "scene-local", "independently moving objects", "Svelte",
 		"Metadata alone is not visual inspection", "footage-only/no-generation", "scene-image-insert",
-		"image_1", "separate image and scene AI requests", "actual project filename", "explicit authorization",
-		"without machinal billing", "may charge the user's OpenRouter account",
+		"image_1", "two paid stages", "actual project filename", "explicit authorization",
 		"scene-three-explainer", "central hold", "visualMode: 3d", "No AI-production label", "no detectable foreground",
 	} {
-		if !strings.Contains(guide, content) {
+		if !strings.Contains(clientGuide, content) {
 			t.Fatalf("scene guide lacks required instruction: %s", content)
 		}
 	}
@@ -89,7 +88,7 @@ func TestLocalToolsAdvertiseClientScenesAndProviderConsent(t *testing.T) {
 
 func sceneInsertExample(t *testing.T) []byte {
 	t.Helper()
-	source, err := bundledGuides.ReadFile("reference/examples/scene-image-insert.yaml")
+	source, err := clientReferenceFixtures.ReadFile("reference/examples/scene-image-insert.yaml")
 	if err != nil {
 		t.Fatal(err)
 	}

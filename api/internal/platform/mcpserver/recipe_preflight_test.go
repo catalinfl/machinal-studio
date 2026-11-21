@@ -21,7 +21,7 @@ func TestRecipeEntryPointsRequireTypeAndTimelinePreflight(t *testing.T) {
 			}
 		}
 	}
-	guide, err := bundledGuides.ReadFile("guides/yaml.md")
+	guide, err := clientReferenceFixtures.ReadFile("guides/yaml.md")
 	if err != nil {
 		t.Fatal(err)
 	}

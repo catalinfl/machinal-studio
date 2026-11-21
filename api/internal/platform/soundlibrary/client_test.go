@@ -40,6 +40,9 @@ func TestSearchUsesFixedOriginDefaultsCacheAndSeconds(t *testing.T) {
 		if req.URL.Host != "api.openverse.org" || req.URL.Query().Get("license") != "cc0" || req.Header.Get("Authorization") != "" || req.URL.Query().Get("q") != "dry click & latch" {
 			t.Fatal("unsafe search request", req.URL, req.Header)
 		}
+		if req.URL.Query().Get("source") != "freesound" {
+			t.Fatal("search must target the supported import provider", req.URL)
+		}
 		return jsonResponse(t, map[string]any{"results": []openverseSound{sampleSound()}, "page_count": 2}), nil
 	}))
 	for index := 0; index < 2; index++ {

@@ -58,3 +58,43 @@ func TestSoundToolsRequireSeparateScopeAndUseOnlyOwnedAPIRoutes(t *testing.T) {
 		t.Fatal("unexpected calls", calls)
 	}
 }
+
+func TestSoundWorkflowRequiresImplementationWithoutExpandingConsent(t *testing.T) {
+	sources := map[string][]string{
+		"bootstrap": {
+			"Requested sound effects: read animation-skills/machinal-sound",
+			"approved YAML audio tracks", "report a blocker",
+		},
+		"guides/brief.md": {
+			"narration alone does not authorize sound effects", "machinal-sound",
+			"real YAML audio tracks", "Never silently deliver an effects-free substitute",
+		},
+		"guides/production.md": {
+			"search_sound_effects", "import_sound_effect", "get_asset_metadata",
+			"nonzero clip/track gain", "no mute", "Search approval alone is insufficient",
+			"never silently deliver an effects-free substitute", "do not prove that the mix was heard",
+		},
+		"reference/animation-skills/machinal-sound.md": {
+			"do not wait for the user to ask again", "real YAML audio tracks",
+			"importable: true", "never infer it from a search approval",
+			"Never silently deliver an effects-free substitute",
+		},
+	}
+	for path, requirements := range sources {
+		t.Run(path, func(t *testing.T) {
+			content := clientPolicyFixture("client-bootstrap.md")
+			if path != "bootstrap" {
+				data, err := clientReferenceFixtures.ReadFile(path)
+				if err != nil {
+					t.Fatal(err)
+				}
+				content = string(data)
+			}
+			for _, requirement := range requirements {
+				if !strings.Contains(content, requirement) {
+					t.Errorf("missing sound workflow requirement %q", requirement)
+				}
+			}
+		})
+	}
+}

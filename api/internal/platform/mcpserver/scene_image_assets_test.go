@@ -23,7 +23,7 @@ func TestSceneImageDefaultsReachInitializationAndReferences(t *testing.T) {
 		if result.IsError || output.StatusCode != http.StatusOK {
 			t.Fatalf("image guidance is unavailable: %s", topic)
 		}
-		guides[topic] = output.Data.(map[string]any)["guide"].(string)
+		guides[topic] = clientAuthoringGuide(t, topic)
 	}
 	for name, guide := range guides {
 		t.Run(name, func(t *testing.T) {
@@ -42,7 +42,7 @@ func TestSceneImageDefaultsReachInitializationAndReferences(t *testing.T) {
 }
 
 func TestSceneImageGuideUsesSupportedTransparentJobFields(t *testing.T) {
-	reference, err := editingReference(referenceInput{Topic: "scenes"}, nil)
+	reference, err := clientAuthoringReference(referenceInput{Topic: "scenes"}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -32,7 +32,7 @@ func TestNarrationWorkflowExposesTimingCheckpointBeforeVisualGeneration(t *testi
 		if result.IsError || output.StatusCode != http.StatusOK {
 			t.Fatalf("timing guide is unavailable: %s", topic)
 		}
-		guide := strings.ToLower(output.Data.(map[string]any)["guide"].(string))
+		guide := strings.ToLower(clientAuthoringGuide(t, topic))
 		for _, content := range []string{"timing-first", "narration-timing", "narrated-documentary", "get_job_result"} {
 			if !strings.Contains(guide, content) {
 				t.Errorf("%s guide is missing %q", topic, content)
@@ -47,7 +47,7 @@ func TestNarrationOverrunKeepsSuccessfulAudioAndExtendsVideo(t *testing.T) {
 		"recipe-guide":   recipeGuide,
 	}
 	for _, topic := range []string{"brief", "overview", "jobs", "scenes", "audio", "text", "scene-authoring"} {
-		reference, err := editingReference(referenceInput{Topic: topic}, nil)
+		reference, err := clientAuthoringReference(referenceInput{Topic: topic}, nil)
 		if err != nil {
 			t.Fatalf("read %s guidance: %v", topic, err)
 		}
@@ -79,7 +79,7 @@ func TestNarrationExamplesSeparateTimingFromPendingVisuals(t *testing.T) {
 		{"narrated-documentary", []string{"image.generate", "scene.generate"}},
 	} {
 		t.Run(example.id, func(t *testing.T) {
-			source, err := bundledGuides.ReadFile("reference/examples/" + example.id + ".yaml")
+			source, err := clientReferenceFixtures.ReadFile("reference/examples/" + example.id + ".yaml")
 			if err != nil {
 				t.Fatal(err)
 			}

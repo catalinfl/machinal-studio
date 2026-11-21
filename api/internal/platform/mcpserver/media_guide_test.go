@@ -33,10 +33,10 @@ func TestMediaGuideIsDiscoverableWithoutAccessingCustomerMedia(t *testing.T) {
 			t.Fatal("live resource and reference tool diverged", uri)
 		}
 	}
-	content := guide["guide"].(string)
+	content := clientAuthoringGuide(t, "media")
 	for _, requirement := range []string{
 		"request_media_access", "userApproved", "does not grant", "get_upload_target", "volume only",
-		"get_asset_metadata", "get_video_result", "get_media_download", "storage=volume", "OpenRouter",
+		"get_asset_metadata", "get_video_result", "get_media_download", "storage:\"s3\"", "cached:true",
 		"get_download_preferences", "set_download_preferences", "data.download.url", "data.destination.directory",
 		"Do not attach", "Authorization", "same existing file/job", "LOCAL_MEDIA_ROOTS_JSON", "zero",
 		"wait_for_job", "delivery:\"link\"", "delivery:\"local\"", "revoke_delivery_link", "one hour", "Docker",
@@ -51,7 +51,7 @@ func TestMediaGuideIsDiscoverableWithoutAccessingCustomerMedia(t *testing.T) {
 }
 
 func TestMediaGuideToolExamplesMatchActualMCPArgumentSchemas(t *testing.T) {
-	guide, err := bundledGuides.ReadFile("guides/media.md")
+	guide, err := clientReferenceFixtures.ReadFile("guides/media.md")
 	if err != nil {
 		t.Fatal(err)
 	}

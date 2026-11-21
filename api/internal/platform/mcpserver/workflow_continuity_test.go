@@ -20,7 +20,7 @@ func TestWorkflowCarriesApprovalAndDistinguishesRepairableSourceFromInfrastructu
 		}
 	}
 	for _, topic := range []string{"brief", "scene-authoring"} {
-		reference, err := editingReference(referenceInput{Topic: topic}, nil)
+		reference, err := clientAuthoringReference(referenceInput{Topic: topic}, nil)
 		if err != nil {
 			t.Fatal(err)
 		}

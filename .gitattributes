@@ -2,3 +2,6 @@
 /api/internal/platform/mcpserver/reference/film-library/** text eol=lf
 /packages/mcp-installer/skills/machinal-cinema/references/film-library/** text eol=lf
 /.opencode/skills/machinal-cinema/references/film-library/** text eol=lf
+/api/internal/platform/mcpserver/reference/hyperframes-library/** -text
+/packages/mcp-installer/skills/machinal-hyperframes/references/hyperframes-library/** -text
+/.opencode/skills/machinal-hyperframes/references/hyperframes-library/** -text

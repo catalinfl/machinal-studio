@@ -89,7 +89,7 @@ func TestEditorialReviewNoticesAreAdvisoryAndDoNotDemandEffects(t *testing.T) {
 }
 
 func TestCompileRecipeAddsEditorialEvidenceWithoutAnotherAPICall(t *testing.T) {
-	source, err := bundledGuides.ReadFile("reference/examples/cinematic-sequence.yaml")
+	source, err := clientReferenceFixtures.ReadFile("reference/examples/cinematic-sequence.yaml")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -191,7 +191,7 @@ func TestEditorialReviewPreservesNearLimitCompilerResponse(t *testing.T) {
 }
 
 func TestProductionReferenceAndEntryPointsExposeBoundedCriticWorkflow(t *testing.T) {
-	guide, err := editingReference(referenceInput{Topic: "production"}, nil)
+	guide, err := clientAuthoringReference(referenceInput{Topic: "production"}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -21,7 +21,11 @@ func TestTikTokCaptionFontReachesMCPEntryPoints(t *testing.T) {
 			if len(resource.Contents) != 1 {
 				t.Fatal("missing caption font guide")
 			}
-			assertTikTokCaptionFontGuidance(t, resource.Contents[0].Text)
+			if uri == "machinal://skills/editing" {
+				assertTikTokCaptionFontGuidance(t, clientAuthoringGuide(t, "editing"))
+			} else {
+				assertTikTokCaptionFontGuidance(t, clientPolicyFixture("recipe-workflow.md"))
+			}
 		})
 	}
 }
@@ -29,7 +33,7 @@ func TestTikTokCaptionFontReachesMCPEntryPoints(t *testing.T) {
 func TestTikTokCaptionFontGuidanceInReferences(t *testing.T) {
 	for _, topic := range []string{"brief", "text", "fonts", "audio", "styles"} {
 		t.Run(topic, func(t *testing.T) {
-			reference, err := editingReference(referenceInput{Topic: topic}, nil)
+			reference, err := clientAuthoringReference(referenceInput{Topic: topic}, nil)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -40,13 +44,13 @@ func TestTikTokCaptionFontGuidanceInReferences(t *testing.T) {
 
 func TestTikTokCaptionFontMatchesDeployedPresets(t *testing.T) {
 	entries := referenceFixture(t)
-	font, err := editingReference(referenceInput{Topic: "fonts", ID: "montserrat"}, entries)
+	font, err := clientAuthoringReference(referenceInput{Topic: "fonts", ID: "montserrat"}, entries)
 	if err != nil || len(font.Entries) != 1 {
 		t.Fatalf("TikTok caption font must be registered: %+v, %v", font, err)
 	}
 	for _, id := range []string{"tiktok-pop", "tiktok-box", "tiktok-glow"} {
 		t.Run(id, func(t *testing.T) {
-			preset, err := editingReference(referenceInput{Topic: "text", ID: id}, entries)
+			preset, err := clientAuthoringReference(referenceInput{Topic: "text", ID: id}, entries)
 			if err != nil || len(preset.Entries) != 1 {
 				t.Fatalf("TikTok preset unavailable: %+v, %v", preset, err)
 			}

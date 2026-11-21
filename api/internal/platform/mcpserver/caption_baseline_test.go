@@ -53,7 +53,7 @@ func TestAuthorizedCaptionPreflightRetainsOriginalFingerprintGuard(t *testing.T)
 		return Response{StatusCode: 200, Body: []byte(`{"diagnostics":[],"requirements":[]}`)}, nil
 	})
 	args := map[string]any{"projectId": "owned", "composition": current, "captionBaseline": baseline,
-		"expectedCaptionVersion": recipeCaptionVersion(baseline), "captionTextEdits": []captionTextEdit{{"artă", "artă!"}}, "captionEditsApproved": true}
+		"expectedCaptionVersion": recipeCaptionVersion(baseline), "captionTextEdits": []captionTextEdit{{From: "artă", To: "artă!"}}, "captionEditsApproved": true}
 	result, output := callTool(t, handler, "validate_recipe", args)
 	if result.IsError || output.Data.(map[string]any)["captionReview"].(map[string]any)["status"] != "preserved" || calls != 1 {
 		t.Fatal(result, output)
@@ -76,12 +76,30 @@ func TestCaptionComparisonRejectsMissingBaselineUnusedEditsAndPartialWordEdits(t
 		baseline string
 		edits    []captionTextEdit
 	}{
-		{baseline, "", []captionTextEdit{{"artă", "artă!"}}},
-		{baseline, baseline, []captionTextEdit{{"absent", "replaced"}}},
-		{strings.Replace(baseline, "artă", "artă!", 1), baseline, []captionTextEdit{{"artă", "artă!"}}},
+		{baseline, "", []captionTextEdit{{From: "artă", To: "artă!"}}},
+		{baseline, baseline, []captionTextEdit{{From: "absent", To: "replaced"}}},
+		{strings.Replace(baseline, "artă", "artă!", 1), baseline, []captionTextEdit{{From: "artă", To: "artă!"}}},
 	} {
 		if _, err := compareCaptionBaseline(test.current, test.baseline, test.edits, true); err == nil {
 			t.Fatal("incomplete caption comparison accepted")
 		}
+	}
+}
+
+func TestScopedCorrectionPreservesRepeatedWordAndHighlight(t *testing.T) {
+	data, err := os.ReadFile("testdata/caption-preservation.edit.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	baseline := strings.NewReplacer("artă", "a", "sens", "a").Replace(string(data))
+	current := strings.NewReplacer("Știință,  a", "Știință,  ca", "text: a, start: 0.3", "text: ca, start: 0.3").Replace(baseline)
+	index := 1
+	edit := captionTextEdit{CaptionID: "captions-ro/0", WordIndex: &index, From: "a", To: "ca"}
+	if _, err := compareCaptionBaseline(current, baseline, []captionTextEdit{edit}, true); err != nil {
+		t.Fatal(err)
+	}
+	index = 3
+	if _, err := compareCaptionBaseline(current, baseline, []captionTextEdit{edit}, true); err == nil {
+		t.Fatal("accepted change to different occurrence")
 	}
 }

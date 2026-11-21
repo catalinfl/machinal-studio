@@ -29,7 +29,7 @@ func captionContentReview(yaml string) map[string]any {
 
 func reviewCaptionContent(doc document.Document) map[string]any {
 	review := map[string]any{"status": "not_checked", "evidence": "narration-text-comparison", "audioInspection": false,
-		"instructions": "Differences are review prompts, not proof of a speech error. Check names and omissions against approved narration/sources; ask before exact caption corrections. Never regenerate successful speech or change timings/grouping/styles automatically."}
+		"instructions": "Differences are review prompts, not proof of a speech error. Check names and omissions against approved narration/sources. Reuse explicit permission for unambiguous transcription fixes; ask once for unresolved wording or missing scope. For a single word, use the intact captionId, zero-based wordIndex and exact from/to in captionTextEdits. Never regenerate successful speech or change timings/grouping/styles automatically."}
 	var speech, captions []document.Job
 	for _, jobs := range [][]document.Job{doc.Jobs, doc.Before, doc.After} {
 		for _, job := range jobs {

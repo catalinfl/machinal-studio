@@ -78,22 +78,18 @@ func newHandler(call Caller, local bool) http.Handler {
 	}
 	registerRoutingTool(server, call)
 	registerGuideResources(server)
-	server.AddResource(&mcp.Resource{URI: "machinal://reference/workflow", Name: "full-workflow-policy", Title: "Detailed workflow policies (read only when needed)", MIMEType: "text/markdown"},
+	server.AddResource(&mcp.Resource{URI: "machinal://reference/workflow", Name: "client-workflow-reference", Title: "Workflow policy in the installed MCP package", MIMEType: "text/markdown"},
 		func(context.Context, *mcp.ReadResourceRequest) (*mcp.ReadResourceResult, error) {
-			return &mcp.ReadResourceResult{Contents: []*mcp.ResourceContents{{URI: "machinal://reference/workflow", MIMEType: "text/markdown", Text: serverInstructions}}}, nil
+			return &mcp.ReadResourceResult{Contents: []*mcp.ResourceContents{{URI: "machinal://reference/workflow", MIMEType: "text/markdown", Text: clientLibraryNotice}}}, nil
 		})
 	registerReferenceTools(server)
 	registerSpeechTools(server)
 	registerSoundEffectTools(server, call)
-	recipeInstructions := recipeGuide
-	if local {
-		recipeInstructions = localRecipeGuide
-	}
 	server.AddResource(&mcp.Resource{
 		URI: "machinal://recipes/guide", Name: "recipe-guide", Title: "machinal recipe workflow", MIMEType: "text/markdown",
 	}, func(_ context.Context, _ *mcp.ReadResourceRequest) (*mcp.ReadResourceResult, error) {
 		return &mcp.ReadResourceResult{Contents: []*mcp.ResourceContents{{
-			URI: "machinal://recipes/guide", MIMEType: "text/markdown", Text: recipeInstructions,
+			URI: "machinal://recipes/guide", MIMEType: "text/markdown", Text: clientLibraryNotice,
 		}}}, nil
 	})
 	return mcp.NewStreamableHTTPHandler(func(*http.Request) *mcp.Server { return server }, &mcp.StreamableHTTPOptions{

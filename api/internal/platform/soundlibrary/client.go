@@ -114,7 +114,7 @@ func (c *Client) Search(ctx context.Context, input Search) (SearchResult, error)
 	if err != nil {
 		return SearchResult{}, err
 	}
-	query := url.Values{"q": {input.Query}, "license": {input.License}, "page": {fmt.Sprint(input.Page)}, "page_size": {fmt.Sprint(input.Limit)}, "mature": {"false"}}
+	query := url.Values{"q": {input.Query}, "license": {input.License}, "source": {"freesound"}, "page": {fmt.Sprint(input.Page)}, "page_size": {fmt.Sprint(input.Limit)}, "mature": {"false"}}
 	key := query.Encode()
 	c.mu.Lock()
 	cached, found := c.cache[key]

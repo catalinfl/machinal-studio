@@ -50,7 +50,7 @@ func referenceInputSchema() map[string]any {
 		"type": "object", "additionalProperties": false, "required": []string{"topic"},
 		"properties": map[string]any{
 			"topic":        map[string]any{"type": "string", "enum": referenceTopicNames()},
-			"id":           map[string]any{"type": "string", "maxLength": 128, "description": "Exact preset, style, example, template, animation-skill or film ID; omit for discovery. Templates return Svelte; animation skills return focused native skill source; film entries return reference-only source/provenance."},
+			"id":           map[string]any{"type": "string", "maxLength": 128, "description": "Exact deployed preset, style, example, animation-skill or film ID; omit for discovery. Scene/Hyperframes sources are in the installed client library, not this API."},
 			"query":        map[string]any{"type": "string", "maxLength": maxReferenceQuery, "description": "Literal search in IDs, labels, categories and descriptions; not a regex or prompt"},
 			"limit":        map[string]any{"type": "integer", "minimum": 1, "maximum": maxReferenceLimit, "description": "Page size, default 8"},
 			"offset":       map[string]any{"type": "integer", "minimum": 0, "description": "Use nextOffset from a previous page"},
@@ -61,20 +61,9 @@ func referenceInputSchema() map[string]any {
 
 func registerReferenceTools(server *mcp.Server) {
 	entries, loadErr := loadReferenceEntries()
-	if loadErr == nil {
-		loadErr = registerSceneTemplateResources(server, entries["sceneTemplates"])
-	}
-	if loadErr == nil {
-		loadErr = registerAnimationSkillResources(server, entries["animationSkills"])
-	}
-	for _, category := range []string{"filmStyles", "filmTechniques"} {
-		if loadErr == nil {
-			loadErr = registerFilmReferenceResources(server, entries[category])
-		}
-	}
 	mcp.AddTool(server, &mcp.Tool{
 		Name: "get_editing_reference", InputSchema: referenceInputSchema(), Annotations: annotations(true, false, true),
-		Description: "Read deployed guides, exact presets and examples. New video: topic=brief, native question tool in one form, then proceed immediately within authorization without a separate plan confirmation. Read production before scenes/final render and media before source access/delivery. scene-runtime is the implementation contract; scene-templates plus exact id returns Svelte. animation-skills discovers focused motion, choreography, spatial, visual-review and sound skills; exact id returns complete native skill source. film-styles/film-techniques return reference direction. Skill/template/film IDs are not YAML presets or permission. Use exact id/query/pagination; cache unchanged references. No paid work or user media access.",
+		Description: "Read live execution-preset metadata, limits and the scene-runtime contract. All authoring guides, skills, cinema styles, templates and examples belong to the installed MCP package: use get_library_reference or OpenCode machinal_library. Legacy guide topics return a client-library notice, not source. For new video topic=brief use the local native question tool in one form and proceed immediately within authorization without a separate plan confirmation. IDs are not permission. No paid work or user media access.",
 	}, func(_ context.Context, _ *mcp.CallToolRequest, input referenceInput) (*mcp.CallToolResult, Output, error) {
 		if loadErr != nil {
 			return nil, Output{}, errors.New("The bundled editing reference is unavailable. Use the live schema/capabilities and ask the administrator to rebuild the API.")
@@ -85,7 +74,6 @@ func registerReferenceTools(server *mcp.Server) {
 		}
 		return nil, Output{StatusCode: 200, Data: result}, nil
 	})
-	registerExampleResources(server)
 }
 
 func editingReference(input referenceInput, entries map[string][]json.RawMessage) (referenceResult, error) {
@@ -100,14 +88,11 @@ func editingReference(input referenceInput, entries map[string][]json.RawMessage
 		return referenceResult{}, errors.New("Use a supported reference topic, a valid page size/offset and a short literal query.")
 	}
 	if topic.Category == "" && (input.ID != "" || input.Query != "" || input.Offset != 0) {
-		return referenceResult{}, errors.New("This topic is a field/workflow guide. Use catalog, styles, commands or examples topics for ID/search filters.")
+		return referenceResult{}, errors.New("This authoring guide is in the installed MCP library. Use get_library_reference for authoring IDs/search; commands and live execution catalogs support runtime filters.")
 	}
-	guide, err := bundledGuides.ReadFile("guides/" + topic.Guide + ".md")
+	guide := []byte(clientLibraryNotice)
 	if topic.ID == "scene-runtime" {
-		guide, err = []byte(scenecontract.Guide), nil
-	}
-	if err != nil {
-		return referenceResult{}, errors.New("The requested bundled guide is unavailable.")
+		guide = []byte(scenecontract.Guide)
 	}
 	result := referenceResult{
 		Topic: topic.ID, GuideURI: "machinal://reference/" + topic.Guide,
@@ -144,27 +129,6 @@ func editingReference(input referenceInput, entries map[string][]json.RawMessage
 	start := min(input.Offset, len(matches))
 	end := min(start+limit, len(matches))
 	result.Entries = append(result.Entries, matches[start:end]...)
-	if topic.ID == "scene-templates" && input.ID != "" && len(result.Entries) > 0 {
-		entry, err := sceneTemplateWithSource(result.Entries[0])
-		if err != nil {
-			return referenceResult{}, err
-		}
-		result.Entries[0] = entry
-	}
-	if topic.ID == "animation-skills" && input.ID != "" && len(result.Entries) > 0 {
-		entry, err := animationSkillWithSource(result.Entries[0])
-		if err != nil {
-			return referenceResult{}, err
-		}
-		result.Entries[0] = entry
-	}
-	if (topic.ID == "film-styles" || topic.ID == "film-techniques") && input.ID != "" && len(result.Entries) > 0 {
-		entry, err := filmReferenceWithSource(result.Entries[0])
-		if err != nil {
-			return referenceResult{}, err
-		}
-		result.Entries[0] = entry
-	}
 	if end < len(matches) {
 		result.NextOffset = &end
 	}
@@ -201,18 +165,4 @@ func matchingReferenceEntries(entries []json.RawMessage, input referenceInput) (
 		}
 	}
 	return matches, nil
-}
-
-func registerExampleResources(server *mcp.Server) {
-	for _, example := range referenceExamples {
-		uri := "machinal://examples/" + example.ID
-		server.AddResource(&mcp.Resource{URI: uri, Name: "example-" + example.ID, Title: example.Description, MIMEType: "application/yaml"},
-			func(context.Context, *mcp.ReadResourceRequest) (*mcp.ReadResourceResult, error) {
-				content, err := bundledGuides.ReadFile("reference/examples/" + example.ID + ".yaml")
-				if err != nil {
-					return nil, errors.New("The bundled recipe example is unavailable.")
-				}
-				return &mcp.ReadResourceResult{Contents: []*mcp.ResourceContents{{URI: uri, MIMEType: "application/yaml", Text: string(content)}}}, nil
-			})
-	}
 }

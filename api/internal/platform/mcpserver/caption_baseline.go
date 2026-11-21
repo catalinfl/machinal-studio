@@ -3,6 +3,7 @@ package mcpserver
 import (
 	"errors"
 	"fmt"
+	"regexp"
 	"strings"
 
 	"ffmpeg-go-server/editengine/document"
@@ -12,8 +13,37 @@ import (
 const maxCaptionTextEdits = 32
 
 type captionTextEdit struct {
-	From string `json:"from"`
-	To   string `json:"to"`
+	From      string `json:"from"`
+	To        string `json:"to"`
+	CaptionID string `json:"captionId,omitempty" jsonschema:"Exact materialized caption ID for a single timed word correction; supply wordIndex too."`
+	WordIndex *int   `json:"wordIndex,omitempty" jsonschema:"Zero-based timed word in captionId; from must exactly match that word including punctuation."`
+}
+
+var captionTokens = regexp.MustCompile(`\S+`)
+
+func replaceCaptionWord(doc *document.Document, edit captionTextEdit) error {
+	if edit.CaptionID == "" || edit.WordIndex == nil || *edit.WordIndex < 0 || len(strings.Fields(edit.To)) != 1 || strings.TrimSpace(edit.To) != edit.To {
+		return errors.New("Scoped corrections need captionId, nonnegative wordIndex and one replacement word")
+	}
+	for i := range doc.Texts {
+		cue := &doc.Texts[i]
+		if !cue.IsCaption || cue.ID != edit.CaptionID {
+			continue
+		}
+		index := *edit.WordIndex
+		spans := captionTokens.FindAllStringIndex(cue.Text, -1)
+		if index >= len(cue.Words) || len(spans) != len(cue.Words) || cue.Words[index].Text != edit.From {
+			return fmt.Errorf("Cannot match timed word %d in caption %q; inspect the intact baseline's words", index, cue.ID)
+		}
+		span := spans[index]
+		if cue.Text[span[0]:span[1]] != edit.From {
+			return fmt.Errorf("Visible token and timed word %d differ in caption %q", index, cue.ID)
+		}
+		cue.Text = cue.Text[:span[0]] + edit.To + cue.Text[span[1]:]
+		cue.Words[index].Text = edit.To
+		return nil
+	}
+	return fmt.Errorf("Unknown baseline captionId %q", edit.CaptionID)
 }
 
 func compareCaptionBaseline(yaml, baseline string, edits []captionTextEdit, approved bool) (map[string]any, error) {
@@ -49,6 +79,12 @@ func compareCaptionBaseline(yaml, baseline string, edits []captionTextEdit, appr
 	for _, edit := range edits {
 		if edit.From == "" || edit.From == edit.To || len(edit.From) > maxContractText || len(edit.To) > maxContractText {
 			return nil, errors.New("Each captionTextEdits entry needs a bounded nonempty from and a different to string")
+		}
+		if edit.CaptionID != "" || edit.WordIndex != nil {
+			if err := replaceCaptionWord(&input.Document, edit); err != nil {
+				return nil, err
+			}
+			continue
 		}
 		matched := false
 		for index := range input.Document.Texts {

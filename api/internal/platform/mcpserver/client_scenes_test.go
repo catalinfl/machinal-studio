@@ -20,8 +20,9 @@ func TestClientSceneGuideIsAvailableWithoutProvidersOrInstalledSkills(t *testing
 		t.Fatal("client authoring guide missing", result, output)
 	}
 	guide := output.Data.(map[string]any)["guide"].(string)
+	clientGuide := clientAuthoringGuide(t, "scene-authoring")
 	for _, content := range []string{"compile_scene", "get_scene_source", "current client", "zero machinal credits", "sourceFile", "64000", "no automatic server-model fallback", "measured"} {
-		if !strings.Contains(guide, content) {
+		if !strings.Contains(clientGuide, content) {
 			t.Errorf("client authoring contract is missing %q", content)
 		}
 	}

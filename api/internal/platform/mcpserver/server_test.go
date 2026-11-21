@@ -53,7 +53,10 @@ func workflowPolicy(t *testing.T, handler http.Handler) string {
 	if len(resource.Contents) != 1 {
 		t.Fatalf("workflow policy resource has %d contents", len(resource.Contents))
 	}
-	return resource.Contents[0].Text
+	if !strings.Contains(resource.Contents[0].Text, "get_library_reference") {
+		t.Fatal("API must direct authoring to the installed MCP package")
+	}
+	return clientPolicyFixture("workflow.md")
 }
 
 func callTool(t *testing.T, handler http.Handler, name string, arguments any) (mcp.CallToolResult, Output) {
@@ -91,15 +94,15 @@ func TestCatalogAndInstructions(t *testing.T) {
 	if err := json.Unmarshal(envelope["result"], &initialized); err != nil {
 		t.Fatal(err)
 	}
-	if status != 200 || initialized.ServerInfo.Name != "machinal" || !strings.Contains(initialized.Instructions, "get_editing_reference(topic=brief)") {
+	if status != 200 || initialized.ServerInfo.Name != "machinal" || !strings.Contains(initialized.Instructions, "get_library_reference") {
 		t.Fatalf("initialize: %d %+v", status, initialized)
 	}
 	if len(initialized.Instructions) > 7000 || len(initialized.Instructions)*3 >= len(instructions) {
 		t.Fatal("handshake eagerly loaded detailed production policy", len(initialized.Instructions), len(instructions))
 	}
 	_, detailed := rpc(t, handler, "resources/read", map[string]any{"uri": "machinal://reference/workflow"})
-	if !strings.Contains(string(detailed["result"]), "CAPTION PRESERVATION") {
-		t.Fatal("detailed workflow policy is no longer available on demand")
+	if !strings.Contains(string(detailed["result"]), "get_library_reference") {
+		t.Fatal("API no longer directs the client to its authoring policy")
 	}
 	_, envelope = rpc(t, handler, "tools/list", map[string]any{})
 	var catalog mcp.ListToolsResult
@@ -121,12 +124,12 @@ func TestCatalogAndInstructions(t *testing.T) {
 		}
 	}
 	_, envelope = rpc(t, handler, "resources/read", map[string]any{"uri": "machinal://recipes/guide"})
-	if !strings.Contains(string(envelope["result"]), "get_asset_metadata") {
-		t.Fatal("recipe guide is missing")
+	if !strings.Contains(string(envelope["result"]), "get_library_reference") {
+		t.Fatal("client recipe guide pointer is missing")
 	}
 	for _, guide := range []struct{ uri, content string }{
-		{"machinal://skills/editing", "cinematic"},
-		{"machinal://skills/credits", "user's hardware"},
+		{"machinal://skills/editing", "get_library_reference"},
+		{"machinal://skills/credits", "get_library_reference"},
 	} {
 		_, envelope = rpc(t, handler, "resources/read", map[string]any{"uri": guide.uri})
 		if !strings.Contains(string(envelope["result"]), guide.content) {

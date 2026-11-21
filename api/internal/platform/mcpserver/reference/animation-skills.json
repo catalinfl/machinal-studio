@@ -1,7 +1,0 @@
-[
-  {"id":"machinal-motion","version":"1","label":"Visual motion direction","description":"Subject-specific scene ideas, reference roles, medium and asset selection; signature transformations rather than generic cards.","templates":["image-reveal","comparison-wipe","route-journey"]},
-  {"id":"machinal-choreography","version":"1","label":"Deterministic choreography","description":"Anticipation, stagger, easing, overlap, settle and reading holds driven by absolute frame time.","templates":["signal-diagram","piston-cycle","kinetic-type"]},
-  {"id":"machinal-spatial","version":"1","label":"Spatial staging and camera","description":"Genuine Three.js geometry, stable camera framing, motivated light and material hierarchy for spatial explanations.","templates":["lens-assembly-3d","paper-stage-3d"]},
-  {"id":"machinal-visual-review","version":"1","label":"Evidence-bound visual review","description":"Plan reveal/action/hold/exit samples, inspect approved scene pixels and make bounded timestamped repairs without claiming motion or audio verification.","templates":[]},
-  {"id":"machinal-sound","version":"1","label":"Action-led sound design","description":"Openverse CC0/Freesound discovery, licence-preserving project import, action synchronization and restrained sound mixing.","templates":[]}
-]

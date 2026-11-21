@@ -121,7 +121,15 @@ func TestNamedStylesOnlyRecommendExistingCatalogIDs(t *testing.T) {
 		}
 	}
 	seen := make(map[string]bool)
-	for _, raw := range entries["styles"] {
+	content, err := clientReferenceFixtures.ReadFile("reference/styles.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var styles []json.RawMessage
+	if err := json.Unmarshal(content, &styles); err != nil {
+		t.Fatal(err)
+	}
+	for _, raw := range styles {
 		var style map[string]json.RawMessage
 		if err := json.Unmarshal(raw, &style); err != nil {
 			t.Fatal(err)
@@ -149,13 +157,13 @@ func TestNamedStylesOnlyRecommendExistingCatalogIDs(t *testing.T) {
 }
 
 func TestReferenceExamplesUseStrictAPIParserAndActualCompiler(t *testing.T) {
-	files, err := fs.Glob(bundledGuides, "reference/examples/*.yaml")
+	files, err := fs.Glob(clientReferenceFS, "examples/*.yaml")
 	if err != nil || len(files) != len(referenceExamples) {
 		t.Fatal("unregistered or missing recipe examples", files, err)
 	}
 	for _, example := range referenceExamples {
 		t.Run(example.ID, func(t *testing.T) {
-			source, err := bundledGuides.ReadFile("reference/examples/" + example.ID + ".yaml")
+			source, err := clientReferenceFixtures.ReadFile("reference/examples/" + example.ID + ".yaml")
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -182,7 +190,7 @@ func TestReferenceToolAndExampleResourcesNeverInvokePaidOrUserAPI(t *testing.T) 
 		t.Fatal("reference lookups must not invoke account/provider operations")
 		return Response{}, nil
 	})
-	for _, args := range []map[string]any{{"topic": "overview"}, {"topic": "styles", "id": "cinematic"}, {"topic": "effects", "id": "gaussian-blur"}, {"topic": "examples", "id": "scene-generation"}} {
+	for _, args := range []map[string]any{{"topic": "overview"}, {"topic": "effects", "id": "gaussian-blur"}} {
 		result, output := callTool(t, handler, "get_editing_reference", args)
 		if result.IsError || output.StatusCode != 200 {
 			t.Fatal("reference lookup failed", result, output)
@@ -196,8 +204,8 @@ func TestReferenceToolAndExampleResourcesNeverInvokePaidOrUserAPI(t *testing.T) 
 	}
 	for _, example := range referenceExamples {
 		_, envelope := rpc(t, handler, "resources/read", map[string]any{"uri": "machinal://examples/" + example.ID})
-		if !strings.Contains(string(envelope["result"]), "document:") {
-			t.Fatal("recipe example resource is unavailable", example.ID)
+		if envelope["error"] == nil {
+			t.Fatal("API unexpectedly serves client-owned recipe examples", example.ID)
 		}
 	}
 	for _, topic := range referenceTopics {

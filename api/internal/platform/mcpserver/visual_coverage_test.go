@@ -21,7 +21,7 @@ func TestVisualCoveragePolicyReachesMCPInitializationAndReferences(t *testing.T)
 		if result.IsError || output.StatusCode != http.StatusOK {
 			t.Fatalf("visual coverage guidance is unavailable: %s", topic)
 		}
-		guides[topic] = output.Data.(map[string]any)["guide"].(string)
+		guides[topic] = clientAuthoringGuide(t, topic)
 	}
 	for name, guide := range guides {
 		t.Run(name, func(t *testing.T) {
