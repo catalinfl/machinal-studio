@@ -24,7 +24,7 @@ COPY --from=dependencies /opt/scene-service/node_modules ./node_modules
 # npm archives can preserve the native binary as 0644; the service runs non-root on a read-only image.
 RUN chmod 0755 node_modules/@machinal/scenes/native/linux-x64/scene-render
 COPY . .
-RUN chmod 0755 scripts/scene-chromium.sh
+RUN sed -i 's/\r$//' scripts/scene-chromium.sh && chmod 0755 scripts/scene-chromium.sh
 COPY --from=client-source src/lib/text-render.ts src/lib/text-geometry.ts src/lib/caption-layout.ts ./text-source/
 ENV SCENE_BROWSER=/opt/scene-service/scripts/scene-chromium.sh \
     SCENE_FFMPEG=/usr/bin/ffmpeg \
