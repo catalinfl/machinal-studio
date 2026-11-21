@@ -1,26 +1,44 @@
 import { defineConfig } from 'vitest/config'
 import { svelte } from '@sveltejs/vite-plugin-svelte'
 import { svelteTesting } from '@testing-library/svelte/vite'
+import { existsSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { createRequire } from 'node:module'
 
 const workspaceRoot = fileURLToPath(new URL('..', import.meta.url))
 const scenesPackage = fileURLToPath(new URL('./node_modules/@machinal/scenes/dist/', import.meta.url))
+const rendererPackageUrl = new URL('../services/scene-renderer/package.json', import.meta.url)
 const threePackage = fileURLToPath(new URL('../services/scene-renderer/node_modules/three/', import.meta.url))
-const rendererRequire = createRequire(new URL('../services/scene-renderer/package.json', import.meta.url))
+const rendererRequire = existsSync(rendererPackageUrl) ? createRequire(rendererPackageUrl) : null
+
+function resolveRendererAliases() {
+  if (!rendererRequire) return []
+  const aliases = []
+  for (const name of ['d3', 'd3-delaunay', 'clipper-lib', 'lottie-web/build/player/lottie_light.js', 'topojson-client']) {
+    try {
+      aliases.push({
+        find: new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`),
+        replacement: rendererRequire.resolve(name),
+      })
+    } catch {
+      // Optional dev-only native gallery dependencies from ../services/scene-renderer
+    }
+  }
+  aliases.push(
+    { find: /^@machinal\/hyperframes\/(.+)$/, replacement: fileURLToPath(new URL('../services/scene-renderer/hyperframes/', import.meta.url)) + '$1.mjs' },
+    { find: /^three\/addons\/(.+)$/, replacement: `${threePackage}examples/jsm/$1` },
+    { find: /^three\/(.+)$/, replacement: `${threePackage}$1` },
+    { find: /^three$/, replacement: fileURLToPath(new URL('../services/scene-renderer/node_modules/three/build/three.module.js', import.meta.url)) },
+  )
+  return aliases
+}
 
 export default defineConfig({
   plugins: [svelte(), svelteTesting()],
   resolve: {
     alias: [
-      ...['d3', 'd3-delaunay', 'clipper-lib', 'lottie-web/build/player/lottie_light.js', 'topojson-client'].map(name => ({
-        find: new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`), replacement: rendererRequire.resolve(name),
-      })),
+      ...resolveRendererAliases(),
       { find: /^gsap\/dist\/(MotionPathPlugin|TextPlugin)$/, replacement: fileURLToPath(new URL('./node_modules/gsap/dist/', import.meta.url)) + '$1.js' },
-      { find: /^@machinal\/hyperframes\/(.+)$/, replacement: fileURLToPath(new URL('../services/scene-renderer/hyperframes/', import.meta.url)) + '$1.mjs' },
-      { find: /^three\/addons\/(.+)$/, replacement: `${threePackage}examples/jsm/$1` },
-      { find: /^three\/(.+)$/, replacement: `${threePackage}$1` },
-      { find: /^three$/, replacement: fileURLToPath(new URL('../services/scene-renderer/node_modules/three/build/three.module.js', import.meta.url)) },
       { find: /^gsap\/dist\/CustomEase$/, replacement: fileURLToPath(new URL('./node_modules/gsap/dist/CustomEase.js', import.meta.url)) },
       { find: /^gsap$/, replacement: fileURLToPath(new URL('./node_modules/gsap/index.js', import.meta.url)) },
       { find: /^@machinal\/scenes\/svelte$/, replacement: `${scenesPackage}svelte/index.js` },
