@@ -242,6 +242,71 @@ func transformFlipFilters(base transform, keyframes []transformKeyframe) []strin
 	return filters
 }
 
+func transformHasZoomOrPan(base transform, keyframes []transformKeyframe) bool {
+	check := func(t transform) bool {
+		return math.Abs(t.ZoomX-1) > keyframeTimeEps ||
+			math.Abs(t.ZoomY-1) > keyframeTimeEps ||
+			math.Abs(t.PositionX) > keyframeTimeEps ||
+			math.Abs(t.PositionY) > keyframeTimeEps
+	}
+	if len(keyframes) == 0 {
+		return check(base)
+	}
+	for _, kf := range normalizeKeyframes(keyframes) {
+		if check(kf.Transform) {
+			return true
+		}
+	}
+	return false
+}
+
+func transformHasRotation(base transform, keyframes []transformKeyframe) bool {
+	if len(keyframes) == 0 {
+		return math.Abs(base.Rotation) > keyframeTimeEps
+	}
+	for _, kf := range normalizeKeyframes(keyframes) {
+		if math.Abs(kf.Transform.Rotation) > keyframeTimeEps {
+			return true
+		}
+	}
+	return false
+}
+
+func transformHasTilt(base transform, keyframes []transformKeyframe) bool {
+	if len(keyframes) == 0 {
+		return math.Abs(base.Yaw) > keyframeTimeEps || math.Abs(base.Pitch) > keyframeTimeEps
+	}
+	for _, kf := range normalizeKeyframes(keyframes) {
+		if math.Abs(kf.Transform.Yaw) > keyframeTimeEps || math.Abs(kf.Transform.Pitch) > keyframeTimeEps {
+			return true
+		}
+	}
+	return false
+}
+
+// staticCropScaleFilter handles constant zoom-in/pan transforms whose entire
+// output viewport lies strictly inside the source frame via fast crop+scale,
+// skipping per-frame cubic perspective warping.
+func staticCropScaleFilter(base transform, width, height int) (string, bool) {
+	if base.ZoomX < 1 || base.ZoomY < 1 {
+		return "", false
+	}
+	stageX := float64(width)/2 + base.PositionX*float64(width)/100
+	stageY := float64(height)/2 + base.PositionY*float64(height)/100
+	x0 := base.AnchorX*float64(width) - stageX/base.ZoomX
+	y0 := base.AnchorY*float64(height) - stageY/base.ZoomY
+	x1 := base.AnchorX*float64(width) + (float64(width)-stageX)/base.ZoomX
+	y1 := base.AnchorY*float64(height) + (float64(height)-stageY)/base.ZoomY
+	if x0 < -1e-6 || y0 < -1e-6 || x1 > float64(width)+1e-6 || y1 > float64(height)+1e-6 {
+		return "", false
+	}
+	cw := max(1, min(width, int(math.Round(x1-x0))))
+	ch := max(1, min(height, int(math.Round(y1-y0))))
+	cx := max(0, min(width-cw, int(math.Round(x0))))
+	cy := max(0, min(height-ch, int(math.Round(y0))))
+	return fmt.Sprintf("crop=%d:%d:%d:%d,scale=%d:%d:flags=bicubic", cw, ch, cx, cy, width, height), true
+}
+
 func clipTransformFilter(clip clip, width, height int, segmentOffset, segmentDuration float64, fps int) string {
 	if clip.Transform == nil && len(clip.TransformKeyframes) == 0 {
 		return ""
@@ -252,19 +317,42 @@ func clipTransformFilter(clip clip, width, height int, segmentOffset, segmentDur
 	}
 	keyframes := clip.TransformKeyframes
 	expressions := buildTransformExpressions(base, keyframes, segmentOffset, fps)
-	guard := transformGuardPixels
-	paddedWidth := width + guard*2
-	paddedHeight := height + guard*2
+	filters := make([]string, 0, 6)
 
-	filters := []string{
-		fmt.Sprintf("pad=%d:%d:%d:%d:color=black", paddedWidth, paddedHeight, guard, guard),
-		buildPerspectiveFilter(width, height, expressions),
-		fmt.Sprintf("crop=%d:%d:%d:%d", width, height, guard, guard),
-		fmt.Sprintf(`rotate=a='(%s)*PI/180'
+	if transformHasZoomOrPan(base, keyframes) {
+		if len(keyframes) == 0 {
+			if fast, ok := staticCropScaleFilter(base, width, height); ok {
+				filters = append(filters, fast)
+			} else {
+				guard := transformGuardPixels
+				paddedWidth := width + guard*2
+				paddedHeight := height + guard*2
+				filters = append(filters,
+					fmt.Sprintf("pad=%d:%d:%d:%d:color=black", paddedWidth, paddedHeight, guard, guard),
+					buildPerspectiveFilter(width, height, expressions),
+					fmt.Sprintf("crop=%d:%d:%d:%d", width, height, guard, guard),
+				)
+			}
+		} else {
+			guard := transformGuardPixels
+			paddedWidth := width + guard*2
+			paddedHeight := height + guard*2
+			filters = append(filters,
+				fmt.Sprintf("pad=%d:%d:%d:%d:color=black", paddedWidth, paddedHeight, guard, guard),
+				buildPerspectiveFilter(width, height, expressions),
+				fmt.Sprintf("crop=%d:%d:%d:%d", width, height, guard, guard),
+			)
+		}
+	}
+	if transformHasRotation(base, keyframes) {
+		filters = append(filters, fmt.Sprintf(`rotate=a='(%s)*PI/180'
 		:ow=%d
 		:oh=%d
-		:fillcolor=black`, expressions.rotation, width, height),
-		buildShearFilter(base, keyframes, segmentOffset, segmentDuration, fps),
+		:fillcolor=black`, expressions.rotation, width, height))
 	}
-	return strings.Join(append(filters, transformFlipFilters(base, keyframes)...), ",")
+	if transformHasTilt(base, keyframes) {
+		filters = append(filters, buildShearFilter(base, keyframes, segmentOffset, segmentDuration, fps))
+	}
+	filters = append(filters, transformFlipFilters(base, keyframes)...)
+	return strings.Join(filters, ",")
 }

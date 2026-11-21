@@ -64,10 +64,11 @@ func newHandler(call Caller, local bool) http.Handler {
 		Instructions: serverInstructions,
 		Capabilities: &mcp.ServerCapabilities{},
 	})
+	refs := newRecipeRefs()
 	registerProjectTools(server, call)
-	registerCompositionTools(server, call)
+	registerCompositionTools(server, call, refs)
 	registerSceneTools(server, call)
-	registerJobTools(server, call)
+	registerJobTools(server, call, refs)
 	registerMediaTools(server, call)
 	registerLocalMediaTools(server, call)
 	registerMediaAccessTools(server, call)

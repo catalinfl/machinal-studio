@@ -11,7 +11,7 @@ import (
 )
 
 const recipeRefTTL = 30 * time.Minute
-const maxRecipeRefs = 32 // at most 64 MiB of bounded recipe bodies per handler
+const maxRecipeRefs = 48 // at most 96 MiB of bounded recipe bodies per handler
 
 type recipeKey struct {
 	credential   [32]byte
@@ -24,6 +24,10 @@ type recipeEntry struct {
 type recipeRefs struct {
 	sync.Mutex
 	entries map[recipeKey]recipeEntry
+}
+
+func newRecipeRefs() *recipeRefs {
+	return &recipeRefs{entries: make(map[recipeKey]recipeEntry)}
 }
 
 func refKey(req *mcp.CallToolRequest, project, ref string) (recipeKey, bool) {
@@ -71,4 +75,36 @@ func (r *recipeRefs) resolve(ctx context.Context, req *mcp.CallToolRequest, call
 		return entry.yaml, nil
 	}
 	return "", errors.New("Recipe reference unavailable for this credential/project. Resend the YAML to validate_recipe; no work was submitted.")
+}
+
+func (r *recipeRefs) resolveCaptionBaseline(ctx context.Context, req *mcp.CallToolRequest, call Caller, project, baselineYAML, baselineJobID, baselineRef string) (string, error) {
+	provided := 0
+	if baselineYAML != "" {
+		provided++
+	}
+	if baselineJobID != "" {
+		provided++
+	}
+	if baselineRef != "" {
+		provided++
+	}
+	if provided == 0 {
+		return "", nil
+	}
+	if provided > 1 {
+		return "", errors.New("Use at most one of captionBaseline, captionBaselineJobId or captionBaselineRef.")
+	}
+	if baselineYAML != "" {
+		return baselineYAML, nil
+	}
+	if baselineJobID != "" {
+		return continuationYAML(ctx, req, call, project, baselineJobID, "")
+	}
+	key, ok := refKey(req, project, baselineRef)
+	r.Lock()
+	defer r.Unlock()
+	if entry, exists := r.entries[key]; ok && exists && time.Now().Before(entry.expires) {
+		return entry.yaml, nil
+	}
+	return "", errors.New("Caption baseline reference unavailable for this credential/project. Pass captionBaselineJobId or captionBaseline YAML instead; no work was submitted.")
 }

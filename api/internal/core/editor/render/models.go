@@ -29,6 +29,7 @@ type transformKeyframe struct {
 }
 
 type clip struct {
+	fromScene          bool
 	sceneTransparent   bool
 	previewPreroll     float64
 	File               string              `json:"file"`

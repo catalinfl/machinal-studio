@@ -176,11 +176,13 @@ func TestVideoMaskFilterPreservesLayerGeometryAndFade(t *testing.T) {
 		"fade=t=in:st=0:d=0.5:color=black",
 		"fade=t=out:st=2.25:d=0.75:color=black",
 		"perspective=x0=",
-		"shear@transform_shear=",
 	} {
 		if !strings.Contains(got, fragment) {
 			t.Fatalf("video mask filter %q does not contain %q", got, fragment)
 		}
+	}
+	if strings.Contains(got, "rotate=") || strings.Contains(got, "shear@transform_shear=") {
+		t.Fatalf("zoom/pan-only mask filter unexpectedly emitted no-op rotate/shear: %q", got)
 	}
 }
 
@@ -700,12 +702,15 @@ func TestBuildFilterAppliesIntensityRamp(t *testing.T) {
 	if err != nil {
 		t.Fatalf("build ramped effect: %v", err)
 	}
-	for _, fragment := range []string{"split[r0a][r0b]", "(T+1)", "min(", "blend=all_expr=", "format=gbrp"} {
+	for _, fragment := range []string{"split[r0a][r0b]", "(T+1)", "sendcmd=c='", "blend@r0=all_mode=normal:all_opacity=", "format=gbrp"} {
 		if !strings.Contains(got, fragment) {
 			t.Fatalf("ramped filter %q does not contain %q", got, fragment)
 		}
 	}
-	if got := strings.Count(got, "blend=all_expr="); got != 1 {
+	if strings.Contains(got, "blend=all_expr=") {
+		t.Fatalf("ramped sepia fell back to slow blend=all_expr: %q", got)
+	}
+	if got := strings.Count(got, "blend@r0=all_mode=normal"); got != 1 {
 		t.Fatalf("ramped sepia has %d blends, want one for the complete color operation", got)
 	}
 
@@ -729,7 +734,37 @@ func TestClipTransformFilterUsesCommandableShearValues(t *testing.T) {
 		t.Fatalf("static transform unexpectedly uses commands: %q", staticFilter)
 	}
 
+	// Static zoom-in uses fast crop+scale without per-frame perspective, rotate or shear.
+	staticZoom := base
+	staticZoom.ZoomX = 1.2
+	staticZoom.ZoomY = 1.2
+	staticZoomFilter := clipTransformFilter(clip{Transform: &staticZoom}, 640, 360, 0, 1.2, 30)
+	if !strings.Contains(staticZoomFilter, "crop=") || !strings.Contains(staticZoomFilter, "scale=640:360") {
+		t.Fatalf("static zoom-in should use fast crop+scale: %q", staticZoomFilter)
+	}
+	for _, unwanted := range []string{"perspective=", "rotate=", "shear@transform_shear="} {
+		if strings.Contains(staticZoomFilter, unwanted) {
+			t.Fatalf("static zoom-in unexpectedly contains %q: %q", unwanted, staticZoomFilter)
+		}
+	}
+
+	// Animated Ken Burns (zoom+pan only) keeps cubic perspective and omits no-op rotate/shear.
+	kenBurnsEnd := base
+	kenBurnsEnd.ZoomX = 1.1
+	kenBurnsEnd.ZoomY = 1.1
+	kenBurns := clip{TransformKeyframes: []transformKeyframe{{Time: 0, Transform: base}, {Time: 1.2, Transform: kenBurnsEnd}}}
+	kenBurnsFilter := clipTransformFilter(kenBurns, 640, 360, 0, 1.2, 30)
+	if !strings.Contains(kenBurnsFilter, "perspective=x0='") || !strings.Contains(kenBurnsFilter, ":eval=frame:interpolation=cubic:sense=source") {
+		t.Fatalf("animated zoom/pan missing cubic perspective: %q", kenBurnsFilter)
+	}
+	if strings.Contains(kenBurnsFilter, "rotate=") || strings.Contains(kenBurnsFilter, "shear@transform_shear=") {
+		t.Fatalf("animated zoom/pan unexpectedly includes rotate/shear: %q", kenBurnsFilter)
+	}
+
 	animated := base
+	animated.ZoomX = 1.1
+	animated.ZoomY = 1.1
+	animated.Rotation = 8
 	animated.Pitch = 10
 	animated.Yaw = 20
 	clip := clip{
@@ -770,8 +805,8 @@ func TestBuildFilterAnimatesBlurParameters(t *testing.T) {
 		Mode: "in-out", Curve: "ease-in-out", Amount: 0.25,
 		BlockDuration: 3.5, Offset: 0,
 	}
-	// blur stays a boxblur on both sides: the Pixi preview crossfades it, so
-	// a sendcmd-driven gblur here would diverge mid-ramp.
+	// blur stays a boxblur crossfaded against the untouched stream (matching Pixi
+	// preview), now using sendcmd-driven blend all_opacity instead of blend=all_expr.
 	blur, err := buildFilterForDuration([]effect{{
 		ID: "blur",
 		Params: map[string]float64{
@@ -782,13 +817,13 @@ func TestBuildFilterAnimatesBlurParameters(t *testing.T) {
 	if err != nil {
 		t.Fatalf("build ramped blur: %v", err)
 	}
-	for _, fragment := range []string{"boxblur=", "blend=all_expr="} {
+	for _, fragment := range []string{"boxblur=", "blend@r0=all_mode=normal:all_opacity=", "sendcmd=c='"} {
 		if !strings.Contains(blur, fragment) {
 			t.Fatalf("ramped blur %q does not contain %q", blur, fragment)
 		}
 	}
-	if strings.Contains(blur, "sendcmd=") {
-		t.Fatalf("ramped blur unexpectedly uses sendcmd: %q", blur)
+	if strings.Contains(blur, "gblur") || strings.Contains(blur, "blend=all_expr=") {
+		t.Fatalf("ramped blur unexpectedly switched away from boxblur or used all_expr: %q", blur)
 	}
 
 	// Only gaussian-blur animates its sigma on both sides.
@@ -826,7 +861,8 @@ func TestSplitTopLevelFilters(t *testing.T) {
 			t.Fatalf("complex graph %q must fall back to nil, got %q", complex, joined(got))
 		}
 	}
-	// soft-focus crossfades every stage; split graphs keep one whole wrap.
+	// soft-focus crossfades every stage via sendcmd blend; glow-bloom animates
+	// screen all_opacity natively with a single split and zero blend=all_expr.
 	soft, err := buildFilterForDuration([]effect{{
 		ID:   "soft-focus",
 		Ramp: &ramp{Mode: "in", Curve: "linear", Amount: 0.5, BlockDuration: 3.5},
@@ -834,8 +870,11 @@ func TestSplitTopLevelFilters(t *testing.T) {
 	if err != nil {
 		t.Fatalf("build ramped soft-focus: %v", err)
 	}
-	if got := strings.Count(soft, "blend=all_expr="); got != 2 {
+	if got := strings.Count(soft, "=all_mode=normal:all_opacity="); got != 2 {
 		t.Fatalf("ramped soft-focus has %d blends, want 2: %q", got, soft)
+	}
+	if strings.Contains(soft, "blend=all_expr=") {
+		t.Fatalf("ramped soft-focus fell back to blend=all_expr: %q", soft)
 	}
 	glow, err := buildFilterForDuration([]effect{{
 		ID:   "glow-bloom",
@@ -844,8 +883,11 @@ func TestSplitTopLevelFilters(t *testing.T) {
 	if err != nil {
 		t.Fatalf("build ramped glow-bloom: %v", err)
 	}
-	if got := strings.Count(glow, "blend=all_expr="); got != 1 {
-		t.Fatalf("ramped glow-bloom has %d blends, want 1: %q", got, glow)
+	if got := strings.Count(glow, "=all_mode=screen:all_opacity="); got != 1 {
+		t.Fatalf("ramped glow-bloom has %d screen blends, want 1: %q", got, glow)
+	}
+	if strings.Contains(glow, "blend=all_expr=") || strings.Count(glow, "split[") != 1 {
+		t.Fatalf("ramped glow-bloom should use one split and native sendcmd screen blend: %q", glow)
 	}
 	// Every catalog filter round-trips through the splitter.
 	for id := range effectFilters {
@@ -883,34 +925,34 @@ func TestSendcmdArgumentsContainNoBareCommas(t *testing.T) {
 	curves := []string{"linear", "ease-in", "ease-out", "ease-in-out"}
 	for _, mode := range modes {
 		for _, curve := range curves {
-			// Only gaussian-blur still animates parameters via sendcmd; blur
-			// crossfades its boxblur like the Pixi preview.
-			got, err := buildFilterForDuration([]effect{{
-				ID:     "gaussian-blur",
-				Params: map[string]float64{},
-				Ramp: &ramp{
-					Mode: mode, Curve: curve, Amount: 0.5,
-					BlockDuration: 3.5, Offset: 0.25,
-				},
-			}}, 3.5)
-			if err != nil {
-				t.Fatalf("build gaussian-blur %s/%s: %v", mode, curve, err)
-			}
-			if !strings.Contains(got, "sendcmd=") {
-				t.Fatalf("gaussian-blur %s/%s has no sendcmd: %q", mode, curve, got)
-			}
-			for partIndex, part := range strings.Split(got, "sendcmd=c='") {
-				if partIndex == 0 {
-					continue
+			for _, id := range []string{"gaussian-blur", "glow-bloom", "halation", "sepia"} {
+				got, err := buildFilterForDuration([]effect{{
+					ID:     id,
+					Params: map[string]float64{},
+					Ramp: &ramp{
+						Mode: mode, Curve: curve, Amount: 0.5,
+						BlockDuration: 3.5, Offset: 0.25,
+					},
+				}}, 3.5)
+				if err != nil {
+					t.Fatalf("build %s %s/%s: %v", id, mode, curve, err)
 				}
-				value := part
-				if i := strings.Index(value, "'"); i >= 0 {
-					value = value[:i]
-				} else {
-					t.Fatalf("gaussian-blur %s/%s sendcmd value is unterminated: %q", mode, curve, got)
+				if !strings.Contains(got, "sendcmd=") {
+					t.Fatalf("%s %s/%s has no sendcmd: %q", id, mode, curve, got)
 				}
-				if strings.Contains(value, ",") {
-					t.Fatalf("gaussian-blur %s/%s sendcmd value contains a bare comma: %q", mode, curve, got)
+				for partIndex, part := range strings.Split(got, "sendcmd=c='") {
+					if partIndex == 0 {
+						continue
+					}
+					value := part
+					if i := strings.Index(value, "'"); i >= 0 {
+						value = value[:i]
+					} else {
+						t.Fatalf("%s %s/%s sendcmd value is unterminated: %q", id, mode, curve, got)
+					}
+					if strings.Contains(value, ",") {
+						t.Fatalf("%s %s/%s sendcmd value contains a bare comma: %q", id, mode, curve, got)
+					}
 				}
 			}
 		}

@@ -6,6 +6,7 @@ import (
 	"math"
 	"sort"
 	"strconv"
+	"sync"
 	"time"
 
 	"ffmpeg-go-server/internal/platform/jobqueue"
@@ -65,6 +66,7 @@ const (
 type progressCallback func(ratio float64, message string)
 
 type renderProgress struct {
+	mu            sync.Mutex
 	ctx           context.Context
 	totalWork     float64
 	completedWork float64
@@ -74,6 +76,25 @@ type renderProgress struct {
 	lastReport    time.Time
 	threadBudget  int
 	sceneShare    float64
+}
+
+func (progress *renderProgress) workCompleted() float64 {
+	if progress == nil {
+		return 0
+	}
+	progress.mu.Lock()
+	defer progress.mu.Unlock()
+	return progress.completedWork
+}
+
+func (progress *renderProgress) addWork(delta float64) float64 {
+	if progress == nil {
+		return 0
+	}
+	progress.mu.Lock()
+	defer progress.mu.Unlock()
+	progress.completedWork += delta
+	return progress.completedWork
 }
 
 func newRenderProgress(totalWork float64, callback progressCallback) *renderProgress {
@@ -97,7 +118,7 @@ func (progress *renderProgress) runFFmpeg(expectedDuration, work float64, messag
 		return utils.RunFFmpegContext(ctx, args...)
 	}
 
-	start := progress.completedWork
+	start := progress.workCompleted()
 	progress.report(start/progress.totalWork, message, true)
 	err = utils.RunFFmpegProgress(ctx, expectedDuration, func(ratio float64) {
 		overall := (start + ratio*work) / progress.totalWork
@@ -114,8 +135,8 @@ func (progress *renderProgress) runFFmpeg(expectedDuration, work float64, messag
 	if err != nil {
 		return err
 	}
-	progress.completedWork += work
-	progress.report(progress.completedWork/progress.totalWork, message, true)
+	completed := progress.addWork(work)
+	progress.report(completed/progress.totalWork, message, true)
 	return nil
 }
 
@@ -159,18 +180,22 @@ func (progress *renderProgress) complete(message string) {
 }
 
 func (progress *renderProgress) report(ratio float64, message string, force bool) {
-	if progress.callback == nil {
+	if progress == nil || progress.callback == nil {
 		return
 	}
+	progress.mu.Lock()
 	ratio = math.Max(progress.lastRatio, math.Min(maxProgressRatio, math.Max(0, ratio)))
 	now := time.Now()
 	if !force && message == progress.lastMessage && ratio-progress.lastRatio < progressRatioStep && now.Sub(progress.lastReport) < progressMinInterval {
+		progress.mu.Unlock()
 		return
 	}
 	progress.lastRatio = ratio
 	progress.lastMessage = message
 	progress.lastReport = now
-	progress.callback(ratio, message)
+	callback := progress.callback
+	progress.mu.Unlock()
+	callback(ratio, message)
 }
 
 func estimateRenderWork(req renderRequest, plan renderPlan) float64 {
@@ -211,13 +236,13 @@ func estimateVideoWork(req renderRequest, plan renderPlan) (int, float64) {
 			}
 			for _, part := range segments {
 				duration := math.Max(0, part.SrcEnd-part.SrcStart) / clipPlaybackRate(movingClip)
-				work += duration * (1 + segmentEffectsCost(part.Effects))
+				work += duration * (1 + segmentEffectsCost(segmentEffectsForClip(movingClip, part.Effects)))
 			}
 			if needsMask {
 				work += clipDurT(movingClip) * videoMaskWorkFactor
 			}
 		}
-		work += estimateTimelineGroupWork(clips, plan.totalDuration, 1)
+		work += estimateVideoTimelineGroupWork(clips, plan.fps, plan.totalDuration)
 		if needsMask {
 			work += estimateTimelineGroupWork(clips, plan.totalDuration, videoMaskWorkFactor)
 		}
@@ -259,6 +284,34 @@ func estimateAudioWork(req renderRequest, plan renderPlan) float64 {
 	}
 	if audioChannelCount > 0 {
 		work += plan.totalDuration * finalAudioWorkFactor
+	}
+	return work
+}
+
+func estimateVideoTimelineGroupWork(clips []clip, fps int, totalDuration float64) float64 {
+	work := 0.0
+	cursor := 0.0
+	for groupIndex, indices := range groupOverlapping(clips) {
+		groupClips := clips[indices[0] : indices[1]+1]
+		groupStart := groupClips[0].Start
+		groupDuration := clipEndT(groupClips[len(groupClips)-1]) - groupStart
+		if len(groupClips) > 1 {
+			planned, _ := planWindowedGroup(groupIndex, indices[0], indices[1], clips, fps, nil)
+			if planned.windowed {
+				for _, tr := range planned.transitions {
+					work += tr.duration
+				}
+			} else {
+				work += groupDuration
+			}
+		}
+		if gap := groupStart - cursor; gap > timelineSmallGapEps {
+			work += gap
+		}
+		cursor = math.Max(cursor, groupStart+groupDuration)
+	}
+	if gap := totalDuration - cursor; gap > timelineSmallGapEps {
+		work += gap
 	}
 	return work
 }

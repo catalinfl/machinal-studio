@@ -2,6 +2,7 @@ package routes
 
 import (
 	"os"
+	"path/filepath"
 
 	"ffmpeg-go-server/internal/core/billing"
 	"ffmpeg-go-server/internal/core/editor/compositions"
@@ -13,6 +14,7 @@ import (
 	"ffmpeg-go-server/internal/platform/auth"
 	"ffmpeg-go-server/internal/platform/jobqueue"
 	"ffmpeg-go-server/internal/platform/soundlibrary"
+	"ffmpeg-go-server/internal/platform/storage"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -35,7 +37,11 @@ func registerAutomationRoutes(app *fiber.App, store *projects.Store, jobs *jobqu
 	api.Post("/projects", store.CreateHandler)
 	api.Get("/compositions/schema", compositions.Schema)
 	api.Get("/compositions/capabilities", compositions.Capabilities)
-	sounds := &media.SoundEffects{Library: soundlibrary.New(soundlibrary.NewHTTPClient())}
+	var soundOpts []soundlibrary.Option
+	if storage.DataDir != "" {
+		soundOpts = append(soundOpts, soundlibrary.WithCacheDir(filepath.Join(storage.DataDir, ".sound-cache")))
+	}
+	sounds := &media.SoundEffects{Library: soundlibrary.New(soundlibrary.NewHTTPClient(), soundOpts...)}
 	api.Get("/sounds/search", requestLimiter(12, rateWindow, "sound search rate limit exceeded"), sounds.Search)
 	api.Post("/ai/tool-selection", requestLimiter(20, rateWindow, "Tool routing rate limit exceeded"), toolrouting.Validate, accountBilling.Meter, toolrouting.Select)
 	project := api.Group("/projects/:projectID", store.ScopeAPI)

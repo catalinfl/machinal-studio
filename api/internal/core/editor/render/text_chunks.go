@@ -75,6 +75,10 @@ func renderTextChunks(input string, imageFiles []string, items []textItem, chunk
 	})
 }
 
+func taskThreadBudget(cpus, workers int) int {
+	return max(1, cpus/max(1, workers))
+}
+
 func renderTasks(label string, weights []float64, w, h int, progress *renderProgress, render func(int, *renderProgress) (string, error)) ([]string, error) {
 	ctx := context.Background()
 	if progress != nil && progress.ctx != nil {
@@ -87,7 +91,7 @@ func renderTasks(label string, weights []float64, w, h int, progress *renderProg
 	completed := make([]float64, len(weights))
 	start := 0.0
 	if progress != nil {
-		start = progress.completedWork
+		start = progress.workCompleted()
 	}
 
 	var mu sync.Mutex
@@ -95,7 +99,7 @@ func renderTasks(label string, weights []float64, w, h int, progress *renderProg
 	jobs := make(chan int)
 	var workers sync.WaitGroup
 	workerCount := textChunkWorkers(len(weights), w, h, runtime.GOMAXPROCS(0), availableTextMemory())
-	threadBudget := max(1, runtime.GOMAXPROCS(0)/max(1, workerCount)/2)
+	threadBudget := taskThreadBudget(runtime.GOMAXPROCS(0), workerCount)
 	log.Printf("render_%s_plan workers=%d threads_per_stage=%d tasks=%d", label, workerCount, threadBudget, len(weights))
 	for range workerCount {
 		workers.Go(func() {
@@ -149,7 +153,7 @@ dispatch:
 		return nil, err
 	}
 	if progress != nil {
-		progress.completedWork = start + sumChunkWork(weights)
+		progress.addWork(sumChunkWork(weights))
 	}
 	return files, nil
 }

@@ -70,7 +70,7 @@ var effectFilters = map[string]string{
 	"shear":                "shear=shx=0.15:shy=0:fillcolor=black",
 	"waviness":             `geq=lum='lum(X+8*sin(Y/18),Y)':cb='cb(X+4*sin(Y/18),Y)':cr='cr(X+4*sin(Y/18),Y)'`,
 	"camera-shake":         "crop=w=iw-20:h=ih-20:x=10+8*sin(13*t):y=10+8*sin(17*t),scale=w=iw+20:h=ih+20",
-	"glow-bloom":           "split[r0ia][r0ib];[r0ib]gblur=sigma=8,eq=brightness=0.08:saturation=1.15[r0ig];[r0ia][r0ig]blend=all_mode=screen:all_opacity=0.35",
+	"glow-bloom":           "format=gbrp,split[r0ia][r0ib];[r0ib]gblur=sigma=8,eq=brightness=0.08:saturation=1.15,format=gbrp[r0ig];[r0ia][r0ig]blend=all_mode=screen:all_opacity=0.35",
 	"halation":             "split[r0ia][r0ib];[r0ib]gblur=sigma=5,colorbalance=rs=0.18:gs=-0.045:bs=-0.099[r0ih];[r0ia][r0ih]blend=all_mode=screen:all_opacity=0.24",
 	"lens-flare":           `format=gbrp,geq=r='r(X,Y)+70*exp(-((X-W*0.72)*(X-W*0.72)+(Y-H*0.28)*(Y-H*0.28))/(W*H*0.006))':g='g(X,Y)+52*exp(-((X-W*0.72)*(X-W*0.72)+(Y-H*0.28)*(Y-H*0.28))/(W*H*0.006))':b='b(X,Y)+30*exp(-((X-W*0.72)*(X-W*0.72)+(Y-H*0.28)*(Y-H*0.28))/(W*H*0.006))'`,
 	"light-rays":           "edgedetect=low=0.08:high=0.24:mode=colormix,dblur=angle=45:radius=14,eq=brightness=0.04:contrast=1.08",
@@ -262,6 +262,11 @@ func rampPhases(ramp ramp, segmentDuration float64) []rampPhase {
 	}
 
 	segmentEnd := offset + segmentDuration
+	if offset == 0 && duration > segmentEnd {
+		// Preserve trailing ramp phases for streams whose PTS starts mid-block
+		// while ramp.Offset stays 0.
+		segmentEnd = duration
+	}
 	phases := make([]rampPhase, 0, len(source))
 	for _, phase := range source {
 		start := math.Max(offset, phase.start)
@@ -320,8 +325,12 @@ func parameterValueExpr(neutral, target float64, intensity string) string {
 }
 
 func commandRamp(target, option string, neutral, value float64, ramp ramp, segmentDuration float64) string {
-	commands := make([]string, 0, 3)
-	for _, phase := range rampPhases(ramp, segmentDuration) {
+	phases := rampPhases(ramp, segmentDuration)
+	if len(phases) == 0 {
+		return ""
+	}
+	commands := make([]string, 0, len(phases)+1)
+	for _, phase := range phases {
 		interval := ff(phase.start) + "-" + ff(phase.end)
 		argument := parameterValueExpr(neutral, value, phase.intensity)
 		if phase.intensity == "1" {
@@ -330,18 +339,29 @@ func commandRamp(target, option string, neutral, value float64, ramp ramp, segme
 			commands = append(commands, interval+" [expr] "+target+" "+option+" "+argument)
 		}
 	}
-	if len(commands) == 0 {
-		return ""
+	// Clamp any frame whose PTS lands at or just past the block end to the
+	// exact terminal intensity (0 for out/in-out, target value for in).
+	lastEnd := phases[len(phases)-1].end
+	if ramp.BlockDuration > 0 && ramp.Offset+lastEnd >= ramp.BlockDuration-rampPhaseEps {
+		terminal := neutral
+		if ramp.mode() == "in" {
+			terminal = value
+		}
+		commands = append(commands, ff(lastEnd)+"-86400 "+target+" "+option+" "+ff(terminal))
 	}
 	return "sendcmd=c='" + strings.Join(commands, ";") + "'"
 }
 
-func animatedGblur(tag string, sigma, steps, planes float64, ramp ramp, segmentDuration float64) string {
+func rampInitialIntensity(ramp ramp) float64 {
 	progress := 0.0
 	if ramp.BlockDuration > 0 {
 		progress = ramp.Offset / ramp.BlockDuration
 	}
-	initialSigma := sigma * rampIntensityAt(ramp, progress)
+	return rampIntensityAt(ramp, progress)
+}
+
+func animatedGblur(tag string, sigma, steps, planes float64, ramp ramp, segmentDuration float64) string {
+	initialSigma := sigma * rampInitialIntensity(ramp)
 	target := "gblur@" + tag
 	parts := []string{
 		commandRamp(target, "sigma", 0, sigma, ramp, segmentDuration),
@@ -353,6 +373,34 @@ func animatedGblur(tag string, sigma, steps, planes float64, ramp ramp, segmentD
 		return parts[2]
 	}
 	return strings.Join(parts, ",")
+}
+
+func animatedGlowBloom(tag string, radius, opacity, brightness, saturation float64, ramp ramp, segmentDuration float64) (string, bool) {
+	target := "blend@" + tag
+	cmd := commandRamp(target, "all_opacity", 0, opacity, ramp, segmentDuration)
+	if cmd == "" {
+		return "", false
+	}
+	initial := opacity * rampInitialIntensity(ramp)
+	graph := fmt.Sprintf(
+		"settb=AVTB,split[%sa][%sb];[%sb]format=yuv444p,gblur=sigma=%s,eq=brightness=%s:saturation=%s,format=gbrp[%sg];[%sa]format=gbrp,%s[%so];[%so][%sg]%s=all_mode=screen:all_opacity=%s",
+		tag, tag, tag, ff(radius), ff(brightness), ff(saturation), tag, tag, cmd, tag, tag, tag, target, ff(initial),
+	)
+	return graph, true
+}
+
+func animatedHalation(tag string, radius, opacity, red float64, ramp ramp, segmentDuration float64) (string, bool) {
+	target := "blend@" + tag
+	cmd := commandRamp(target, "all_opacity", 0, opacity, ramp, segmentDuration)
+	if cmd == "" {
+		return "", false
+	}
+	initial := opacity * rampInitialIntensity(ramp)
+	graph := fmt.Sprintf(
+		"settb=AVTB,split[%sa][%sb];[%sb]format=rgb24,gblur=sigma=%s,colorbalance=rs=%s:gs=%s:bs=%s,format=gbrp[%sh];[%sa]format=gbrp,%s[%so];[%so][%sh]%s=all_mode=screen:all_opacity=%s",
+		tag, tag, tag, ff(radius), ff(red), ff(-red*0.25), ff(-red*0.55), tag, tag, cmd, tag, tag, tag, target, ff(initial),
+	)
+	return graph, true
 }
 
 func uniformWeights(frames int) string {
@@ -369,7 +417,7 @@ func shakeMargin(amount float64) int {
 	return int(math.Ceil(amount)) + 2
 }
 
-func buildParameterRamp(effect effect, ramp ramp, segmentDuration float64, tag string) (string, bool) {
+func buildParameterRamp(effect effect, ramp ramp, segmentDuration float64, tag string) (string, bool, bool) {
 	value := func(key string, fallback float64) float64 {
 		if candidate, ok := effect.Params[key]; ok {
 			return candidate
@@ -378,9 +426,15 @@ func buildParameterRamp(effect effect, ramp ramp, segmentDuration float64, tag s
 	}
 	switch effect.ID {
 	case "gaussian-blur":
-		return animatedGblur(tag, value("sigma", 6), value("steps", 2), 15, ramp, segmentDuration), true
+		return animatedGblur(tag, value("sigma", 6), value("steps", 2), 15, ramp, segmentDuration), false, true
+	case "glow-bloom":
+		graph, ok := animatedGlowBloom(tag, value("radius", 8), value("opacity", 0.35), value("brightness", 0.08), value("saturation", 1.15), ramp, segmentDuration)
+		return graph, true, ok
+	case "halation":
+		graph, ok := animatedHalation(tag, value("radius", 5), value("opacity", 0.24), value("red", 0.18), ramp, segmentDuration)
+		return graph, true, ok
 	}
-	return "", false
+	return "", false, false
 }
 
 // splitTopLevelFilters splits a filter chain on top-level commas: commas
@@ -461,6 +515,160 @@ func wrapRampStages(inner, expr, tag string) string {
 		wrapped = append(wrapped, wrapIntensityFilter(stage, expr, fmt.Sprintf("%ss%d", tag, k)))
 	}
 	return strings.Join(wrapped, ",")
+}
+
+// wrapRampIntensityFilter crossfades untouched and effected streams using
+// sendcmd-driven blend all_mode=normal:all_opacity (native C/SIMD path),
+// avoiding per-pixel blend=all_expr software evaluation.
+// Input order [effected][original] maps all_opacity=0 -> original, 1 -> effected.
+func wrapRampIntensityFilter(inner string, r ramp, segmentDuration float64, tag string) (string, bool) {
+	target := "blend@" + tag
+	cmd := commandRamp(target, "all_opacity", 0, 1, r, segmentDuration)
+	if cmd == "" {
+		return "", false
+	}
+	initial := rampInitialIntensity(r)
+	innerPrefix := "format=rgb24,"
+	if stagePreferredSpace(inner) == colorSpaceYUV444 {
+		innerPrefix = "format=yuv444p,"
+	} else if strings.HasPrefix(strings.TrimSpace(inner), "format=") {
+		innerPrefix = ""
+	}
+	return "settb=AVTB,split[" + tag + "a][" + tag + "b];" +
+		"[" + tag + "b]" + innerPrefix + inner + "[" + tag + "f];" +
+		"[" + tag + "a]format=gbrp," + cmd + "[" + tag + "o];" +
+		"[" + tag + "f]format=gbrp[" + tag + "e];" +
+		"[" + tag + "e][" + tag + "o]" + target + "=all_mode=normal:all_opacity=" + ff(initial), true
+}
+
+func wrapRampStagesAnimated(inner string, r ramp, segmentDuration float64, tag string) (string, bool) {
+	stages := rampFilterStages(inner)
+	if len(stages) < 2 {
+		return wrapRampIntensityFilter(inner, r, segmentDuration, tag)
+	}
+	wrapped := make([]string, 0, len(stages))
+	for k, stage := range stages {
+		part, ok := wrapRampIntensityFilter(stage, r, segmentDuration, fmt.Sprintf("%ss%d", tag, k))
+		if !ok {
+			return "", false
+		}
+		wrapped = append(wrapped, part)
+	}
+	return strings.Join(wrapped, ","), true
+}
+
+const (
+	colorSpaceUnknown = ""
+	colorSpaceYUV444  = "yuv444p"
+	colorSpaceRGB24   = "rgb24"
+)
+
+// yuvNativeFilters operate natively in full-chroma planar YUV (yuv444p),
+// avoiding redundant RGB24 <-> YUV444P swscale conversions between adjacent
+// filters in a chain (e.g. creator-natural: hqdn3d -> eq -> cas -> noise).
+var yuvNativeFilters = map[string]bool{
+	"hqdn3d":         true,
+	"eq":             true,
+	"cas":            true,
+	"noise":          true,
+	"unsharp":        true,
+	"hue":            true,
+	"boxblur":        true,
+	"gblur":          true,
+	"dblur":          true,
+	"deband":         true,
+	"deflicker":      true,
+	"median":         true,
+	"chromashift":    true,
+	"yadif":          true,
+	"bilateral":      true,
+	"tmix":           true,
+	"pixelize":       true,
+	"vignette":       true,
+	"hflip":          true,
+	"vflip":          true,
+	"fps":            true,
+	"crop":           true,
+	"scale":          true,
+	"negate":         true,
+	"lenscorrection": true,
+	"rotate":         true,
+	"shear":          true,
+	"geq":            true,
+}
+
+func leadingFilterName(stage string) string {
+	trimmed := strings.TrimSpace(stage)
+	for strings.HasPrefix(trimmed, "sendcmd=") {
+		rest := strings.TrimPrefix(trimmed, "sendcmd=")
+		if quote := strings.IndexByte(rest, '\''); quote >= 0 {
+			rest = rest[quote+1:]
+			if end := strings.IndexByte(rest, '\''); end >= 0 {
+				rest = strings.TrimPrefix(rest[end+1:], ",")
+				trimmed = strings.TrimSpace(rest)
+				continue
+			}
+		}
+		break
+	}
+	if idx := strings.IndexAny(trimmed, "=@,"); idx >= 0 {
+		return trimmed[:idx]
+	}
+	return trimmed
+}
+
+func stagePreferredSpace(stage string) string {
+	trimmed := strings.TrimSpace(stage)
+	if strings.Contains(trimmed, "split[") || strings.Contains(trimmed, ";") {
+		return colorSpaceRGB24
+	}
+	if strings.HasPrefix(trimmed, "format=rgb24") {
+		return colorSpaceRGB24
+	}
+	if strings.HasPrefix(trimmed, "format=yuv444p") {
+		return colorSpaceYUV444
+	}
+	if strings.HasPrefix(trimmed, "format=") {
+		return colorSpaceUnknown
+	}
+	if yuvNativeFilters[leadingFilterName(trimmed)] {
+		return colorSpaceYUV444
+	}
+	return colorSpaceRGB24
+}
+
+func normalizeStageColorSpace(stage, currentSpace string) (string, string) {
+	trimmed := strings.TrimSpace(stage)
+	if strings.HasPrefix(trimmed, "settb=") || strings.Contains(trimmed, "split[") || strings.Contains(trimmed, ";") {
+		if strings.HasPrefix(trimmed, "settb=") {
+			return trimmed, colorSpaceUnknown
+		}
+		if strings.HasPrefix(trimmed, "format=rgb24") || currentSpace == colorSpaceRGB24 {
+			return trimmed, colorSpaceUnknown
+		}
+		return "format=rgb24," + trimmed, colorSpaceUnknown
+	}
+	if strings.HasPrefix(trimmed, "format=") {
+		switch {
+		case strings.HasPrefix(trimmed, "format=rgb24"):
+			return trimmed, colorSpaceRGB24
+		case strings.HasPrefix(trimmed, "format=yuv444p"):
+			return trimmed, colorSpaceYUV444
+		default:
+			return trimmed, colorSpaceUnknown
+		}
+	}
+	want := stagePreferredSpace(trimmed)
+	if want == colorSpaceYUV444 {
+		if currentSpace == colorSpaceYUV444 {
+			return trimmed, colorSpaceYUV444
+		}
+		return "format=yuv444p," + trimmed, colorSpaceYUV444
+	}
+	if currentSpace == colorSpaceRGB24 {
+		return trimmed, colorSpaceRGB24
+	}
+	return "format=rgb24," + trimmed, colorSpaceRGB24
 }
 
 // wrapIntensityFilter crossfades between the untouched stream and the fully
@@ -690,7 +898,7 @@ func buildEffectFilterTagged(effect effect, tag string) (string, error) {
 		opacity := number("opacity", 0.35, 0, 1, false)
 		brightness := number("brightness", 0.08, -0.2, 0.5, false)
 		saturation := number("saturation", 1.15, 0, 3, false)
-		filter = fmt.Sprintf("split[%sa][%sb];[%sb]gblur=sigma=%s,eq=brightness=%s:saturation=%s[%sg];[%sa][%sg]blend=all_mode=screen:all_opacity=%s", tag, tag, tag, ff(radius), ff(brightness), ff(saturation), tag, tag, tag, ff(opacity))
+		filter = fmt.Sprintf("format=gbrp,split[%sa][%sb];[%sb]gblur=sigma=%s,eq=brightness=%s:saturation=%s,format=gbrp[%sg];[%sa][%sg]blend=all_mode=screen:all_opacity=%s", tag, tag, tag, ff(radius), ff(brightness), ff(saturation), tag, tag, tag, ff(opacity))
 	case "halation":
 		radius := number("radius", 5, 0.5, 30, false)
 		opacity := number("opacity", 0.24, 0, 1, false)
@@ -824,12 +1032,16 @@ func buildFilterForDuration(effects []effect, segmentDuration float64) (string, 
 			if !(duration > 0) {
 				duration = effect.Ramp.BlockDuration - effect.Ramp.Offset
 			}
-			if animated, ok := buildParameterRamp(effect, *effect.Ramp, duration, fmt.Sprintf("r%d", i)); ok {
-				stages = append(stages, stage{graph: animated})
+			if animated, labeled, ok := buildParameterRamp(effect, *effect.Ramp, duration, fmt.Sprintf("r%d", i)); ok {
+				stages = append(stages, stage{graph: animated, ramped: labeled})
+				continue
+			}
+			tag := fmt.Sprintf("r%d", i)
+			if animated, ok := wrapRampStagesAnimated(filter, *effect.Ramp, duration, tag); ok {
+				stages = append(stages, stage{graph: animated, ramped: true})
 				continue
 			}
 			if expr := rampIntensityExpr(*effect.Ramp); expr != "" {
-				tag := fmt.Sprintf("r%d", i)
 				stages = append(stages, stage{graph: wrapRampStages(filter, expr, tag), ramped: true})
 				continue
 			}
@@ -838,24 +1050,21 @@ func buildFilterForDuration(effects []effect, segmentDuration float64) (string, 
 	}
 
 	ramped := false
+	currentSpace := colorSpaceUnknown
 	for index := range stages {
-		// Isolate every stage in RGB like the Pixi preview. Stages already on
-		// packed RGB keep a single prefix; gray/planar/split stages get an
-		// explicit format=rgb24 first so they derive from full-resolution RGB
-		// exactly like the preview shaders.
+		// Keep full-chroma yuv444p across consecutive YUV-native stages to avoid
+		// redundant RGB24 <-> YUV444P swscale conversions, while preserving rgb24
+		// for RGB-native filters and complex graphs.
 		if innerStages := rampFilterStages(stages[index].graph); len(innerStages) > 1 {
 			normalized := make([]string, 0, len(innerStages))
 			for _, innerStage := range innerStages {
-				if strings.HasPrefix(strings.TrimSpace(innerStage), "format=rgb24") {
-					normalized = append(normalized, innerStage)
-				} else {
-					normalized = append(normalized, "format=rgb24,"+innerStage)
-				}
+				var out string
+				out, currentSpace = normalizeStageColorSpace(innerStage, currentSpace)
+				normalized = append(normalized, out)
 			}
 			stages[index].graph = strings.Join(normalized, ",")
-		} else if !strings.HasPrefix(stages[index].graph, "format=rgb24") {
-			// Match the decoded RGB input used by the live preview for every effect.
-			stages[index].graph = "format=rgb24," + stages[index].graph
+		} else {
+			stages[index].graph, currentSpace = normalizeStageColorSpace(stages[index].graph, currentSpace)
 		}
 		ramped = ramped || stages[index].ramped
 	}

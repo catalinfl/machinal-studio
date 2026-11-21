@@ -1,5 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import { renderOptions, rendererArgs, renderConcurrency, sharedRenderResources } from './render-options.mjs';
 
 const GiB = 1024 ** 3;
@@ -42,4 +43,13 @@ test('renderer flags preserve resolution, cadence and lossless capture', () => {
   assert.ok(!args.includes('-gpu'));
   assert.deepEqual(args.slice(args.indexOf('-workers'), args.indexOf('-workers') + 2), ['-workers', '4']);
   assert.ok(!args.includes('-crf'));
+});
+
+test('compose.editengine.yaml allocates enough PIDs for parallel scene rendering', async () => {
+  const compose = await readFile(new URL('../../compose.editengine.yaml', import.meta.url), 'utf8');
+  const match = compose.match(/^\s*pids_limit:\s*(\d+)/m);
+  assert.ok(match, 'compose.editengine.yaml must declare pids_limit');
+  const pidsLimit = Number(match[1]);
+  assert.ok(pidsLimit >= 512, `pids_limit=${pidsLimit} should allow parallel scene rendering`);
+  assert.equal(renderConcurrency({ cpus: 4, memory: 3 * GiB, pidsAvailable: pidsLimit - 64 }), 2);
 });

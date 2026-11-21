@@ -198,24 +198,9 @@ func clipInputArgs(clip clip, inputPath string) []string {
 // buildVideoTrack processes video clips, applies effects and transitions, and
 // fills timeline gaps with black frames.
 func buildVideoTrack(clips []clip, w, h, fps int, work string, totalDur float64, xfadeByRight map[int]string, progress *renderProgress, scope fileScope, fit document.VideoFit) (string, error) {
-	clipFiles, err := renderVideoSegments(clips, w, h, fps, work, progress, scope, fit)
+	groups, err := renderWindowedVideoTrack(clips, w, h, fps, work, xfadeByRight, progress, scope, fit)
 	if err != nil {
 		return "", err
-	}
-
-	clipGroups := groupOverlapping(clips)
-	groups := make([]trackGroup, 0, len(clipGroups))
-	for groupIndex, indices := range clipGroups {
-		groupClips := clips[indices[0] : indices[1]+1]
-		if len(groupClips) == 1 {
-			groups = append(groups, trackGroup{file: clipFiles[indices[0]], start: groupClips[0].Start, dur: clipDurT(groupClips[0])})
-			continue
-		}
-		out, err := xfadeGroup(groupClips, clipFiles[indices[0]:indices[1]+1], fps, work, groupIndex, indices[0], xfadeByRight, progress)
-		if err != nil {
-			return "", fmt.Errorf("video xfade group %d: %w", groupIndex, err)
-		}
-		groups = append(groups, trackGroup{file: out, start: groupClips[0].Start, dur: clipEndT(groupClips[len(groupClips)-1]) - groupClips[0].Start})
 	}
 
 	pieces := make([]string, 0, len(groups)*2+1)

@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"ffmpeg-go-server/editengine/document"
+	"ffmpeg-go-server/internal/core/editor/scenes"
 )
 
 type videoSegmentTask struct {
@@ -14,6 +15,32 @@ type videoSegmentTask struct {
 	segmentIndex int
 	clip         clip
 	segment      segment
+}
+
+// segmentEffectsForClip drops temporal/spatial denoising (hqdn3d) on clean
+// synthetic scene renders, which have no camera sensor noise.
+func segmentEffectsForClip(moving clip, effects []effect) []effect {
+	if len(effects) == 0 || (!moving.fromScene && !scenes.IsSource(moving.File)) {
+		return effects
+	}
+	hasDenoise := false
+	for _, item := range effects {
+		if item.ID == "denoise" {
+			hasDenoise = true
+			break
+		}
+	}
+	if !hasDenoise {
+		return effects
+	}
+	filtered := make([]effect, 0, len(effects)-1)
+	for _, item := range effects {
+		if item.ID == "denoise" {
+			continue
+		}
+		filtered = append(filtered, item)
+	}
+	return filtered
 }
 
 func planVideoSegments(clips []clip, fps int) ([]videoSegmentTask, []float64, error) {
@@ -30,7 +57,7 @@ func planVideoSegments(clips []clip, fps int) ([]videoSegmentTask, []float64, er
 				continue
 			}
 			tasks = append(tasks, videoSegmentTask{index, segmentIndex, moving, part})
-			weights = append(weights, (part.SrcEnd-part.SrcStart)/clipPlaybackRate(moving)*(1+segmentEffectsCost(part.Effects)))
+			weights = append(weights, (part.SrcEnd-part.SrcStart)/clipPlaybackRate(moving)*(1+segmentEffectsCost(segmentEffectsForClip(moving, part.Effects))))
 		}
 		if first == len(tasks) {
 			return nil, nil, fmt.Errorf("clip %d produced no segments", index)
@@ -65,6 +92,11 @@ func renderVideoSegments(clips []clip, w, h, fps int, work string, progress *ren
 }
 
 func renderVideoSegment(task videoSegmentTask, weight float64, w, h, fps int, work string, progress *renderProgress, scope fileScope, fit document.VideoFit) (string, error) {
+	piece := filepath.Join(work, fmt.Sprintf("vc%d_s%d.mp4", task.clipIndex, task.segmentIndex))
+	return renderVideoSegmentTo(task, weight, w, h, fps, piece, progress, scope, fit)
+}
+
+func renderVideoSegmentTo(task videoSegmentTask, weight float64, w, h, fps int, piece string, progress *renderProgress, scope fileScope, fit document.VideoFit) (string, error) {
 	moving, part := task.clip, task.segment
 	inputPath, err := scope.join(moving.File)
 	if err != nil {
@@ -77,7 +109,6 @@ func renderVideoSegment(task videoSegmentTask, weight float64, w, h, fps int, wo
 	}
 	inputArgs := append(segmentInputArgs(part, moving.MediaKind), sceneDecoderArgs(moving)...)
 	debugVideoSegment(task.clipIndex, task.segmentIndex, moving.File, part, clipPlaybackRate(moving), effectFilter, videoFilter, inputArgs, inputPath)
-	piece := filepath.Join(work, fmt.Sprintf("vc%d_s%d.mp4", task.clipIndex, task.segmentIndex))
 	message := fmt.Sprintf("rendering video clip %d, segment %d", task.clipIndex+1, task.segmentIndex+1)
 	err = progress.runFFmpeg(duration, weight, message, append(inputArgs, "-i", inputPath,
 		"-vf", videoFilter, "-c:v", videoCodec, "-preset", videoPreset, "-crf", videoCrf,
@@ -90,7 +121,7 @@ func renderVideoSegment(task videoSegmentTask, weight float64, w, h, fps int, wo
 
 func videoSegmentFilter(moving clip, part segment, w, h, fps int, fit document.VideoFit) (string, string, error) {
 	duration := (part.SrcEnd - part.SrcStart) / clipPlaybackRate(moving)
-	effectFilter, err := buildFilterForDuration(part.Effects, duration)
+	effectFilter, err := buildFilterForDuration(segmentEffectsForClip(moving, part.Effects), duration)
 	if err != nil {
 		return "", "", fmt.Errorf("build video segment filter: %w", err)
 	}

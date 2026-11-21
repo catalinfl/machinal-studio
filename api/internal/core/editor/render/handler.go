@@ -18,6 +18,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/valyala/fasthttp"
+	"golang.org/x/sync/errgroup"
 )
 
 // Export validates an editor export request and coordinates video, audio and
@@ -370,16 +371,28 @@ func renderDuration(clips []clip, textItems []textItem) float64 {
 }
 
 func renderTracks(req renderRequest, plan renderPlan, work string, progress *renderProgress) (string, string, error) {
-	videoFile := ""
-	if plan.hasVideo {
-		var err error
-		videoFile, err = renderVideoTrack(req, plan, work, progress)
-		if err != nil {
-			return "", "", err
-		}
+	ctx := context.Background()
+	if progress != nil && progress.ctx != nil {
+		ctx = progress.ctx
 	}
-	audioFile, err := buildAudio(req.AudioChannels, plan.hasAudio, plan.totalDuration, work, progress, plan.scope)
-	if err != nil {
+	group, _ := errgroup.WithContext(ctx)
+	videoFile := ""
+	audioFile := ""
+	if plan.hasVideo {
+		group.Go(func() error {
+			var err error
+			videoFile, err = renderVideoTrack(req, plan, work, progress)
+			return err
+		})
+	}
+	if plan.hasAudio {
+		group.Go(func() error {
+			var err error
+			audioFile, err = buildAudio(req.AudioChannels, plan.hasAudio, plan.totalDuration, work, progress, plan.scope)
+			return err
+		})
+	}
+	if err := group.Wait(); err != nil {
 		return "", "", err
 	}
 	return videoFile, audioFile, nil

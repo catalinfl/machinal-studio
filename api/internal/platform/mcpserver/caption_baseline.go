@@ -46,6 +46,37 @@ func replaceCaptionWord(doc *document.Document, edit captionTextEdit) error {
 	return fmt.Errorf("Unknown baseline captionId %q", edit.CaptionID)
 }
 
+func applyCaptionTextEditsToDocument(doc *document.Document, edits []captionTextEdit) error {
+	for _, edit := range edits {
+		if edit.From == "" || edit.From == edit.To || len(edit.From) > maxContractText || len(edit.To) > maxContractText {
+			return errors.New("Each captionTextEdits entry needs a bounded nonempty from and a different to string")
+		}
+		if edit.CaptionID != "" || edit.WordIndex != nil {
+			if err := replaceCaptionWord(doc, edit); err != nil {
+				return err
+			}
+			continue
+		}
+		matched := false
+		for index := range doc.Texts {
+			text := &doc.Texts[index]
+			if !text.IsCaption {
+				continue
+			}
+			matched = matched || strings.Contains(text.Text, edit.From)
+			text.Text = strings.ReplaceAll(text.Text, edit.From, edit.To)
+			for word := range text.Words {
+				matched = matched || strings.Contains(text.Words[word].Text, edit.From)
+				text.Words[word].Text = strings.ReplaceAll(text.Words[word].Text, edit.From, edit.To)
+			}
+		}
+		if !matched {
+			return errors.New("A captionTextEdits source string does not occur in the baseline captions")
+		}
+	}
+	return nil
+}
+
 func compareCaptionBaseline(yaml, baseline string, edits []captionTextEdit, approved bool) (map[string]any, error) {
 	if baseline == "" {
 		if len(edits) > 0 || approved {
@@ -76,32 +107,8 @@ func compareCaptionBaseline(yaml, baseline string, edits []captionTextEdit, appr
 		}
 	}
 	original := captionVersion(&input.Document)
-	for _, edit := range edits {
-		if edit.From == "" || edit.From == edit.To || len(edit.From) > maxContractText || len(edit.To) > maxContractText {
-			return nil, errors.New("Each captionTextEdits entry needs a bounded nonempty from and a different to string")
-		}
-		if edit.CaptionID != "" || edit.WordIndex != nil {
-			if err := replaceCaptionWord(&input.Document, edit); err != nil {
-				return nil, err
-			}
-			continue
-		}
-		matched := false
-		for index := range input.Document.Texts {
-			text := &input.Document.Texts[index]
-			if !text.IsCaption {
-				continue
-			}
-			matched = matched || strings.Contains(text.Text, edit.From)
-			text.Text = strings.ReplaceAll(text.Text, edit.From, edit.To)
-			for word := range text.Words {
-				matched = matched || strings.Contains(text.Words[word].Text, edit.From)
-				text.Words[word].Text = strings.ReplaceAll(text.Words[word].Text, edit.From, edit.To)
-			}
-		}
-		if !matched {
-			return nil, errors.New("A captionTextEdits source string does not occur in the baseline captions")
-		}
+	if err := applyCaptionTextEditsToDocument(&input.Document, edits); err != nil {
+		return nil, err
 	}
 	parsed, _, err := compositions.ParseProject([]byte(yaml))
 	if err != nil {

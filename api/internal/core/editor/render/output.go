@@ -109,7 +109,7 @@ func (settings outputSettings) videoEncodingArgs() []string {
 	}
 	preset := settings.videoPreset
 	if preset == "" {
-		preset = "medium"
+		preset = "faster"
 	}
 	return []string{"-c:v", "libx264", "-preset", preset, "-crf", settings.videoQuality, "-pix_fmt", "yuv420p", "-threads", videoThreadCount()}
 }

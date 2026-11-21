@@ -15,7 +15,7 @@ func exportEncoding() (string, string, error) {
 	}
 	preset := os.Getenv("RENDER_X264_PRESET")
 	if preset == "" {
-		preset = "medium"
+		preset = "faster"
 	}
 	switch preset {
 	case "ultrafast", "superfast", "veryfast", "faster", "fast", "medium", "slow", "slower", "veryslow":

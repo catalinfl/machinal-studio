@@ -1,6 +1,7 @@
 package render
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"math"
@@ -8,6 +9,8 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	"golang.org/x/sync/errgroup"
 )
 
 func directVideoClip(req renderRequest, plan renderPlan) (clip, segment, bool) {
@@ -59,18 +62,34 @@ func renderFusedOutput(req renderRequest, plan renderPlan, work, outputPath stri
 			return true, fmt.Errorf("create fused render work dir: %w", err)
 		}
 	}
-	args, filter, err := fusedVideoInput(req, plan, moving, part, direct, frames, work, progress)
-	if err != nil {
-		return true, err
+	ctx := context.Background()
+	if progress != nil && progress.ctx != nil {
+		ctx = progress.ctx
 	}
-	audio, err := buildAudio(req.AudioChannels, plan.hasAudio, plan.totalDuration, work, progress, plan.scope)
-	if err != nil {
+	group, _ := errgroup.WithContext(ctx)
+	var args []string
+	var filter string
+	var audio string
+	group.Go(func() error {
+		var err error
+		args, filter, err = fusedVideoInput(req, plan, moving, part, direct, frames, work, progress)
+		return err
+	})
+	if plan.hasAudio {
+		group.Go(func() error {
+			var err error
+			audio, err = buildAudio(req.AudioChannels, plan.hasAudio, plan.totalDuration, work, progress, plan.scope)
+			return err
+		})
+	}
+	if err := group.Wait(); err != nil {
 		return true, err
 	}
 	message := "encoding fused final video/text"
 	if usesTextLayer {
 		message = "encoding video with caption layer"
 	}
+	var err error
 	args, err = fusedEncodingArgs(args, filter, req.TextItems, textInputs, audio, work, plan, frames, progress)
 	if err != nil {
 		return true, err

@@ -27,6 +27,7 @@ var Catalog = []Tool{
 	{"import_sound_effect", "Import an approved versioned Openverse/Freesound preview with persisted licence/attribution into the owned project volume; no arbitrary URLs or render spending."},
 	{"validate_recipe", "Check a YAML composition for errors without generation or rendering."},
 	{"compile_recipe", "Compile a YAML composition into a normalized plan without paid execution."},
+	{"patch_recipe", "Apply structured mutations (assets, clips, tracks, effects, transitions, output or approved caption text edits) to a server-side recipeRef or sourceJobId without resending full YAML."},
 	{"compile_scene", "Compose and animate approved existing images or simple procedural diagrams using Svelte written by the current client AI; free source compilation, not artwork generation or video rendering. Up to four images per scene, not per video; generate missing complex or overly simplistic SVG/CSS subjects with generate_assets first."},
 	{"get_scene_source", "Read an approved live scene's editable source for changes by the current client AI."},
 	{"inspect_scene", "Inspect approved live-scene frames as bounded thumbnails and timestamped diagnostics, without encoding a video."},

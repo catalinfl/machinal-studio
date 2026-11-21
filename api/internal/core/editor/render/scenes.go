@@ -176,7 +176,7 @@ func rebaseSceneClip(moving clip, output sceneExport) clip {
 		moving.Segments[index].SrcStart -= output.start
 		moving.Segments[index].SrcEnd -= output.start
 	}
-	moving.File, moving.sceneTransparent = output.file, output.transparent
+	moving.File, moving.sceneTransparent, moving.fromScene = output.file, output.transparent, true
 	return moving
 }
 

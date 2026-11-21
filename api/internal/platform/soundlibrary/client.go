@@ -18,8 +18,8 @@ const (
 	apiOrigin        = "https://api.openverse.org/v1/audio/"
 	MaxAudioBytes    = 8 << 20
 	maxMetadataBytes = 1 << 20
-	cacheLifetime    = 5 * time.Minute
-	maxCacheEntries  = 128
+	cacheLifetime    = 4 * time.Hour
+	maxCacheEntries  = 1024
 	requestTimeout   = 20 * time.Second
 	audioTimeout     = 55 * time.Second
 )
@@ -82,16 +82,38 @@ type cacheEntry struct {
 	until  time.Time
 }
 
-type Client struct {
-	http  Doer
-	now   func() time.Time
-	mu    sync.Mutex
-	cache map[string]cacheEntry
-	gate  chan struct{}
+type lookupCacheEntry struct {
+	sound Sound
+	until time.Time
 }
 
-func New(client Doer) *Client {
-	return &Client{http: client, now: time.Now, cache: make(map[string]cacheEntry), gate: make(chan struct{}, 4)}
+type Option func(*Client)
+
+type Client struct {
+	http        Doer
+	now         func() time.Time
+	mu          sync.Mutex
+	cache       map[string]cacheEntry
+	lookupCache map[string]lookupCacheEntry
+	cacheDir    string
+	curated     []curatedRecord
+	gate        chan struct{}
+}
+
+func New(client Doer, opts ...Option) *Client {
+	c := &Client{
+		http:        client,
+		now:         time.Now,
+		cache:       make(map[string]cacheEntry),
+		lookupCache: make(map[string]lookupCacheEntry),
+		gate:        make(chan struct{}, 4),
+	}
+	for _, opt := range opts {
+		if opt != nil {
+			opt(c)
+		}
+	}
+	return c
 }
 
 func ValidID(id string) bool { return idPattern.MatchString(id) }
@@ -129,6 +151,15 @@ func (c *Client) Search(ctx context.Context, input Search) (SearchResult, error)
 		cached.result.Cached = true
 		return cached.result, nil
 	}
+	if disk, ok := c.readDiskSearch(key); ok {
+		c.storeSearchCache(key, disk)
+		disk.Cached = true
+		return disk, nil
+	}
+	if curated, ok := c.searchCurated(input); ok {
+		c.storeSearchCache(key, curated)
+		return curated, nil
+	}
 	var response struct {
 		Results   []openverseSound `json:"results"`
 		PageCount int              `json:"page_count"`
@@ -149,18 +180,24 @@ func (c *Client) Search(ctx context.Context, input Search) (SearchResult, error)
 			break
 		}
 	}
-	c.mu.Lock()
-	if len(c.cache) >= maxCacheEntries {
-		clear(c.cache)
-	}
-	c.cache[key] = cacheEntry{result: result, until: c.now().Add(cacheLifetime)}
-	c.mu.Unlock()
+	c.storeSearchCache(key, result)
+	c.writeDiskSearch(key, result)
 	return result, nil
 }
 
 func (c *Client) Lookup(ctx context.Context, id string) (Sound, error) {
 	if !ValidID(id) {
 		return Sound{}, errors.New("Use an exact Openverse audio ID from search_sound_effects.")
+	}
+	c.mu.Lock()
+	cached, found := c.lookupCache[id]
+	c.mu.Unlock()
+	if found && c.now().Before(cached.until) {
+		return cached.sound, nil
+	}
+	if disk, ok := c.readDiskLookup(id); ok {
+		c.storeLookupCache(disk)
+		return disk, nil
 	}
 	var item openverseSound
 	if err := c.metadata(ctx, apiOrigin+id+"/", &item); err != nil {
@@ -169,7 +206,13 @@ func (c *Client) Lookup(ctx context.Context, id string) (Sound, error) {
 	if item.ID != id {
 		return Sound{}, errors.New("Sound library returned a different source identity.")
 	}
-	return item.sound()
+	sound, err := item.sound()
+	if err != nil {
+		return Sound{}, err
+	}
+	c.storeLookupCache(sound)
+	c.writeDiskLookup(sound)
+	return sound, nil
 }
 
 func (c *Client) metadata(ctx context.Context, address string, result any) error {
@@ -190,6 +233,9 @@ func (c *Client) Download(ctx context.Context, sound Sound) ([]byte, error) {
 	if !sound.Importable || !AllowedLicense(sound.License) || !previewAllowed(sound.URL, sound.Filetype) {
 		return nil, errors.New("Only approved direct Freesound CDN MP3/WAV/OGG/FLAC previews can be imported; no fallback was attempted.")
 	}
+	if body, ok := c.readDiskAudio(sound); ok {
+		return body, nil
+	}
 	body, err := c.get(ctx, sound.URL, MaxAudioBytes, audioTimeout)
 	if errors.Is(err, errResponseTooLarge) {
 		return nil, ErrPreviewTooLarge
@@ -200,6 +246,7 @@ func (c *Client) Download(ctx context.Context, sound Sound) ([]byte, error) {
 	if !audioSignature(body, sound.Filetype) {
 		return nil, errors.New("Preview is not a supported audio container.")
 	}
+	c.writeDiskAudio(sound, body)
 	return body, nil
 }
 

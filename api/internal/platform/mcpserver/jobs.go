@@ -30,7 +30,7 @@ type jobWaitInput struct {
 	TimeoutSeconds int `json:"timeoutSeconds,omitempty" jsonschema:"Maximum completion wait, 1-900 seconds; default 120. Use 900 for a long 3D render when the client supports it."`
 }
 
-func registerJobTools(server *mcp.Server, call Caller) {
+func registerJobTools(server *mcp.Server, call Caller, refs *recipeRefs) {
 	mcp.AddTool(server, &mcp.Tool{Name: "list_jobs", Description: "Recover compact recent job summaries for an owned project after reconnecting. Results are retained for 30 days.", Annotations: annotations(true, false, true)},
 		func(ctx context.Context, req *mcp.CallToolRequest, input projectInput) (*mcp.CallToolResult, Output, error) {
 			path, err := projectPath(input.ProjectID, "/jobs?view=summary")
@@ -55,13 +55,22 @@ func registerJobTools(server *mcp.Server, call Caller) {
 			}
 			return invoke(ctx, req, call, Request{Method: http.MethodGet, Path: path})
 		})
-	mcp.AddTool(server, &mcp.Tool{Name: "get_job_result", Description: "Retrieve a job result once. Generation results include a complete resolved recipeYaml with pinned assets, ready to save as .edit.yaml without retranscribing JSON. For unchanged continuation pass sourceJobId to render_video or generate_assets instead of resending the recipe.", Annotations: annotations(true, false, true)},
+	mcp.AddTool(server, &mcp.Tool{Name: "get_job_result", Description: "Retrieve a job result once. Generation results include a complete resolved recipeYaml with pinned assets AND a temporary server-side recipeRef for this credential/project, ready for patch_recipe, captionBaselineRef or unchanged sourceJobId continuation without retransmitting YAML.", Annotations: annotations(true, false, true)},
 		func(ctx context.Context, req *mcp.CallToolRequest, input jobInput) (*mcp.CallToolResult, Output, error) {
 			result, output, err := invokeJobResult(ctx, req, call, input)
 			if err != nil || result.IsError {
 				return result, output, err
 			}
 			output.Data = yamlJobResult(output.Data)
+			if refs != nil {
+				if view, ok := output.Data.(map[string]any); ok {
+					if recipe, ok := view["recipeYaml"].(string); ok && recipe != "" {
+						if ref := refs.save(req, input.ProjectID, recipe); ref != "" {
+							view["recipeRef"] = ref
+						}
+					}
+				}
+			}
 			return result, output, nil
 		})
 	mcp.AddTool(server, &mcp.Tool{Name: "cancel_job", Description: "Cancel queued work or request cancellation of running work in an owned project. Provider cancellation is best-effort; consumed work may still be billed.", Annotations: annotations(false, true, true)},

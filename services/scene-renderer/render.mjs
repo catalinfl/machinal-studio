@@ -44,7 +44,7 @@ export async function renderComponent(input, signal, { requestId, onProgress = (
    }
   if (concurrency > 1) options.workers = Math.min(options.workers, Math.max(1, Math.floor(4 / concurrency)), resources.cpus);
   if (concurrency > 1) options.threads = Math.min(options.threads, resources.cpus);
-  console.info('scene_render_started', JSON.stringify({ ...trace, width: config.width, height: config.height, fps: config.fps, frames: config.durationInFrames, ...options }));
+  console.info('scene_render_started', JSON.stringify({ ...trace, concurrency, width: config.width, height: config.height, fps: config.fps, frames: config.durationInFrames, ...options }));
   const budget = cacheBudget(process.env.SCENE_CACHE_MAX_BYTES);
   // Hardware-dependent pixels cannot share a cache without an explicit device fingerprint.
   const cacheRoot = budget > 0 && (!options.gpu || process.env.SCENE_GPU_FINGERPRINT) ? process.env.SCENE_CACHE_DIR : undefined;

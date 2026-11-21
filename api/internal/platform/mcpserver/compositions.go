@@ -23,7 +23,9 @@ type compositionInput struct {
 	Draft                  bool                `json:"draft,omitempty" jsonschema:"For compile_recipe only: allow unresolved generation actions"`
 	FullResult             bool                `json:"fullResult,omitempty" jsonschema:"Return the full normalized document and plan. Default is a compact response with diagnostics, requirements, summary, versions and reviews; request fullResult only when reading normalized source is necessary."`
 	ExpectedCaptionVersion string              `json:"expectedCaptionVersion,omitempty" jsonschema:"Optional deterministic preservation guard from get_job_result or prior preflight: all text entries and caption resultTextIds must be identical. New/changed recipe text requires an explicitly authorized new baseline."`
-	CaptionBaseline        string              `json:"captionBaseline,omitempty" jsonschema:"Optional intact resolved baseline YAML for deterministic comparison of complete caption entries and resultTextIds. No media use or paid work."`
+	CaptionBaseline        string              `json:"captionBaseline,omitempty" jsonschema:"Optional intact resolved baseline YAML for deterministic comparison of complete caption entries and resultTextIds. No media use or paid work. Prefer captionBaselineJobId or captionBaselineRef to avoid resending large YAML."`
+	CaptionBaselineJobID   string              `json:"captionBaselineJobId,omitempty" jsonschema:"Optional owned generation job ID (e.g. timing-first pass) whose resolved YAML is loaded on the server as the intact caption baseline instead of resending captionBaseline inline. Mutually exclusive with captionBaseline and captionBaselineRef."`
+	CaptionBaselineRef     string              `json:"captionBaselineRef,omitempty" jsonschema:"Optional recipeRef from get_job_result or prior preflight in this project to use as the intact caption baseline instead of resending captionBaseline inline. Mutually exclusive with captionBaseline and captionBaselineJobId."`
 	CaptionTextEdits       []captionTextEdit   `json:"captionTextEdits,omitempty" jsonschema:"Only explicitly approved exact text replacements; applied to baseline text and word strings, never timings, grouping or styling. Requires captionEditsApproved."`
 	CaptionEditsApproved   bool                `json:"captionEditsApproved,omitempty" jsonschema:"True only after the user authorized these exact caption text replacements; not permission to regroup, retime or restyle captions."`
 	ProductionContract     *productionContract `json:"productionContract,omitempty" jsonschema:"For compile_recipe only: structured beat, asset, choreography, handoff and treatment promises bound to the exact YAML revision; deterministic checks, never aesthetic approval"`
@@ -45,9 +47,12 @@ type capabilitiesInput struct {
 	FullCatalog bool `json:"fullCatalog,omitempty" jsonschema:"Include the large full preset catalog only when needed; normally use targeted get_editing_reference lookups"`
 }
 
-func registerCompositionTools(server *mcp.Server, call Caller) {
-	refs := &recipeRefs{entries: make(map[recipeKey]recipeEntry)}
+func registerCompositionTools(server *mcp.Server, call Caller, refs *recipeRefs) {
+	if refs == nil {
+		refs = newRecipeRefs()
+	}
 	registerPreviewTools(server, call, refs)
+	registerRecipePatchTool(server, call, refs)
 	registerRenderInspection(server, call)
 	mcp.AddTool(server, &mcp.Tool{Name: "get_capabilities", Description: "Get a compact live capability/configuration summary, schemaHash, language support and unsupported features such as music generation. Cache it for this workflow. Configuration does not prove provider health. Use fullCatalog=true only when the full catalog is needed; prefer targeted get_editing_reference lookups.", Annotations: annotations(true, false, true)},
 		func(ctx context.Context, req *mcp.CallToolRequest, input capabilitiesInput) (*mcp.CallToolResult, Output, error) {
@@ -112,14 +117,18 @@ func registerCompositionTools(server *mcp.Server, call Caller) {
 				if err != nil {
 					return nil, Output{}, err
 				}
+				captionBaseline, err := refs.resolveCaptionBaseline(ctx, req, call, input.ProjectID, input.CaptionBaseline, input.CaptionBaselineJobID, input.CaptionBaselineRef)
+				if err != nil {
+					return nil, Output{}, err
+				}
 				captionGuardSource := composition
-				if input.CaptionBaseline != "" && len(input.CaptionTextEdits) > 0 && input.CaptionEditsApproved {
-					captionGuardSource = input.CaptionBaseline
+				if captionBaseline != "" && len(input.CaptionTextEdits) > 0 && input.CaptionEditsApproved {
+					captionGuardSource = captionBaseline
 				}
 				if err := checkCaptionVersion(captionGuardSource, input.ExpectedCaptionVersion); err != nil {
 					return nil, Output{}, err
 				}
-				captionReview, err := compareCaptionBaseline(composition, input.CaptionBaseline, input.CaptionTextEdits, input.CaptionEditsApproved)
+				captionReview, err := compareCaptionBaseline(composition, captionBaseline, input.CaptionTextEdits, input.CaptionEditsApproved)
 				if err != nil {
 					return nil, Output{}, err
 				}

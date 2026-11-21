@@ -13,10 +13,18 @@ func TestExportEncodingPreservesDeliveryQuality(t *testing.T) {
 		t.Fatal(err)
 	}
 	args := strings.Join(settings.videoEncodingArgs(), " ")
-	for _, want := range []string{"-c:v libx264", "-preset medium", "-crf 18", "-pix_fmt yuv420p"} {
+	for _, want := range []string{"-c:v libx264", "-preset faster", "-crf 18", "-pix_fmt yuv420p"} {
 		if !strings.Contains(args, want) {
 			t.Fatalf("missing %s in %s", want, args)
 		}
+	}
+	t.Setenv("RENDER_X264_PRESET", "medium")
+	mediumSettings, err := parseOutputSettings("mp4", "high")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := strings.Join(mediumSettings.videoEncodingArgs(), " "); !strings.Contains(got, "-preset medium") {
+		t.Fatalf("explicit preset override lost: %s", got)
 	}
 	if videoCrf != "0" || videoPixFmt != "yuv444p" {
 		t.Fatal("intermediate encodes must not discard detail or chroma")
