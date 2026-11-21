@@ -1,51 +1,73 @@
 package scenes
 
 import (
-	"context"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
+	"strconv"
+	"sync/atomic"
 	"testing"
+
+	"ffmpeg-go-server/internal/platform/sessions"
+	"ffmpeg-go-server/internal/platform/storage"
+	"github.com/gofiber/fiber/v2"
 )
 
-func TestLegacyScenePreviewUsesSharedRenderEnvironment(t *testing.T) {
-	calls := 0
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		calls++
-		if r.URL.Path != "/compile" {
-			t.Errorf("unexpected compiler endpoint: %s", r.URL.Path)
-		}
-		var request struct {
-			Component string `json:"component"`
-			Config    Config `json:"config"`
-		}
-		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-			t.Error(err)
-		}
-		if request.Component != "<p>Saved scene</p>" || request.Config != (Config{Width: 1080, Height: 1920, FPS: 30, Frames: 60}) {
-			t.Errorf("legacy scene changed: %+v", request)
-		}
-		if err := json.NewEncoder(w).Encode(map[string]string{"javascript": "shared-font-bundle"}); err != nil {
-			t.Error(err)
-		}
+func TestScenePreviewStreamsSavedBundleWithoutWakingWorker(t *testing.T) {
+	var calls atomic.Int32
+	worker := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls.Add(1)
+		w.WriteHeader(http.StatusServiceUnavailable)
 	}))
-	defer server.Close()
-	t.Setenv("SCENE_SERVICE_URL", server.URL)
-	original := LiveSource{Version: 1, Component: "<p>Saved scene</p>", JavaScript: "old-bundle", Config: Config{Width: 1080, Height: 1920, FPS: 30, Frames: 60}, Audio: &Narration{File: "voice.wav", Start: 3, Duration: 10}}
-	preview, err := preparePreviewSource(context.Background(), original)
-	if err != nil || preview.JavaScript != "shared-font-bundle" || preview.EnvironmentVersion != previewEnvironmentVersion || preview.Audio != original.Audio {
-		t.Fatalf("refreshed preview: %+v, %v", preview, err)
+	defer worker.Close()
+	t.Setenv("SCENE_SERVICE_URL", worker.URL)
+	previous := storage.DataDir
+	storage.DataDir = t.TempDir()
+	t.Cleanup(func() { sessions.Evict("preview-test"); storage.DataDir = previous })
+	root, err := sessions.Touch("preview-test")
+	if err != nil {
+		t.Fatal(err)
 	}
-	if original.JavaScript != "old-bundle" || original.EnvironmentVersion != 0 {
-		t.Fatal("refresh mutated the stored asset")
-	}
-	if _, err := preparePreviewSource(context.Background(), preview); err != nil || calls != 1 {
-		t.Fatalf("current previews should not recompile: calls=%d, %v", calls, err)
-	}
-	previous := original
-	previous.EnvironmentVersion = previewEnvironmentVersion - 1
-	refreshed, err := preparePreviewSource(context.Background(), previous)
-	if err != nil || calls != 2 || refreshed.EnvironmentVersion != previewEnvironmentVersion || refreshed.JavaScript != "shared-font-bundle" {
-		t.Fatalf("previous environment should refresh: calls=%d, source=%+v, %v", calls, refreshed, err)
+	name := "ai_scene_0123456789abcdef0123456789abcdef_01.scene.json"
+	app := fiber.New()
+	app.Get("/download", DownloadSource)
+	for _, version := range []int{0, previewEnvironmentVersion - 1, previewEnvironmentVersion} {
+		t.Run(strconv.Itoa(version), func(t *testing.T) {
+			source := LiveSource{Version: 1, Component: "<p>Scenă salvată</p>", JavaScript: "saved-browser-bundle",
+				EnvironmentVersion: version, Config: Config{Width: 320, Height: 180, FPS: 30, Frames: 60},
+				Images: map[string]string{"image_1": "data:image/png;base64,AAAA"}}
+			data, err := json.MarshalIndent(source, "", "  ")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(filepath.Join(root, name), data, 0600); err != nil {
+				t.Fatal(err)
+			}
+			request := httptest.NewRequest(http.MethodGet, "/download?file="+name+"&session=preview-test", nil)
+			response, err := app.Test(request)
+			if err != nil {
+				t.Fatal(err)
+			}
+			body, err := io.ReadAll(response.Body)
+			response.Body.Close()
+			if err != nil || response.StatusCode != http.StatusOK || string(body) != string(data) {
+				t.Fatalf("saved preview changed: status=%d err=%v", response.StatusCode, err)
+			}
+			if calls.Load() != 0 {
+				t.Fatal("viewing a saved scene contacted the compiler or renderer")
+			}
+			request.Header.Set("If-None-Match", response.Header.Get("ETag"))
+			cached, err := app.Test(request)
+			if err != nil {
+				t.Fatal(err)
+			}
+			cached.Body.Close()
+			if cached.StatusCode != http.StatusNotModified {
+				t.Fatalf("saved scene cache not reused: %d", cached.StatusCode)
+			}
+		})
 	}
 }

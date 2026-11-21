@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { clearMediaBinSources, getMediaBinSource, isMediaBinSourceRemoved, mediaDisplayName, registerMediaBinSource, renameMediaBinSource, unregisterMediaBinSource } from '../../lib/media-bin'
 import { captureProjectState, restoreProjectState } from '../../lib/project-state'
 import { editor } from '../../stores/editor.svelte'
+import type { LiveSceneSource } from '../../lib/live-scene'
 
 describe('project media names', () => {
   beforeEach(() => {
@@ -46,6 +47,48 @@ describe('project media names', () => {
     expect(captureProjectState().media).toHaveLength(2)
     expect(mediaDisplayName('one.png')).toBe('Title')
     expect(mediaDisplayName('two.png')).toBe('Title')
+  })
+
+  it('autosaves scene references without copying compiled bundles or embedded media', async () => {
+    const name = 'ai_scene_0123456789abcdef0123456789abcdef_01.scene.json'
+    const scene: LiveSceneSource = { version: 1, component: '<p>Scene</p>', javascript: 'x'.repeat(1024 * 1024),
+      config: { width: 320, height: 180, fps: 30, durationInFrames: 60 },
+      images: { image_1: 'data:image/png;base64,AAAA' } }
+    registerMediaBinSource({ id: 'scene', name, displayName: 'Opening', kind: 'video', duration: 2,
+      sourceRevision: 'sha256:scene', scene, generated: true })
+
+    const saved = captureProjectState()
+    expect(saved.media[0]).not.toHaveProperty('scene')
+    expect(saved.media[0]).toMatchObject({ name, displayName: 'Opening', sourceRevision: 'sha256:scene', generated: true })
+    expect(JSON.stringify(saved).length).toBeLessThan(4096)
+    expect(getMediaBinSource(name)?.scene).toBe(scene)
+
+    clearMediaBinSources()
+    await restoreProjectState(saved, 'scene-project')
+    expect(getMediaBinSource(name)).toMatchObject({ name, displayName: 'Opening', scrubBlobUrl: null, previewUrl: null })
+  })
+
+  it('opens legacy inline scenes but does not send them back on the next autosave', async () => {
+    const state = captureProjectState()
+    const scene: LiveSceneSource = { version: 1, component: '<p>Legacy</p>', javascript: 'legacy-bundle',
+      config: { width: 320, height: 180, fps: 30, durationInFrames: 60 } }
+    const name = 'ai_scene_0123456789abcdef0123456789abcdef_01.scene.json'
+    state.media.push({ id: 'legacy', name, kind: 'video', duration: 2, scene })
+
+    await restoreProjectState(state, 'legacy-project')
+    expect(getMediaBinSource(name)?.scene).toEqual(scene)
+    expect(captureProjectState().media[0]).not.toHaveProperty('scene')
+    expect(state.media[0].scene).toBe(scene)
+  })
+
+  it('does not dirty the saved project when only the runtime scene finishes loading', () => {
+    const reference = { id: 'scene', name: 'ai_scene_0123456789abcdef0123456789abcdef_01.scene.json',
+      kind: 'video' as const, duration: 2 }
+    registerMediaBinSource(reference)
+    const before = JSON.stringify(captureProjectState())
+    registerMediaBinSource({ ...reference, scene: { version: 1, component: '<p>Scene</p>', javascript: 'browser-bundle',
+      config: { width: 320, height: 180, fps: 30, durationInFrames: 60 } } })
+    expect(JSON.stringify(captureProjectState())).toBe(before)
   })
 
   it('validates names and can return to the original filename', () => {

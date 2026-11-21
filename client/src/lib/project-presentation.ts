@@ -2,6 +2,7 @@ import type { Composition, EditDocument } from './composition-types'
 import type { ProjectState } from './project-state'
 import { cloneJSON, compositionTimeline, revisionFingerprint } from './composition-adapter'
 import type { MediaBinSource } from './media-bin'
+import { projectMediaReference } from './project-media'
 
 export interface PreparedComposition {
   jobId?: string
@@ -44,6 +45,7 @@ export function isPreparedProjectPristine(state: ProjectState): boolean {
 
 export function preparedProjectState(prepared: PreparedComposition, media: MediaBinSource[] = []): ProjectState | null {
   if (!prepared.document || !prepared.composition) return null
+  const references = media.map(projectMediaReference)
   const composition = cloneJSON(prepared.composition)
   const timeline = compositionTimeline(composition, () => null)
   const state: ProjectState = {
@@ -60,14 +62,14 @@ export function preparedProjectState(prepared: PreparedComposition, media: Media
       currentTime: 0, selectedClipIds: [], selectedEffectBlockIds: [], selectedTextItemIds: [],
     },
     media: composition.assets.map(asset => ({
-      ...cloneJSON(media.find(source => source.name.toLowerCase() === asset.file.toLowerCase()) ?? {}),
+      ...cloneJSON(references.find(source => source.name.toLowerCase() === asset.file.toLowerCase()) ?? {}),
       id: asset.id, sourceId: asset.id, sourceRevision: asset.version, name: asset.file, kind: asset.kind,
       duration: asset.duration, width: asset.width, height: asset.height, sourceMode: asset.local ? 'wasm' : 'proxy',
       previewUrl: null, scrubBlobUrl: null, thumbnailUrl: null,
     })),
   }
   const used = new Set(state.media.map(source => source.name.toLowerCase()))
-  state.media.push(...cloneJSON(media.filter(source => !used.has(source.name.toLowerCase()))))
+  state.media.push(...cloneJSON(references.filter(source => !used.has(source.name.toLowerCase()))))
   state.preparedStateFingerprint = projectStateFingerprint(state)
   return state
 }

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"sort"
 	"unicode/utf16"
+	"unicode/utf8"
 )
 
 func canonicalStateValue(value any) any {
@@ -72,9 +73,21 @@ func editorStateFingerprint(data json.RawMessage, canonical bool) (string, error
 		return "", fmt.Errorf("compact project fingerprint: %w", err)
 	}
 	left, right := uint32(0x811c9dc5), uint32(0x9e3779b9)
-	for _, unit := range utf16.Encode([]rune(compact.String())) {
-		left = (left ^ uint32(unit)) * 0x01000193
-		right = (right ^ uint32(unit)) * 0x01000193
+	hashUnit := func(unit uint32) {
+		left = (left ^ unit) * 0x01000193
+		right = (right ^ unit) * 0x01000193
+	}
+	// Match JavaScript's UTF-16 hashing without whole-project string/rune/UTF-16 copies.
+	for remaining := compact.Bytes(); len(remaining) > 0; {
+		char, size := utf8.DecodeRune(remaining)
+		remaining = remaining[size:]
+		if char > 0xffff {
+			high, low := utf16.EncodeRune(char)
+			hashUnit(uint32(high))
+			hashUnit(uint32(low))
+		} else {
+			hashUnit(uint32(char))
+		}
 	}
 	return fmt.Sprintf("%s%08x%08x", prefix, left, right), nil
 }

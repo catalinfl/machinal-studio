@@ -4,6 +4,7 @@ import { isPreparedProjectPristine, preparedProjectState, projectStateFingerprin
 import { revisionFingerprint } from '../../lib/composition-adapter'
 import type { ProjectState } from '../../lib/project-state'
 import type { TextItem } from '../../lib/editor-types'
+import type { MediaBinSource } from '../../lib/media-bin'
 
 function fixture(): PreparedComposition {
   const caption = { id: 'caption', text: '  Știință\nși țară! ', start: 1.1, duration: 1.3, fontFamily: 'montserrat', fontWeight: 700,
@@ -59,7 +60,7 @@ describe('opening prepared projects', () => {
     expect(restored.timeline.channels[0].clips).toHaveLength(1)
     expect(restored.media).toHaveLength(2)
     expect(restored.media[0]).toMatchObject({ sourceId: 'poster', sourceRevision: 'sha256:exact', displayName: 'My artwork' })
-    expect(restored.media[1]).toEqual(saved.media[1])
+    expect(restored.media[1]).toEqual({ ...saved.media[1], previewUrl: null, scrubBlobUrl: null, thumbnailUrl: null })
     expect(isPreparedProjectPristine(restored)).toBe(true)
     expect(saved.timeline.channels).toEqual([])
   })
@@ -72,6 +73,23 @@ describe('opening prepared projects', () => {
     saved.timeline.textItems = []
     saved.media = []
     expect(projectStateForOpen(saved, { prepared: fixture() })).toBe(saved)
+  })
+
+  it('keeps prepared project media reference-only without changing runtime scenes', () => {
+    const scene = { version: 1 as const, component: '<p>Scene</p>', javascript: 'large-bundle',
+      config: { width: 320, height: 180, fps: 30, durationInFrames: 60 } }
+    const media: MediaBinSource[] = [
+      { id: 'poster', name: 'poster.png', kind: 'image', duration: 10, scene },
+      { id: 'extra', name: 'ai_scene_0123456789abcdef0123456789abcdef_01.scene.json', kind: 'video', duration: 2, scene },
+    ]
+    const prepared = fixture()
+    const state = preparedProjectState(prepared, media)!
+    expect(state.media).toHaveLength(2)
+    for (const source of state.media) expect(source).not.toHaveProperty('scene')
+    expect(media[0].scene).toBe(scene)
+    expect(media[1].scene).toBe(scene)
+    expect(state.timeline.textItems).toEqual(prepared.composition!.textItems)
+    expect(isPreparedProjectPristine(state)).toBe(true)
   })
 
   it('advances an untouched prepared timeline, but preserves manual changes and intentional clears', () => {

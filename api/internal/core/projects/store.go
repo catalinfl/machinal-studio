@@ -116,11 +116,11 @@ func (s *Store) list(owner string) ([]Summary, error) {
 		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".json") {
 			continue
 		}
-		project, err := s.read(owner, strings.TrimSuffix(entry.Name(), ".json"))
+		summary, err := s.readSummary(owner, strings.TrimSuffix(entry.Name(), ".json"))
 		if err != nil {
 			return nil, err
 		}
-		items = append(items, project.Summary)
+		items = append(items, summary)
 	}
 	sort.Slice(items, func(i, j int) bool { return items[i].UpdatedAt.After(items[j].UpdatedAt) })
 	return items, nil

@@ -13,7 +13,6 @@ import (
 	"ffmpeg-go-server/editengine/document"
 	"ffmpeg-go-server/internal/core/media"
 	"ffmpeg-go-server/internal/platform/credits"
-	"ffmpeg-go-server/internal/platform/sessions"
 	"ffmpeg-go-server/internal/platform/storage"
 
 	"github.com/gofiber/fiber/v2"
@@ -47,36 +46,8 @@ type LiveSource struct {
 }
 
 func DownloadSource(c *fiber.Ctx) error {
-	root, session := sessions.ResolveRoot(c)
-	if session == "" {
-		return fiber.ErrUnauthorized
-	}
-	name := c.Query("file")
-	media.WarmSession(c.UserContext(), session, root, name)
-	source, err := ReadSource(root, name)
-	if err != nil {
-		return media.AssetError(c, err)
-	}
-	source, err = preparePreviewSource(c.UserContext(), source)
-	if err != nil {
-		return media.AssetError(c, err)
-	}
-	c.Set(fiber.HeaderCacheControl, "private, no-cache")
-	c.Set(fiber.HeaderContentDisposition, fmt.Sprintf("attachment; filename=%q", name))
-	return c.JSON(source)
-}
-
-func preparePreviewSource(ctx context.Context, source LiveSource) (LiveSource, error) {
-	if source.EnvironmentVersion == previewEnvironmentVersion {
-		return source, nil
-	}
-	javascript, err := compileRemote(ctx, source.Component, source.Config)
-	if err != nil {
-		return source, fmt.Errorf("refresh scene preview: %w", err)
-	}
-	// Preserve stored bytes and their asset fingerprint; only the preview bundle is refreshed.
-	source.JavaScript, source.EnvironmentVersion = javascript, previewEnvironmentVersion
-	return source, nil
+	// Viewing uses the saved browser bundle; only explicit authoring/export wakes the worker.
+	return media.Download(c)
 }
 
 func IsSource(filename string) bool {

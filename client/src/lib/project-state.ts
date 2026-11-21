@@ -3,6 +3,7 @@ import { getMediaBinSources, registerMediaBinSource, type MediaBinSource } from 
 import { mediaSourceUrl, mediaThumbnailUrl } from './api'
 import { restoreLocalSources } from './local-media'
 import { isLiveSceneFile } from './live-scene'
+import { projectMediaReference } from './project-media'
 
 export interface ProjectState {
   schemaVersion: 1
@@ -18,7 +19,7 @@ export function captureProjectState(): ProjectState {
     for (const clip of channel.clips) clip.scrubBlobUrl = null
   }
   for (const block of timeline.effectBlocks) block.nodeId = null
-  const media = getMediaBinSources().map(source => ({ ...source, scrubBlobUrl: null, previewUrl: null, thumbnailUrl: null }))
+  const media = getMediaBinSources().map(projectMediaReference)
   return { schemaVersion: 1, timeline, media }
 }
 
