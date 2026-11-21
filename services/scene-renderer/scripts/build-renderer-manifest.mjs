@@ -1,5 +1,5 @@
 import { execFile } from 'node:child_process';
-import { open, readdir, realpath, stat, utimes } from 'node:fs/promises';
+import { open, readdir, readFile, realpath, stat, utimes } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { promisify } from 'node:util';
@@ -20,7 +20,15 @@ async function largeResources(root, files) {
 }
 
 async function sharedLibraries(binary) {
-  const { stdout } = await execute('ldd', [binary], { timeout: 15000, maxBuffer: 1024 * 1024 });
+  let stdout;
+  try {
+    ({ stdout } = await execute('ldd', [binary], { timeout: 15000, maxBuffer: 1024 * 1024 }));
+  } catch (error) {
+    if (!/not a dynamic executable/i.test(`${error.stderr ?? ''}\n${error.message ?? ''}`)) throw error;
+    const content = await readFile(binary, 'utf8').catch(() => '');
+    const wrapped = content.match(/^\s*exec\s+(\/[^\s\\]+)/m)?.[1];
+    return wrapped && wrapped !== binary ? sharedLibraries(wrapped) : [];
+  }
   if (stdout.includes('not found')) throw new Error('Renderer shared library is missing');
   return Promise.all([...stdout.matchAll(/\/[^\s()]+/g)].map(match => realpath(match[0])));
 }
