@@ -15,6 +15,16 @@ Signed-in users can create, rename and select projects from **Projects** in the 
 - Media Bin's pencil action saves a project-specific display name for any ready source or render. The original filename, source ID, preview URLs and export references stay unchanged; names persist with project autosave and appear on timeline clips and in inspectors. Renaming does not copy or move media.
 - Clips within one project reference their existing originals. Separate projects currently have separate server spaces and browser-local storage scopes; importing the same file into multiple projects is not globally deduplicated.
 
+### Caption image assets and autosave
+
+The browser snapshots caption text, words, timings, styles and job IDs unchanged. Large prepared PNG overlays are persisted once as immutable project-owned text assets, identified by their SHA-256 bytes and render key. Ordinary autosaves contain `preparedTextRef` references, not repeated base64 PNG payloads. Loading verifies and restores those exact assets without rendering or generation. Distinct raster versions remain distinct even if their semantic render key is equal.
+
+Text assets live under `/data/.projects/<owner>/.text-assets/<project>/<key-hash>/<content-sha256>.json`, on the persistent project volume, not in idle session caches. A project can retain at most 1,024 text assets and 512 MiB of text-asset data; each upload also obeys the existing 128 MiB project-body limit. Missing assets fail the save before its previous state/version is replaced. Legacy inline projects remain readable and migrate through an ordinary versioned save; successful images are never regenerated for migration. Back up this directory with the project records.
+
+Deploy the API support before the updated web client. An older API cannot persist reference-based saves, and a rollback must retain a client capable of resolving these references. This is editor snapshot storage, not a new YAML recipe field.
+
+Authentication refresh for the same account no longer reinitializes the editor. A save conflict enters a separate state: queued saves, autosave and visibility flushes stop instead of repeatedly sending the old version. The tab retains its draft and offers **Download unsaved draft** and **Reload project**, not a blind Retry. The draft is a complete editor-state JSON backup, including its prepared raster payloads, not a standalone recipe or a copy of original media files. No conflict recovery silently overwrites another tab.
+
 ## Recipe/MCP projects are editable projects
 
 A recipe is an authoring/checkpoint format, not the delivered project. Successful recipe generation and final rendering save their resolved edit as the owned project's actual `state.timeline` and `state.media`, even before a browser opens it. This includes source clips/live scenes, narration, exact caption entries and resolved job IDs, effects, transitions, transforms/keyframes and output settings. The final MP4 stays a separate export; it is not flattened back into a one-clip timeline.
@@ -33,6 +43,8 @@ All project endpoints require the current PocketBase Bearer token. Account owner
 - `POST /projects` with `{ "name": "My film" }`: create a project.
 - `GET /projects/<id>`: load its state and activate the owned media session.
 - `POST /projects/<id>` with `{ "name": "My film", "version": 1, "state": { ... } }`: save. Omit `state` to rename only. Stale versions return HTTP 409, with reload recovery in the editor.
+- `POST /projects/<id>/text-assets/<sha256>?key=<render-key>`: persist one exact prepared-text JSON asset, after checking ownership, content digest and storage limits. Identical uploads are idempotent.
+- `GET /projects/<id>/text-assets/<sha256>?key=<render-key>`: stream that owned immutable asset. It is not an anonymous media capability or an S3 delivery URL.
 
 Media requests keep `X-Session-Id` / `?session=` for scoping, but a predictable `u_<user-id>` is **not** read authorization. Fetch requests can send the owner's PocketBase Bearer token; native image/video/audio tags additionally use the separate `mediaToken` returned by the authenticated project load or session create/heartbeat response. The 256-bit token grants reads of that workspace only, never uploads, deletion or paid work. Unknown anonymous workspaces return 404 without creating directories. Registered opaque project/session identifiers retain their existing read-capability contract.
 
@@ -46,4 +58,4 @@ The same project UI is implemented separately in the `machinal-public` repositor
 
 ## Verification
 
-Focused browser coverage: `pnpm exec playwright test e2e/projects.spec.ts e2e/project-previews.spec.ts e2e/recipe-project-restore.spec.ts`. The main application uses mocked authentication/API with actual browser IndexedDB restoration; the public test opts into a real isolated Docker API using `LOCAL_WORKSPACE_TEST=1`, `E2E_API_BASE`, and optionally `PROJECT_DOCKER_NAME` for restart verification. Backend tests cover persistence before browser access, complete composition-to-editor mapping, caption/job-ID preservation, media-only recovery, manual-edit protection, account ownership, version conflicts and isolated media deletion.
+Focused browser coverage: `pnpm exec playwright test e2e/projects.spec.ts e2e/project-previews.spec.ts e2e/project-concurrency.spec.ts e2e/project-open-memory.spec.ts e2e/recipe-project-restore.spec.ts`. The main application uses mocked authentication/API with actual browser IndexedDB restoration; the public test opts into a real isolated Docker API using `LOCAL_WORKSPACE_TEST=1`, `E2E_API_BASE`, and optionally `PROJECT_DOCKER_NAME` for restart verification. Backend tests cover persistence before browser access, complete composition-to-editor mapping, caption/job-ID preservation, media-only recovery, manual-edit protection, account ownership, version conflicts, immutable text assets and isolated media deletion.

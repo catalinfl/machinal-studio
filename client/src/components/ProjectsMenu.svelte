@@ -8,11 +8,14 @@
   let name = $state('')
   let action = $state<'create' | 'rename'>('create')
   let working = $state(false)
-  const disabled = $derived(working || mediaProcessing.active || projects.phase.kind === 'loading' || projects.phase.kind === 'saving')
-  const saveStatus = $derived(projects.phase.kind === 'saving' ? 'Saving…' : projects.phase.kind === 'pending' ? 'Unsaved changes' : projects.phase.kind === 'error' ? 'Not saved' : projects.ready && projects.current ? 'Saved' : 'Loading')
+  const failed = $derived(projects.phase.kind === 'error' || projects.phase.kind === 'conflict')
+  const disabled = $derived(working || mediaProcessing.active || projects.phase.kind === 'loading' || projects.phase.kind === 'saving' || projects.phase.kind === 'conflict')
+  // Opening a saved timeline already awaits the save queue; autosave must not swallow confirmation clicks.
+  const timelineDisabled = $derived(working || mediaProcessing.active || projects.phase.kind === 'loading' || projects.phase.kind === 'conflict')
+  const saveStatus = $derived(projects.phase.kind === 'saving' ? 'Saving…' : projects.phase.kind === 'pending' ? 'Unsaved changes' : failed ? 'Not saved' : projects.ready && projects.current ? 'Saved' : 'Loading')
 
   function open(): void {
-    if (projects.phase.kind !== 'error') { name = ''; action = 'create' }
+    if (!failed) { name = ''; action = 'create' }
     panel?.togglePopover()
   }
 
@@ -32,9 +35,9 @@
   }
 </script>
 
-<button class="project-button" class:failed={projects.phase.kind === 'error'} class:unsaved={projects.phase.kind === 'pending'} onclick={open} aria-haspopup="dialog" aria-label="Projects" title={`${projects.current?.name ?? 'Projects'} (${saveStatus})`}>
+<button class="project-button" class:failed class:unsaved={projects.phase.kind === 'pending'} onclick={open} aria-haspopup="dialog" aria-label="Projects" title={`${projects.current?.name ?? 'Projects'} (${saveStatus})`}>
   <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M2.5 5h5l2-2h3l2 2h3v11h-15z" /></svg>
-  <span>Projects{projects.phase.kind === 'error' ? ' · Not saved' : ''}</span>
+  <span>Projects{failed ? ' · Not saved' : ''}</span>
 </button>
 <span class="save-feedback" role="status" aria-live="polite">{saveStatus}</span>
 <div class="projects-panel" popover="auto" bind:this={panel} role="dialog" aria-label="Projects">
@@ -43,6 +46,8 @@
   <p class="help">View or edit the project YAML in <strong>Recipe → Code DSL</strong>.</p>
   {#if projects.phase.kind === 'error'}
     <div class="failure" role="alert"><p>{projects.phase.message}</p><button onclick={projects.retry}>Retry</button><button onclick={projects.reload}>Reload project</button></div>
+  {:else if projects.phase.kind === 'conflict'}
+    <div class="failure" role="alert"><p>{projects.phase.message}</p><button onclick={projects.downloadDraft}>Download unsaved draft</button><button onclick={projects.reload}>Reload project</button></div>
   {/if}
   {#if projects.items.length > 0}
     <div class="project-list" aria-label="Saved projects">
@@ -53,7 +58,7 @@
       {/each}
     </div>
     <div class="current-actions"><span>{saveStatus}</span><button class="quiet" disabled={disabled || !projects.current} onclick={() => { action = 'rename'; name = projects.current?.name ?? '' }}>Rename current</button></div>
-    <ProjectRenderPreview presentation={projects.presentation} warning={projects.presentationWarning} {disabled} onopen={projects.openPrepared} />
+    <ProjectRenderPreview presentation={projects.presentation} warning={projects.presentationWarning} disabled={timelineDisabled} onopen={projects.openPrepared} />
     <form onsubmit={submit}>
       <label for="project-name">{action === 'create' ? 'New project name' : 'Project name'}</label>
       <div class="name-controls"><input id="project-name" bind:value={name} maxlength="120" required disabled={disabled} placeholder="e.g. Summer film" /><button type="submit" disabled={disabled || !name.trim()}>{action === 'create' ? 'Create' : 'Rename'}</button></div>

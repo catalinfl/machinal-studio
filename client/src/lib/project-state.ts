@@ -13,8 +13,8 @@ export interface ProjectState {
   media: MediaBinSource[]
 }
 
-export function captureProjectState(): ProjectState {
-  const timeline = editor.captureProjectState()
+export function captureProjectState(includeTextAssets = false): ProjectState {
+  const timeline = editor.captureProjectState(includeTextAssets)
   for (const channel of timeline.channels) {
     for (const clip of channel.clips) clip.scrubBlobUrl = null
   }

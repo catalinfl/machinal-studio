@@ -1,12 +1,15 @@
 import { onMount, untrack } from 'svelte'
-import { projectOwner, projectRequest, activateProject, type ProjectSummary, type SavedProject } from '../lib/project-api'
+import { projectOwner, projectRequest, activateProject, projectConflict, ProjectRequestError, loadProjectTextAsset, saveProjectTextAsset, type ProjectSummary, type SavedProject } from '../lib/project-api'
 import { captureProjectState, restoreProjectState } from '../lib/project-state'
 import { clearMediaBinSources, subscribeMediaBinSources, subscribeMediaBinRemovals } from '../lib/media-bin'
 import { setLocalMediaScope, flushLocalSources } from '../lib/local-media'
 import { selectProjectSession } from '../lib/session'
 import { isPreparedProjectPristine, preparedProjectState, projectStateForOpen, projectStateFingerprint, type PreparedComposition, type ProjectPresentation } from '../lib/project-presentation'
+import { prepareSessionText, sessionTextAssets } from '../lib/project-text-assets'
+import { editor } from '../stores/editor.svelte'
+import type { ProjectState } from '../lib/project-state'
 
-type Phase = { kind: 'loading' } | { kind: 'ready' } | { kind: 'pending' } | { kind: 'saving' } | { kind: 'error'; message: string }
+type Phase = { kind: 'loading' } | { kind: 'ready' } | { kind: 'pending' } | { kind: 'saving' } | { kind: 'error' | 'conflict'; message: string }
 
 export function useProjects() {
   let items = $state<ProjectSummary[]>([])
@@ -25,6 +28,9 @@ export function useProjects() {
   let preparedStateFingerprint: string | undefined
   let owner = ''
   let retryAction: (() => Promise<void>) | null = null
+  const accountId = $derived(projectOwner())
+  const conflicted = $derived(phase.kind === 'conflict')
+  const uploadedText = new Set<string>()
 
   function preferenceKey(): string { return `direction-active-project:${owner}` }
 
@@ -33,8 +39,19 @@ export function useProjects() {
   function captureState() { return { ...captureProjectState(), ...(preparedCompositionId ? { preparedCompositionId, preparedStateFingerprint } : {}) } }
 
   function report(cause: unknown, retry?: () => Promise<void>): void {
-    phase = { kind: 'error', message: cause instanceof Error ? cause.message : String(cause) }
-    retryAction = retry ?? null
+    const conflict = cause instanceof ProjectRequestError && cause.status === 409
+    phase = { kind: conflict ? 'conflict' : 'error', message: cause instanceof Error ? cause.message : String(cause) }
+    retryAction = conflict ? null : retry ?? null
+  }
+
+  async function restoreText(state: ProjectState | null, projectId: string): Promise<ProjectState | null> {
+    if (!state?.timeline?.documentSession) return state
+    const session = await prepareSessionText(state.timeline.documentSession, async reference => {
+      const value = await loadProjectTextAsset(projectId, reference)
+      uploadedText.add(`${projectId}:${reference.id}`)
+      return value
+    })
+    return { ...state, timeline: { ...state.timeline, documentSession: session } }
   }
 
   async function initialize(nextOwner: string): Promise<void> {
@@ -51,6 +68,7 @@ export function useProjects() {
     loaded = false
     phase = { kind: 'loading' }
     owner = nextOwner
+    uploadedText.clear()
     if (!owner) { selectProjectSession(''); loaded = true; phase = { kind: 'ready' }; return }
     try {
       const summaries = await projectRequest<ProjectSummary[]>()
@@ -67,15 +85,17 @@ export function useProjects() {
       presentation = project.presentation
       presentationWarning = project.presentationWarning ?? ''
       if (!project.state && presentationWarning) throw new Error(presentationWarning)
-      const state = projectStateForOpen(project.state, presentation)
-      const pristine = state && isPreparedProjectPristine(state)
+      const initialState = projectStateForOpen(project.state, presentation)
+      const recovered = initialState !== project.state
+      const state = await restoreText(initialState, project.id)
+      if (token !== generation) return
+      const pristine = initialState && isPreparedProjectPristine(initialState)
       preparedCompositionId = state?.preparedCompositionId
       if (state) clearMediaBinSources()
       if (state) await restoreProjectState(state, scope)
       if (token !== generation) return
       current = project
       remember(project.id)
-      const recovered = state !== project.state
       preparedStateFingerprint = recovered || pristine ? projectStateFingerprint(captureProjectState()) : state?.preparedStateFingerprint
       const compacted = state?.media.some(source => source.scene !== undefined)
       const normalized = compacted || pristine && preparedStateFingerprint !== state?.preparedStateFingerprint
@@ -88,13 +108,16 @@ export function useProjects() {
 
   function save(): Promise<void> {
     clearTimeout(timer)
+    if (conflicted) return Promise.reject(projectConflict())
     const selected = current
     if (!selected || !loaded) return Promise.resolve()
     const token = generation
     const state = captureState()
     const source = JSON.stringify(state)
+    const textAssets = sessionTextAssets(editor.documentSession)
     pending = pending.catch(() => {}).then(async () => {
       if (token !== generation || selected.id !== current?.id) return
+      if (conflicted) throw projectConflict()
       if (source === lastSaved && current.version > 1) {
         if (phase.kind === 'pending') phase = { kind: 'ready' }
         return
@@ -102,6 +125,15 @@ export function useProjects() {
       phase = { kind: 'saving' }
       try {
         await flushLocalSources()
+        for (const asset of textAssets) {
+          const key = `${selected.id}:${asset.reference.id}`
+          if (uploadedText.has(key)) continue
+          await saveProjectTextAsset(selected.id, asset)
+          if (token !== generation) return
+          uploadedText.add(key)
+        }
+        if (token !== generation) return
+        if (conflicted) throw projectConflict()
         const summary = await projectRequest<ProjectSummary>(`/${selected.id}`, { name: current.name, version: current.version, state })
         if (token !== generation) return
         current = summary
@@ -145,7 +177,7 @@ export function useProjects() {
   }
 
   async function openPrepared(prepared: PreparedComposition): Promise<void> {
-    const state = preparedProjectState(prepared, captureProjectState().media)
+    let state = preparedProjectState(prepared, captureProjectState().media)
     if (!state) throw new Error('This export has no retained editable timeline.')
     try {
       await save()
@@ -153,6 +185,8 @@ export function useProjects() {
       loaded = false
       phase = { kind: 'loading' }
       clearTimeout(timer)
+      state = await restoreText(state, current.id)
+      if (!state) throw new Error('The prepared timeline could not be restored.')
       await restoreProjectState(state, `${owner}:${current.id}`)
       preparedCompositionId = state.preparedCompositionId
       preparedStateFingerprint = projectStateFingerprint(captureProjectState())
@@ -166,13 +200,23 @@ export function useProjects() {
     }
   }
 
+  function downloadDraft(): void {
+    const state = { ...captureProjectState(true), preparedCompositionId, preparedStateFingerprint }
+    const url = URL.createObjectURL(new Blob([JSON.stringify({ ...current, state })], { type: 'application/json' }))
+    const link = document.createElement('a')
+    link.href = url
+    link.download = 'unsaved-project-draft.json'
+    link.click()
+    setTimeout(() => URL.revokeObjectURL(url), 1000)
+  }
+
   $effect(() => {
-    const nextOwner = projectOwner()
+    const nextOwner = accountId
     untrack(() => { void initialize(nextOwner) })
   })
 
   $effect(() => {
-    if (!loaded || !current) return
+    if (!loaded || !current || conflicted) return
     mediaRevision
     const source = JSON.stringify(captureState())
     if (source === lastSaved) {
@@ -204,7 +248,8 @@ export function useProjects() {
     create,
     rename,
     openPrepared,
-    retry: () => { void (retryAction ? retryAction() : loaded ? save() : initialize(projectOwner())).catch(() => {}) },
+    downloadDraft,
+    retry: () => { if (!conflicted) void (retryAction ? retryAction() : loaded ? save() : initialize(projectOwner())).catch(() => {}) },
     reload: () => window.location.reload(),
     get items() { return items },
     get current() { return current },

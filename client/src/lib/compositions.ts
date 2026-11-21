@@ -8,6 +8,7 @@ import { projectFile, referencedProjectAssets, repairLegacyTimelineSource } from
 import { parseDocument } from 'yaml'
 import { normalizeDocumentTimeline } from './composition-timing'
 import { prepareCompositionText } from './composition-text'
+import { prepareSessionText } from './project-text-assets'
 import { hasPendingGeneration } from './composition-jobs'
 import { MAX_PROJECT_BYTES, type CompilationResult, type CompositionAsset, type CompositionInput, type DocumentProject, type EditDocument, type TimelineState } from './composition-types'
 import { isLiveSceneFile, loadLiveScene } from './live-scene'
@@ -161,11 +162,13 @@ export async function applyCompiledDocument(result: CompilationResult, project: 
   if (compositionRevision() !== revision) throw new Error('Timeline changed while preparing media. Recompile the document.')
   const timeline = compositionTimeline(result.composition, (asset, type) => previews.get(`${asset.id}/${type}`) ?? null)
   const expected = snapshotTimeline(timeline, result.composition.assets, '')
-  editor.applyCompiledTimeline(timeline, {
+  const session = await prepareSessionText({
     kind: 'ready', document: result.document, recipe: project.recipe, assets: result.composition.assets, bindings: project.bindings,
     preparedText: result.composition.preparedText,
     composition: result.composition,
-  }, stateRevision, history, () => assertExactTimeline(expected, snapshotTimeline(currentTimeline(), result.composition!.assets, '')))
+  })
+  signal?.throwIfAborted()
+  editor.applyCompiledTimeline(timeline, session, stateRevision, history, () => assertExactTimeline(expected, snapshotTimeline(currentTimeline(), result.composition!.assets, '')))
   for (const asset of result.composition.assets) {
     if (asset.local) continue
     registerMediaBinSource({ id: asset.id, name: asset.file, kind: asset.kind, duration: asset.duration,

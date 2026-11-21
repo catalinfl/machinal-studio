@@ -4,6 +4,7 @@ import { clipTransform, clipTransformAt, layerMotionKeyframes, normalizeClipTran
 import { clipFadeIn, clipFadeOut, clipOpacity } from '../lib/clip-compositing'
 import { textDesignSize, textSafeInsets } from '../lib/text-geometry'
 import { cloneJSON, recordDocumentEdit } from '../lib/composition-adapter'
+import { compactSessionText } from '../lib/project-text-assets'
 import type { DocumentSession, TimelineState } from '../lib/composition-types'
 import type { Clip, Channel, EffectBlock, TextItem, TimedTextWord, Transition, Resolution, ProjectAspect } from '../lib/editor-types'
 import { useEditorHistory } from '../composables/useEditorHistory.svelte'
@@ -749,8 +750,8 @@ function moveClipGroup(
 }
 
 export const editor = {
-  captureProjectState() {
-    return cloneJSON({ channels, effectBlocks, transitions, textItems, fps, resolution, projectAspect, videoFit, documentSession,
+  captureProjectState(includeTextAssets = false) {
+    return cloneJSON({ channels, effectBlocks, transitions, textItems, fps, resolution, projectAspect, videoFit, documentSession: includeTextAssets ? documentSession : compactSessionText(documentSession),
       currentTime: 0, selectedClipIds: [], selectedEffectBlockIds: [], selectedTextItemIds: [] })
   },
 

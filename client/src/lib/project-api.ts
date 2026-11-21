@@ -2,6 +2,8 @@ import { API_BASE } from './api-origin'
 import { selectProjectSession, startProjectSession } from './session'
 import type { ProjectState } from './project-state'
 import type { ProjectPresentation } from './project-presentation'
+import type { PreparedText, PreparedTextReference } from './composition-types'
+import { textAssetDigest, type ProjectTextAsset } from './project-text-assets'
 
 export interface ProjectSummary {
   id: string
@@ -21,6 +23,36 @@ export interface SavedProject extends ProjectSummary {
 
 export function projectOwner(): string { return 'local' }
 
+export class ProjectRequestError extends Error {
+  constructor(public status: number, message: string) { super(message) }
+}
+
+export function projectConflict(): ProjectRequestError {
+  return new ProjectRequestError(409, 'This project changed in another tab. Your unsaved changes are still in this tab. Download a draft before reloading.')
+}
+
+function textAssetURL(projectId: string, reference: PreparedTextReference): string {
+  if (!/^[a-f0-9]{64}$/.test(reference.id) || !reference.key || reference.key.length > 128) throw new Error('Invalid saved caption image reference.')
+  return `${API_BASE}/projects/${encodeURIComponent(projectId)}/text-assets/${reference.id}?key=${encodeURIComponent(reference.key)}`
+}
+
+export async function loadProjectTextAsset(projectId: string, reference: PreparedTextReference): Promise<PreparedText> {
+  const response = await fetch(textAssetURL(projectId, reference), { credentials: 'omit' })
+  if (!response.ok) throw new Error('The saved caption images could not be loaded. Your project has not been changed; retry loading it.')
+  const source = await response.text()
+  if (await textAssetDigest(source) !== reference.id) throw new Error('The saved caption images failed their integrity check.')
+  const value = JSON.parse(source) as PreparedText
+  if (value.key !== reference.key || !Array.isArray(value.overlays)) throw new Error('The saved caption images do not match their reference.')
+  return value
+}
+
+export async function saveProjectTextAsset(projectId: string, asset: ProjectTextAsset): Promise<void> {
+  const response = await fetch(textAssetURL(projectId, asset.reference), {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'omit', body: JSON.stringify(asset.value),
+  })
+  if (!response.ok) throw new ProjectRequestError(response.status, 'The caption image cache could not be saved. Your unsaved project is still in this tab; retry saving it.')
+}
+
 export function activateProject(project: ProjectSummary): () => void {
   selectProjectSession(project.sessionId, project.mediaToken)
   return startProjectSession(API_BASE)
@@ -34,8 +66,7 @@ export async function projectRequest<T>(path = '', body?: unknown, keepalive = f
   }).catch(() => {
     throw new Error('Could not reach the local API. Start the local Docker services and retry.')
   })
-  if (!response.ok) throw new Error(response.status === 409
-    ? 'This project changed in another tab. Reload the project to continue.'
-    : `Could not ${body === undefined ? 'load' : 'save'} local projects. Check that the local API is running, then retry.`)
+  if (response.status === 409) throw projectConflict()
+  if (!response.ok) throw new ProjectRequestError(response.status, `Could not ${body === undefined ? 'load' : 'save'} local projects. Check that the local API is running, then retry.`)
   return response.json() as Promise<T>
 }

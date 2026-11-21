@@ -11,6 +11,11 @@ export interface PreparedText {
   overlays: RenderTextPayload[]
 }
 
+export interface PreparedTextReference {
+  id: string
+  key: string
+}
+
 export interface CompositionAsset {
   id: string
   version: string
@@ -147,6 +152,7 @@ export interface Composition {
   textItems: TextItem[]
   textRenderKey: string
   preparedText?: PreparedText
+  preparedTextRef?: PreparedTextReference
   segments: Record<string, RenderClipPayload['segments']>
 }
 
@@ -183,6 +189,7 @@ export interface DocumentProject {
   bindings: Record<string, string[]>
   assets: CompositionAsset[]
   preparedText?: PreparedText
+  preparedTextRef?: PreparedTextReference
 }
 
 export type DocumentSession = DocumentProject & (
