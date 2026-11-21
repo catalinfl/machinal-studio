@@ -90,6 +90,10 @@ type Options struct {
 type reporterKey struct{}
 type identityKey struct{}
 
+func contextWithJobIdentity(ctx context.Context, id string) context.Context {
+	return context.WithValue(ctx, identityKey{}, id)
+}
+
 func Report(ctx context.Context, update Update) {
 	if report, ok := ctx.Value(reporterKey{}).(func(Update)); ok {
 		report(update)

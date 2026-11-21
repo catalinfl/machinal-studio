@@ -1,6 +1,6 @@
 # Persistent background jobs
 
-Commands and code paths in this guide are relative to the repository root unless stated otherwise. PocketBase migrations/hooks mentioned below are external deployment assets; they are not included in this checkout.
+Commands and code paths in this guide are relative to the repository root unless stated otherwise. Versioned PocketBase migrations/hooks ship under `pocketbase/`; installation, compatibility checks and coordinated restore instructions are in [PocketBase provisioning](../pocketbase/README.md).
 
 Hosted long-running work is queued in PocketBase's SQLite database and processed by the existing Go services. No RabbitMQ, Redis or additional container is needed. HTTP connections are not held open during generation or rendering.
 
@@ -24,7 +24,7 @@ These POST routes now return `202 Accepted` with a job rather than waiting for t
 - `/ai/edit`, `/ai/compositions`, `/ai/images`, `/ai/speech`, `/ai/subtitles`, `/ai/scenes`
 - Their existing `/v1/projects/<projectID>/...` counterparts; versioned rendering remains `/renders`.
 
-Uploads, source metadata, validation and ordinary compilation keep their existing contracts. The separate public/keyless repository and native CLI are not changed.
+Uploads, source metadata, validation and ordinary composition compilation keep their immediate contracts. Simple new-source `/v1/projects/<projectID>/scenes/compile` also completes directly, with a bounded free-compiler slot and durable idempotency receipts, without creating a background job. Edits using `sourceFile`, handoffs and explicit `Prefer: respond-async` retain the recoverable legacy compilation queue. Long AI/provider operations stay asynchronous to avoid losing accepted paid work on disconnect. The separate public/keyless repository and native CLI are not changed.
 
 Example submission response:
 
@@ -60,7 +60,7 @@ The frontend accepts both the new job responses and legacy immediate responses. 
 
 ## Jobs page and approximate timing
 
-`/jobs` is the signed-in project-scoped Jobs & downloads page. Choosing a project does not change the editor's selected project/session. It shows active tasks first, explicit cancellation confirmation, persisted failures/results and on-demand S3 download links. Link expiry is separate from the durable video; renew the link rather than submitting paid work again. Optional completion notifications require a user click and browser permission, work only while the page stays open, and may be delayed by background-tab throttling. It is not a push/email delivery service.
+`/jobs` is the signed-in project-scoped Jobs & downloads page. Choosing a project does not change the editor's selected project/session. Exports & downloads is the default category; AI operations and All activity retain access to active tasks, failures and recovery records instead of mixing every compilation/generation into the export list. Tasks stay active-first within each category, with explicit cancellation confirmation and on-demand S3 links. Link expiry is separate from the durable video; renew the link rather than submitting paid work again. Optional completion notifications require a user click and browser permission, work only while the page stays open, and may be delayed by background-tab throttling. It is not a push/email delivery service.
 
 Non-terminal REST/MCP summaries may include `timing` with `approximate: true`, `basis`, `elapsedSeconds`, `remainingSeconds`, `estimatedQueueSeconds` and `jobsAhead`. Live progress is preferred; otherwise estimates require at least three recent successful jobs of the same kind (last 20 retained in process memory). Queue estimates use the worker count and known preceding workloads, not a precise scheduler guarantee. Unknown estimates are omitted, not replaced with invented numbers. Samples reset after an API restart. Provider stalls, scene complexity and upload bandwidth can make estimates inaccurate; treat them as guidance, not a deadline or a cost quote.
 

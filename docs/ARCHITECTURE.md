@@ -29,7 +29,7 @@ Keep new functionality behind these boundaries rather than adding more unrelated
 
 ## Persistence and operation
 
-PocketBase supplies accounts and the durable hosted job queue; its migrations/hooks are external deployment prerequisites, absent from this checkout. Owned project state, media and the bbolt credit ledger use persistent API storage, with optional S3 integration. Browser-local originals use account/project-scoped IndexedDB and are not automatically available on another device.
+PocketBase supplies accounts and the durable hosted job queue; versioned migrations/hooks and an opt-in isolated installation ship under `pocketbase/`. Operators must stage and verify them rather than automatically modifying an existing deployment. Owned project state, named checkpoints, media and the bbolt credit ledger use persistent API storage, with optional S3 integration. Browser-local originals use account/project-scoped IndexedDB and are not automatically available on another device. Missing local sources open offline and can be relinked without retiming the edit.
 
 Run one API instance with its persistent volume. Queue atomicity alone does not make the local ledger or media volume horizontally scalable. Interrupted running jobs are not blindly replayed because provider calls may already have incurred costs. Credits settle actual usage rather than reserving a wallet in advance.
 

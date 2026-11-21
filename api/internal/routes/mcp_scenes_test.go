@@ -9,9 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"ffmpeg-go-server/internal/core/editor/scenes"
 	"ffmpeg-go-server/internal/platform/credits"
-	"ffmpeg-go-server/internal/platform/jobqueue"
 )
 
 func mcpSceneArguments(projectID string) map[string]any {
@@ -42,32 +40,23 @@ func TestMCPCompilesClientSceneForFreeButMetersServerRender(t *testing.T) {
 	}
 	args := mcpSceneArguments(fixture.project.ID)
 	result, output := mcpTool(t, fixture, mcpAliceKey, "compile_scene", args)
-	if result.IsError || output.StatusCode != 202 {
-		t.Fatal("client source did not queue without pricing/AI", result, output)
+	if result.IsError || output.StatusCode != 200 || len(fixture.jobs.items) != 0 {
+		t.Fatal("simple compilation created a background job or required pricing/AI", result, output)
 	}
-	id := output.Data.(map[string]any)["id"].(string)
-	job, err := fixture.jobs.Get(context.Background(), "mcpalice", fixture.project.SessionID, id)
-	if err != nil || job.Kind != "scene-compile" || job.Input.Billed || job.Input.CreditPolicy != credits.MCPFree {
-		t.Fatal("compilation had incorrect billing policy", job, err)
-	}
+	file := output.Data.(map[string]any)["file"].(string)
 	_, retry := mcpTool(t, fixture, mcpAliceKey, "compile_scene", args)
-	if retry.Data.(map[string]any)["id"] != id {
+	if retry.Data.(map[string]any)["file"] != file || compilerCalls != 1 {
 		t.Fatal("unchanged retry duplicated compilation")
 	}
-	ctx, finish, err := fixture.billing.PrepareJob(context.Background(), job)
+	compiled, err := json.Marshal(output.Data)
 	if err != nil {
 		t.Fatal(err)
-	}
-	compiled := jobqueue.FiberTask(scenes.NewRunner().CompileSource)(ctx, job)
-	finish()
-	if compiled.StatusCode != 200 || compilerCalls != 1 {
-		t.Fatalf("client compilation failed: %d %s calls=%d", compiled.StatusCode, compiled.Body, compilerCalls)
 	}
 	var fields struct {
 		File  string          `json:"file"`
 		Asset json.RawMessage `json:"asset"`
 	}
-	if err := json.Unmarshal(compiled.Body, &fields); err != nil || fields.File == "" {
+	if err := json.Unmarshal(compiled, &fields); err != nil || fields.File == "" {
 		t.Fatal("missing pinned asset", err)
 	}
 	result, output = mcpTool(t, fixture, mcpAliceKey, "get_scene_source", map[string]any{"projectId": fixture.project.ID, "file": fields.File, "userApproved": true})

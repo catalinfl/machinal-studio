@@ -116,6 +116,10 @@ func (s *Store) SaveHandler(c *fiber.Ctx) error {
 }
 
 func projectError(c *fiber.Ctx, err error) error {
+	var response *fiber.Error
+	if errors.As(err, &response) {
+		return response
+	}
 	switch {
 	case errors.Is(err, ErrNotFound):
 		return c.Status(fiber.StatusNotFound).SendString(err.Error())
