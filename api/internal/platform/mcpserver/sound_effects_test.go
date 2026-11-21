@@ -60,6 +60,7 @@ func TestSoundToolsRequireSeparateScopeAndUseOnlyOwnedAPIRoutes(t *testing.T) {
 }
 
 func TestSoundWorkflowRequiresImplementationWithoutExpandingConsent(t *testing.T) {
+	requireClientLibrary(t)
 	sources := map[string][]string{
 		"bootstrap": {
 			"Requested sound effects: read animation-skills/machinal-sound",

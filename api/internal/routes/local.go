@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"os"
+	"path/filepath"
 
 	"ffmpeg-go-server/internal/core/editor/compositions"
 	"ffmpeg-go-server/internal/core/editor/scenes"
@@ -17,6 +18,8 @@ import (
 	"ffmpeg-go-server/internal/platform/jobqueue"
 	"ffmpeg-go-server/internal/platform/localaccess"
 	"ffmpeg-go-server/internal/platform/sessions"
+	"ffmpeg-go-server/internal/platform/soundlibrary"
+	"ffmpeg-go-server/internal/platform/storage"
 	"github.com/gofiber/fiber/v2"
 )
 
@@ -30,8 +33,16 @@ func RegisterLocal(app *fiber.App, ai *settings.Service, queue *jobqueue.Local) 
 	app.Post("/projects", store.CreateHandler)
 	app.Get("/projects/:projectID", store.GetHandler)
 	app.Post("/projects/:projectID", store.SaveHandler)
+	app.Post("/projects/:projectID/duplicate", requestLimiter(3, rateWindow, "project duplication limit exceeded"), store.DuplicateHandler)
+	app.Get("/projects/:projectID/versions", store.VersionsHandler)
+	app.Post("/projects/:projectID/versions", requestLimiter(10, rateWindow, "version save limit exceeded"), store.SaveVersionHandler)
+	app.Get("/projects/:projectID/versions/:versionID", store.GetVersionHandler)
+	app.Delete("/projects/:projectID/versions/:versionID", store.DeleteVersionHandler)
+	app.Get("/projects/:projectID/text-assets/:assetID", requestLimiter(120, rateWindow, "caption image limit exceeded"), store.GetTextAssetHandler)
+	app.Post("/projects/:projectID/text-assets/:assetID", requestLimiter(30, rateWindow, "caption image limit exceeded"), store.SaveTextAssetHandler)
 	jobs := localJobs(queue)
 	store.Presentations.Jobs = jobs.Store
+	registerReadinessRoute(app, jobs)
 	registerLocalEditor(app, jobs)
 	registerLocalAutomation(app, store, jobs)
 	jobs.Start(context.Background())
@@ -98,11 +109,23 @@ func registerLocalAutomation(app *fiber.App, store *projects.Store, jobs *jobque
 	api.Post("/projects", store.CreateHandler)
 	api.Get("/compositions/schema", compositions.Schema)
 	api.Get("/compositions/capabilities", compositions.Capabilities)
+	var soundOpts []soundlibrary.Option
+	if storage.DataDir != "" {
+		soundOpts = append(soundOpts, soundlibrary.WithCacheDir(filepath.Join(storage.DataDir, ".sound-cache")))
+	}
+	sounds := &media.SoundEffects{Library: soundlibrary.New(soundlibrary.NewHTTPClient(), soundOpts...)}
+	api.Get("/sounds/search", requestLimiter(12, rateWindow, "sound search rate limit exceeded"), sounds.Search)
 	api.Post("/ai/tool-selection", toolrouting.Validate, toolrouting.Select)
 	project := api.Group("/projects/:projectID", store.ScopeAPI)
 	project.Get("/", store.GetHandler)
 	project.Post("/", store.SaveHandler)
+	project.Post("/duplicate", requestLimiter(3, rateWindow, "project duplication limit exceeded"), store.DuplicateHandler)
+	project.Get("/versions", store.VersionsHandler)
+	project.Post("/versions", requestLimiter(10, rateWindow, "version save limit exceeded"), store.SaveVersionHandler)
+	project.Get("/versions/:versionID", store.GetVersionHandler)
+	project.Delete("/versions/:versionID", store.DeleteVersionHandler)
 	project.Post("/upload", media.Upload)
+	project.Post("/sounds/import", requestLimiter(6, rateWindow, "sound import rate limit exceeded"), sounds.Import)
 	roots := media.NewLocalSources(os.Getenv("LOCAL_MEDIA_ROOTS_JSON"))
 	project.Get("/media/local", roots.List)
 	project.Post("/media/local/inspect", roots.Inspect)
@@ -115,7 +138,7 @@ func registerLocalAutomation(app *fiber.App, store *projects.Store, jobs *jobque
 	project.Post("/compositions/assets", compositions.AssetMetadata)
 	project.Post("/compositions/validate", compositions.Validate)
 	project.Post("/compositions/compile", compositions.Compile)
-	project.Post("/scenes/compile", scenes.ValidateCompileRequest, jobs.Submit("scene-compile", false))
+	project.Post("/scenes/compile", scenes.ValidateCompileRequest, compileScene(jobs))
 	project.Get("/scenes/source", scenes.ClientSource)
 	project.Post("/scenes/inspect", scenes.ClientInspect)
 	for path, kind := range map[string]string{
@@ -130,6 +153,7 @@ func registerLocalAutomation(app *fiber.App, store *projects.Store, jobs *jobque
 	project.Post("/renders", compositions.MCPRenderPolicy, jobs.Submit("automation-render", false))
 	project.Post("/renders/preview", compositions.MCPPreviewPolicy, jobs.Submit("automation-render", false))
 	project.Get("/renders/:id", jobs.Status)
+	project.Post("/renders/:id/inspect", requestLimiter(6, rateWindow, "render inspection rate limit exceeded"), withRenderOutput(jobs, media.InspectRender))
 	project.Get("/jobs", jobs.List)
 	project.Get("/jobs/:id", jobs.Status)
 	project.Delete("/jobs/:id", jobs.Cancel)

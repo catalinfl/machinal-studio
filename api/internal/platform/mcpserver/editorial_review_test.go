@@ -89,6 +89,7 @@ func TestEditorialReviewNoticesAreAdvisoryAndDoNotDemandEffects(t *testing.T) {
 }
 
 func TestCompileRecipeAddsEditorialEvidenceWithoutAnotherAPICall(t *testing.T) {
+	requireClientLibrary(t)
 	source, err := clientReferenceFixtures.ReadFile("reference/examples/cinematic-sequence.yaml")
 	if err != nil {
 		t.Fatal(err)
@@ -191,6 +192,7 @@ func TestEditorialReviewPreservesNearLimitCompilerResponse(t *testing.T) {
 }
 
 func TestProductionReferenceAndEntryPointsExposeBoundedCriticWorkflow(t *testing.T) {
+	requireClientLibrary(t)
 	guide, err := clientAuthoringReference(referenceInput{Topic: "production"}, nil)
 	if err != nil {
 		t.Fatal(err)

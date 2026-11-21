@@ -6,6 +6,7 @@ import (
 )
 
 func TestAIEntryPointsRequireCaptionEncodingRepair(t *testing.T) {
+	requireClientLibrary(t)
 	for name, content := range map[string]string{
 		"initialization": instructions,
 		"recipe guide":   recipeGuide,

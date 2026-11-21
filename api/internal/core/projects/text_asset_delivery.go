@@ -8,7 +8,6 @@ import (
 	"os"
 	"time"
 
-	"ffmpeg-go-server/internal/platform/objectstore"
 	"github.com/gofiber/fiber/v2"
 )
 
@@ -21,11 +20,21 @@ type textAssetCloud interface {
 	PresignDownload(string, time.Duration) (string, error)
 }
 
+type disabledTextAssetCloud struct{}
+
+func (disabledTextAssetCloud) Enabled() bool { return false }
+func (disabledTextAssetCloud) EnsurePublished(context.Context, string, string, string) error {
+	return nil
+}
+func (disabledTextAssetCloud) PresignDownload(string, time.Duration) (string, error) {
+	return "", nil
+}
+
 func (s *Store) textAssetCloud() textAssetCloud {
 	if s.textCloud != nil {
 		return s.textCloud()
 	}
-	return objectstore.Shared()
+	return disabledTextAssetCloud{}
 }
 
 func cloudTextDeliveryRequired() bool {

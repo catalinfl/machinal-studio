@@ -15,6 +15,7 @@ import (
 )
 
 func TestWorkflowPolicyExplainsAnimatedScenesWithoutInstalledSkills(t *testing.T) {
+	requireClientLibrary(t)
 	handler := NewHandler(func(context.Context, http.Header, Request) (Response, error) {
 		t.Fatal("scene discovery must not call providers or access customer data")
 		return Response{}, nil
@@ -36,6 +37,7 @@ func TestSceneGuideExplainsPlanningAndRealImageAttachments(t *testing.T) {
 	if result.IsError || output.StatusCode != http.StatusOK {
 		t.Fatal("scene guide is unavailable", result, output)
 	}
+	guide := output.Data.(map[string]any)["guide"].(string)
 	clientGuide := clientAuthoringGuide(t, "scenes")
 	for _, content := range []string{
 		"beat sheet", "timeline start/duration", "scene-local", "independently moving objects", "Svelte",
@@ -96,6 +98,7 @@ func sceneInsertExample(t *testing.T) []byte {
 }
 
 func TestMCPForwardsAnimatedSceneRecipesWithoutChangingAttachments(t *testing.T) {
+	requireClientLibrary(t)
 	source := sceneInsertExample(t)
 	for _, operation := range []struct{ tool, suffix string }{
 		{"generate_assets", "/compositions/compile-and-generate"},
@@ -126,6 +129,7 @@ func TestMCPForwardsAnimatedSceneRecipesWithoutChangingAttachments(t *testing.T)
 }
 
 func TestSceneInsertExampleMaterializesWithoutLosingFootageOrTiming(t *testing.T) {
+	requireClientLibrary(t)
 	input, _, err := compositions.ParseProject(sceneInsertExample(t))
 	if err != nil {
 		t.Fatal(err)

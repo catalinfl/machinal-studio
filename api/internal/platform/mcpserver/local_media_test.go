@@ -58,6 +58,7 @@ func TestLocalInspectionRejectsMalformedAndOversizedEvidence(t *testing.T) {
 }
 
 func TestLocalMediaGuidancePreservesNoUploadAndConsentBoundaries(t *testing.T) {
+	requireClientLibrary(t)
 	guide, err := clientReferenceFixtures.ReadFile("guides/media.md")
 	if err != nil {
 		t.Fatal(err)

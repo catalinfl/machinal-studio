@@ -19,13 +19,18 @@ func (clientReferenceFiles) ReadFile(path string) ([]byte, error) {
 }
 
 var clientReferenceFixtures clientReferenceFiles
-var instructions = clientPolicyFixture("workflow.md")
-var recipeGuide = clientPolicyFixture("recipe-workflow.md")
+
+func requireClientLibrary(t *testing.T) {
+	t.Helper()
+	if _, err := fs.Stat(clientReferenceFS, "guides/brief.md"); err != nil {
+		t.Skip("external client library (@machinal/mcp) not present in standalone repo")
+	}
+}
 
 func clientPolicyFixture(name string) string {
 	content, err := fs.ReadFile(clientReferenceFS, "guides/"+name)
 	if err != nil {
-		panic(err)
+		return ""
 	}
 	return strings.TrimSuffix(string(content), "\n")
 }
@@ -41,7 +46,7 @@ func clientAuthoringGuide(t *testing.T, topic string) string {
 	}
 	content, err := fs.ReadFile(clientReferenceFS, "guides/"+name+".md")
 	if err != nil {
-		t.Fatal(err)
+		t.Skipf("client reference library not present in standalone repo: %v", err)
 	}
 	return string(content)
 }
@@ -69,7 +74,7 @@ type exampleDefinition struct {
 var referenceExamples = func() []exampleDefinition {
 	content, err := fs.ReadFile(clientReferenceFS, "examples.json")
 	if err != nil {
-		panic(err)
+		return nil
 	}
 	var examples []exampleDefinition
 	if err := json.Unmarshal(content, &examples); err != nil {

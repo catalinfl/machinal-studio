@@ -12,7 +12,7 @@ This update builds on existing editing/export paths rather than replacing the Sv
 - **Less job clutter:** export history is the default view, with AI operations kept separately for recovery. Simple new-source scene compilation returns directly using durable free-operation receipts. Source-file edits, handoffs and explicit asynchronous calls retain legacy recovery jobs. Paid/long provider work is not made unsafe merely to reduce the visible job count.
 - **Client budget:** delayed capture/serialization for autosave; indexed active-caption lookup; cached fitted layouts; release of inactive caption textures; scoped IndexedDB cursor reads; and an adaptive, preview-only frame/pixel budget for resource-constrained browsers. Export settings and successful captions/assets are unchanged.
 - **Caption freeze guard:** an incomplete saved style (including missing/NaN font size) no longer enters unbounded fitting. Invalid numeric input is reported without rewriting saved text/words/timing, and fitting stops after at most 64 attempts. Preview continues and clears the recoverable error after a valid style repair.
-- **Provisioning:** versioned PocketBase schemas/hooks, an opt-in non-root Compose installation, locked-collection compatibility checks, cached API queue readiness and a streamed offline-backup inventory/restore verifier. See [PocketBase provisioning](../pocketbase/README.md).
+- **Provisioning:** cached API queue readiness and local durable Bolt queue recovery (PocketBase provisioning is hosted-only).
 
 ## Verification and boundaries
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import nativeLedger from '../../../../packages/mcp-installer/library/hyperframes-native.json'
+import nativeLedger from '../../../../services/scene-renderer/hyperframes/hyperframes-native.json'
 import { filterNativePorts, nativeCategories, nativePorts, nativePreviewSize } from '../../lib/native-gallery-catalog'
 
 describe('native Svelte gallery catalog', () => {

@@ -6,6 +6,7 @@ import (
 )
 
 func TestWorkflowCarriesApprovalAndDistinguishesRepairableSourceFromInfrastructure(t *testing.T) {
+	requireClientLibrary(t)
 	for _, text := range []string{
 		"Carry the approved scope through completion",
 		"userApproved asserts that existing permission",

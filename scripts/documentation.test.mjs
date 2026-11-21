@@ -5,7 +5,7 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const files = ['README.md', 'PRODUCT.md', 'DESIGN.md', 'client/README.md', 'client/PRODUCT.md', 'api/editengine/README.md', 'packages/mcp-installer/README.md', 'services/scene-renderer/README.md'];
+const files = ['README.md', 'PRODUCT.md', 'DESIGN.md', 'client/README.md', 'client/PRODUCT.md', 'api/editengine/README.md', 'services/scene-renderer/README.md'];
 for (const entry of await readdir(resolve(root, 'docs'), { withFileTypes: true })) {
   if (entry.isFile() && entry.name.endsWith('.md')) files.push(`docs/${entry.name}`);
 }

@@ -1,6 +1,6 @@
 {
   "edition": "local",
-  "upstreamCommit": "09220544d8bbc190ffaff1adb83e9fac50995d87",
+  "upstreamCommit": "e07ce0d5956d1a64f84eacdc9e82c312b6e45687",
   "snapshot": "Includes the current working-tree source, not only the upstream commit.",
   "applicationKeyRequired": false,
   "cloudStorage": false

@@ -2,7 +2,7 @@
 
 This edition serves Streamable HTTP MCP at `/mcp` on the user's own Docker API. It needs **no machinal login, application key, Premium membership, credit wallet, PocketBase or S3**. AI uses only the installation owner's OpenRouter key, configured in the local editor or container; never pass it to MCP or chat.
 
-See the [root installation guide](../README.md), [installer guide](../packages/mcp-installer/README.md) and [local boundaries](../LOCAL_FORK.md).
+See the [root installation guide](../README.md) and [local boundaries](../LOCAL_FORK.md).
 
 ## Connect
 

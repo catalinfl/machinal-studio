@@ -66,7 +66,7 @@ The documentation cross-check found inherited drift: root `DESIGN.md` describes 
 
 ## Verification evidence
 
-The table below is historical evidence for the original presentation feature, not a fresh test run of this correction. Current correction evidence is recorded in [editable timeline review](../.impeccable/review/project-editable-timeline-verdict.md).
+The table below is historical evidence for the original presentation feature, not a fresh test run of this correction.
 
 | Check | Reported result |
 | --- | --- |

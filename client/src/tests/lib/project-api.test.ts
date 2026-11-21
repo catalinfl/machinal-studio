@@ -40,7 +40,7 @@ describe('local projects API', () => {
   it('retains reload recovery for a save conflict', async () => {
     fetchMock.mockResolvedValue(new Response(null, { status: 409 }))
 
-    await expect(projectRequest('/p_film', {})).rejects.toThrow('This project changed in another tab. Reload the project to continue.')
+    await expect(projectRequest('/p_film', {})).rejects.toThrow('This project changed in another tab. Your unsaved changes are still in this tab. Download a draft before reloading.')
   })
 
   it('points at local API recovery instead of a nonexistent login page', async () => {

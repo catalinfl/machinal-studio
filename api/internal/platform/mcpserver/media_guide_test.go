@@ -51,6 +51,7 @@ func TestMediaGuideIsDiscoverableWithoutAccessingCustomerMedia(t *testing.T) {
 }
 
 func TestMediaGuideToolExamplesMatchActualMCPArgumentSchemas(t *testing.T) {
+	requireClientLibrary(t)
 	guide, err := clientReferenceFixtures.ReadFile("guides/media.md")
 	if err != nil {
 		t.Fatal(err)

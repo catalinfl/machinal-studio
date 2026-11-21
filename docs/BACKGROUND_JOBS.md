@@ -1,6 +1,6 @@
 # Persistent background jobs
 
-Commands and code paths in this guide are relative to the repository root unless stated otherwise. Versioned PocketBase migrations/hooks ship under `pocketbase/`; installation, compatibility checks and coordinated restore instructions are in [PocketBase provisioning](../pocketbase/README.md).
+Commands and code paths in this guide are relative to the repository root unless stated otherwise. Local deployments use the durable Bolt queue rather than PocketBase.
 
 Hosted long-running work is queued in PocketBase's SQLite database and processed by the existing Go services. No RabbitMQ, Redis or additional container is needed. HTTP connections are not held open during generation or rendering.
 

@@ -21,6 +21,7 @@ func briefHandler(t *testing.T) http.Handler {
 }
 
 func TestWorkflowPolicyStartsWithCollaborativeVideoBrief(t *testing.T) {
+	requireClientLibrary(t)
 	handler := briefHandler(t)
 	policy := workflowPolicy(t, handler)
 	for _, content := range []string{
@@ -40,6 +41,7 @@ func TestWorkflowPolicyStartsWithCollaborativeVideoBrief(t *testing.T) {
 }
 
 func TestBriefGuideIsDiscoverableAsToolTopicAndResource(t *testing.T) {
+	requireClientLibrary(t)
 	handler := briefHandler(t)
 	_, envelope := rpc(t, handler, "tools/list", map[string]any{})
 	var catalog mcp.ListToolsResult
@@ -103,6 +105,7 @@ func TestBriefGuideIsDiscoverableAsToolTopicAndResource(t *testing.T) {
 }
 
 func TestEditingEntryPointsLinkToBriefBeforeAuthoring(t *testing.T) {
+	requireClientLibrary(t)
 	handler := briefHandler(t)
 	for _, uri := range []string{
 		"machinal://recipes/guide", "machinal://skills/editing",
@@ -138,6 +141,7 @@ func TestEditingEntryPointsLinkToBriefBeforeAuthoring(t *testing.T) {
 }
 
 func TestNarratedExampleUsesSubjectHeadingWithoutDefaultProductionLabel(t *testing.T) {
+	requireClientLibrary(t)
 	source, err := clientReferenceFixtures.ReadFile("reference/examples/narrated-documentary.yaml")
 	if err != nil {
 		t.Fatal(err)

@@ -13,6 +13,7 @@ import (
 )
 
 func TestNarrationWorkflowExposesTimingCheckpointBeforeVisualGeneration(t *testing.T) {
+	requireClientLibrary(t)
 	handler := NewHandler(func(context.Context, http.Header, Request) (Response, error) {
 		t.Fatal("timing guidance must not call providers or customer APIs")
 		return Response{}, nil
@@ -42,6 +43,7 @@ func TestNarrationWorkflowExposesTimingCheckpointBeforeVisualGeneration(t *testi
 }
 
 func TestNarrationOverrunKeepsSuccessfulAudioAndExtendsVideo(t *testing.T) {
+	requireClientLibrary(t)
 	guides := map[string]string{
 		"initialization": instructions,
 		"recipe-guide":   recipeGuide,
@@ -71,6 +73,7 @@ func TestNarrationOverrunKeepsSuccessfulAudioAndExtendsVideo(t *testing.T) {
 }
 
 func TestNarrationExamplesSeparateTimingFromPendingVisuals(t *testing.T) {
+	requireClientLibrary(t)
 	for _, example := range []struct {
 		id    string
 		kinds []string

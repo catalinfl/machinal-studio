@@ -6,7 +6,7 @@
 - [Fork boundaries and compatibility code](../LOCAL_FORK.md)
 - [Local MCP workflow](MCP.md)
 - [Standalone verification and limits](LOCAL_VERIFICATION.md)
-- [Server versus Local installer](../packages/mcp-installer/README.md)
+- [Local installation](../README.md#mcp-server-and-local-are-different-products) (`@machinal/mcp`)
 - [Product contract](../PRODUCT.md)
 - [Editor visual contracts](../DESIGN.md)
 - [Compiler and recipe reference](../api/editengine/README.md)

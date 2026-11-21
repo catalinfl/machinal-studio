@@ -54,7 +54,7 @@ func NewLocalHandler(call Caller) http.Handler {
 }
 
 func newHandler(call Caller, local bool) http.Handler {
-	serverInstructions := instructions
+	serverInstructions := bootstrapInstructions
 	name := "machinal"
 	if local {
 		serverInstructions = localInstructions

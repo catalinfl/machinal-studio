@@ -46,9 +46,6 @@ func completedRenderCost(ctx context.Context) *RenderCost {
 	status := "final"
 	if len(reservation.Attempts) > 0 {
 		status = "pending"
-		if err := meter.Store.TrackPendingReport(meter.Owner, meter.ID); err != nil {
-			log.Printf("track pending job cost %s: %v", meter.ID, err)
-		}
 	}
 	cost := &RenderCost{Status: status, AICredits: float64(reservation.Spent-reservation.Render-reservation.SceneRender) / float64(credits.UnitsPerCredit),
 		RenderCredits: float64(reservation.Render) / float64(credits.UnitsPerCredit), SceneRenderCredits: float64(reservation.SceneRender) / float64(credits.UnitsPerCredit), KnownCredits: float64(reservation.Spent) / float64(credits.UnitsPerCredit), USDPerCredit: meter.Pricing.USDPerCredit}

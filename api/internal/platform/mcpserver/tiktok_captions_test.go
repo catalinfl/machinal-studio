@@ -9,6 +9,7 @@ import (
 )
 
 func TestTikTokCaptionFontReachesMCPEntryPoints(t *testing.T) {
+	requireClientLibrary(t)
 	handler := briefHandler(t)
 	assertTikTokCaptionFontGuidance(t, workflowPolicy(t, handler))
 	for _, uri := range []string{"machinal://recipes/guide", "machinal://skills/editing"} {
@@ -31,6 +32,7 @@ func TestTikTokCaptionFontReachesMCPEntryPoints(t *testing.T) {
 }
 
 func TestTikTokCaptionFontGuidanceInReferences(t *testing.T) {
+	requireClientLibrary(t)
 	for _, topic := range []string{"brief", "text", "fonts", "audio", "styles"} {
 		t.Run(topic, func(t *testing.T) {
 			reference, err := clientAuthoringReference(referenceInput{Topic: topic}, nil)

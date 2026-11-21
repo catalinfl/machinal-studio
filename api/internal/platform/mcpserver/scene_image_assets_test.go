@@ -42,6 +42,7 @@ func TestSceneImageDefaultsReachInitializationAndReferences(t *testing.T) {
 }
 
 func TestSceneImageGuideUsesSupportedTransparentJobFields(t *testing.T) {
+	requireClientLibrary(t)
 	reference, err := clientAuthoringReference(referenceInput{Topic: "scenes"}, nil)
 	if err != nil {
 		t.Fatal(err)

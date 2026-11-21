@@ -39,8 +39,8 @@ docker compose down</code></pre>
   </section>
   <section id="mcp">
     <h2>Connect MCP without a machinal key</h2>
-    <p>Start Docker first. From the repository, run <code>npm --prefix packages/mcp-installer ci</code>, then:</p>
-    <pre><code>node packages/mcp-installer/bin/machinal-mcp.mjs setup --mode local --client opencode</code></pre>
+    <p>Start Docker first. Run:</p>
+    <pre><code>npx -y @machinal/mcp setup --mode local --client opencode</code></pre>
     <p>Or merge the following into your OpenCode V2 configuration. HTTP transport is called <code>remote</code> in OpenCode even when its URL is localhost. No Authorization header or OAuth is needed:</p>
     <pre><code>{configuration}</code></pre>
     <p>Choose <strong>Server</strong> only for an existing hosted machinal API. Its own login, application key and billing rules apply there; they never apply to this local endpoint.</p>

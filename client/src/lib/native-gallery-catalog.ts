@@ -1,6 +1,6 @@
 import type { Component } from 'svelte'
-import nativeLedger from '../../../packages/mcp-installer/library/hyperframes-native.json'
-import componentRegistry from '../../../packages/mcp-installer/library/hyperframes-components.json'
+import nativeLedger from '../../../services/scene-renderer/hyperframes/hyperframes-native.json'
+import componentRegistry from '../../../services/scene-renderer/hyperframes/hyperframes-components.json'
 
 export type NativeAspect = 'landscape' | 'portrait'
 export type NativePreviewSize = { width: number; height: number; fps: number; durationInFrames: number; captionSafeBottom: number }

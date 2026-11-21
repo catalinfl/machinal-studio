@@ -107,6 +107,7 @@ func TestReferenceLookupUsesDescriptionsAndRejectsInventedPresets(t *testing.T) 
 }
 
 func TestNamedStylesOnlyRecommendExistingCatalogIDs(t *testing.T) {
+	requireClientLibrary(t)
 	entries := referenceFixture(t)
 	groups := map[string]string{"looks": "looks", "motions": "motions", "transitions": "transitions", "textPresets": "textPresets", "effects": "effects"}
 	known := make(map[string]map[string]bool)

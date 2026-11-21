@@ -68,31 +68,6 @@ jobs:
         env:
           SCENE_WORKER_INTEGRATION: '1'
 
-  installer:
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 10
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, windows-latest]
-    defaults:
-      run:
-        working-directory: packages/mcp-installer
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          cache: npm
-          cache-dependency-path: packages/mcp-installer/package-lock.json
-      - uses: actions/setup-go@v5
-        with:
-          go-version-file: api/go.mod
-          cache-dependency-path: api/go.sum
-      - run: npm ci --ignore-scripts
-      - run: npm test
-      - run: npm run test:package
-
   scenes:
     runs-on: ubuntu-latest
     timeout-minutes: 20

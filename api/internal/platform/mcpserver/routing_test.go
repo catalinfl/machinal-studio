@@ -40,6 +40,7 @@ func TestRouterCatalogMatchesTheActualMCPTools(t *testing.T) {
 }
 
 func TestMCPInstructionsAndCreditGuideDoNotExposeInternalAISupplier(t *testing.T) {
+	requireClientLibrary(t)
 	guide, err := clientReferenceFixtures.ReadFile("guides/credits.md")
 	if err != nil {
 		t.Fatal(err)
