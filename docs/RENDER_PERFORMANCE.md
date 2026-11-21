@@ -82,6 +82,71 @@ Heavy scene/text calls are serialized through a bounded FIFO rather than rejecti
 
 ## Persistent scene cache
 
+### Packaged fingerprints and idle RAM reclamation
+
+Both scene Docker images generate a root-owned `SCENE_RENDER_MANIFEST` at build
+time. Runtime cache identity reuses the exact SHA-256 values for matching,
+image-owned executable paths, sizes and modification times. Missing, malformed,
+untrusted or mismatched entries fall back to content hashing. All existing
+render-cache identity inputs and cached-video checksum checks remain in place.
+The build normalizes executable modification times to whole seconds before
+pinning them, because OCI layer archives can discard subsecond timestamps.
+Runtime metadata matching stays exact; it does not tolerate changed timestamps.
+This prevents the on-demand worker from rereading the whole Chromium executable
+just to identify an existing disk-cache entry after every cold start.
+
+In the **managed Railway worker** path, Linux termination is followed by targeted
+`POSIX_FADV_DONTNEED` advice. A build-time inventory prioritizes executable files
+and their linked libraries, then selected browser/Node resources of at least
+64 KiB. Completed videos in up to 65 inspected scene-cache directory entries are
+also eligible. The inventory is capped at 8,192 files / 1 MiB, and cleanup checks a
+two-second context budget between filesystem operations. It does not recursively
+walk `/data`, delete files, clear global caches or require root at runtime.
+
+New worker acquisition waits for termination/reclamation through a cancellable
+gate, not a mutex held across cache I/O. In-flight requests and streaming keep the
+worker alive. Failure/unsupported advice is logged and never turns a successful
+render into a failed job. `scene_worker page_cache_release` logs total, anonymous,
+file and kernel memory before/after, plus advice/failure counts. Advice counts are
+not reclaimed bytes; dirty, mapped or shared pages and filesystem behavior mean
+there is no guaranteed idle-memory target. Source media/final outputs under
+`/data` retain their existing storage and publication policies.
+
+An externally managed Compose scene service does not gain the Go idle lifecycle;
+it benefits from packaged fingerprints only. Rebuild the relevant image to adopt
+the manifest and binaries. Do not override the manifest with a user-writable file.
+
+#### Managed Railway verification (2026-11-05 UTC)
+
+The isolated memory patch was deployed as `ba2a7036-6c8b-4d99-ae17-fb5bf6d49ee6`,
+based on production commit `10b9689`, without unrelated local commits/UI changes.
+The existing volume, source connection, single replica and deployment settings
+were preserved. The protected manifest reused all three executable hashes without
+runtime hashing. Linux synthetic tests measured 1,216 resident pages becoming zero,
+with unchanged persisted bytes.
+
+Two bounded health/compile cycles and controlled reads of the packaged executables
+checked real idle behavior without encoding a video, accessing user media or
+calling an AI provider. The second cycle reached 505,176,064 container bytes while
+the worker was awake. At `22:23:57 UTC`, after worker exit:
+
+| Cgroup measurement | Before targeted advice | Immediately after |
+| --- | ---: | ---: |
+| Total bytes | 314,482,688 | 20,836,352 |
+| File-cache bytes | 292,945,920 | 77,824 |
+
+The release log reported 454 advised files, zero failures, no timeout and 25 ms.
+A follow-up reading was 18,923,520 total bytes / 90,112 file-cache bytes, with no
+Node/Chromium/FFmpeg process remaining. Per-file `fincore` residency can still show
+shared image pages resident elsewhere; it is not the container's charged cache.
+The subsequent Railway memory metric was 0.014913536 GB (approximately 15 MB), with
+one healthy running replica and no pending deployment work.
+These are controlled point-in-time observations, not a full-render benchmark or a
+guaranteed idle-memory floor. This was a manual archive deployment; the source
+patch must be included before the next GitHub `master` autodeploy.
+
+### Disk retention
+
 The private `scene-render-cache` named volume retains up to 2 GiB / 64 entries,
 with a seven-day idle TTL and LRU eviction. No source library is scanned, and
 the cache is not exposed by a public download endpoint.

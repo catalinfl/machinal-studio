@@ -209,3 +209,114 @@ func TestAlreadyCancelledRequestDoesNotStartWorker(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestReclamationWaitsForIdleAndBlocksOnlyNewWorkerAcquisition(t *testing.T) {
+	w := fakeWorker(true)
+	cleaning, finish := make(chan struct{}), make(chan struct{})
+	var starts atomic.Int32
+	m := &manager{idle: 20 * time.Millisecond,
+		start: func() (*worker, error) {
+			if starts.Add(1) == 1 {
+				return w, nil
+			}
+			return fakeWorker(true), nil
+		},
+		reclaim: func(ctx context.Context) {
+			if starts.Load() != 1 {
+				return
+			}
+			select {
+			case <-w.done:
+			default:
+				t.Error("reclamation ran before process stop")
+			}
+			close(cleaning)
+			select {
+			case <-finish:
+			case <-ctx.Done():
+			}
+		},
+	}
+	t.Cleanup(m.close)
+	release, err := m.acquire(context.Background(), true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertOpen(t, cleaning, 2*m.idle)
+	release()
+	awaitClosed(t, cleaning)
+	ctx, cancel := context.WithTimeout(context.Background(), 40*time.Millisecond)
+	defer cancel()
+	result := make(chan error, 1)
+	go func() { _, err := m.acquire(ctx, true); result <- err }()
+	select {
+	case err := <-result:
+		if !errors.Is(err, context.DeadlineExceeded) {
+			t.Fatalf("waiting caller lost cancellation: %v", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("cleanup held the mutex and blocked cancellation")
+	}
+	if starts.Load() != 1 {
+		t.Fatal("worker started during cache reclamation")
+	}
+	close(finish)
+	next, err := m.acquire(context.Background(), true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	next()
+}
+
+func TestCrashReclamationPrecedesReplacement(t *testing.T) {
+	w := fakeWorker(true)
+	var reclaimed atomic.Bool
+	starts := 0
+	m := &manager{idle: time.Hour, start: func() (*worker, error) {
+		starts++
+		if starts == 1 {
+			return w, nil
+		}
+		if !reclaimed.Load() {
+			t.Error("replacement preceded crashed-worker cleanup")
+		}
+		return fakeWorker(true), nil
+	}, reclaim: func(context.Context) { reclaimed.Store(true) }}
+	t.Cleanup(m.close)
+	release, err := m.acquire(context.Background(), true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	w.stop()
+	release()
+	next, err := m.acquire(context.Background(), true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	next()
+}
+
+func TestShutdownReclaimsWithBoundedContextAndCannotRestart(t *testing.T) {
+	cleaned := make(chan struct{})
+	m := &manager{idle: time.Hour, start: func() (*worker, error) { return fakeWorker(true), nil },
+		reclaim: func(ctx context.Context) {
+			if _, ok := ctx.Deadline(); !ok {
+				t.Error("reclamation has no deadline")
+			}
+			<-ctx.Done()
+			close(cleaned)
+		},
+	}
+	release, err := m.acquire(context.Background(), true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	release()
+	closed := make(chan struct{})
+	go func() { m.close(); close(closed) }()
+	awaitClosed(t, cleaned)
+	awaitClosed(t, closed)
+	if _, err := m.acquire(context.Background(), true); !errors.Is(err, errUnavailable) {
+		t.Fatalf("shutdown permitted a replacement: %v", err)
+	}
+}

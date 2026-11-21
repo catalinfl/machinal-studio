@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"os"
 	"strings"
 	"time"
 )
@@ -36,6 +37,7 @@ func StartFromEnv() (*Service, error) {
 	transport.Proxy = nil
 	transport.MaxConnsPerHost = 32
 	m := &manager{idle: c.idle}
+	m.reclaim = workerReclaimer(os.Getenv("SCENE_RENDER_MANIFEST"), os.Getenv("SCENE_CACHE_DIR"))
 	m.start = func() (*worker, error) { return startWorker(c, transport) }
 	s := &Service{manager: m, transport: transport}
 	s.server = &http.Server{

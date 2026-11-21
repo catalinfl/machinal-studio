@@ -27,8 +27,12 @@ COPY . .
 COPY --from=client-source src/lib/text-render.ts src/lib/text-geometry.ts src/lib/caption-layout.ts ./text-source/
 ENV SCENE_BROWSER=/opt/chrome/chrome-headless-shell-linux64/chrome-headless-shell \
     SCENE_FFMPEG=/usr/bin/ffmpeg \
+    SCENE_RENDER_MANIFEST=/opt/scene-render-manifest.json \
     SCENE_SERVICE_HOST=0.0.0.0 SCENE_NO_SANDBOX=true PORT=8091 TEXT_SOURCE_ROOT=/opt/scene-service/text-source
 USER scene
 RUN node --input-type=module -e "import { ensureRendererReady } from './renderer.mjs'; await ensureRendererReady();"
+USER root
+RUN node scripts/build-renderer-manifest.mjs "$SCENE_RENDER_MANIFEST"
+USER scene
 EXPOSE 8091
 CMD ["node", "server.mjs"]

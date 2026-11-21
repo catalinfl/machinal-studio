@@ -57,6 +57,19 @@ npm run test:evaluation
 
 Service preview tests require Chromium even when native export tests are skipped. Native text/layout checks additionally require `SCENE_BROWSER`; the complete native workflow below enables them.
 
+For managed-worker idle-memory changes, run `go test -race ./internal/platform/sceneworker`
+from `api/`. Set `SCENE_WORKER_INTEGRATION=1` to include the synthetic Node
+start/stream/idle/restart lifecycle (requires unused loopback ports 8091/8092).
+Linux-only tests exercise bounded candidate selection, symlink confinement,
+best-effort advice and clean synthetic file residency through `mincore`; the
+residency assertion skips when the filesystem does not honor advisory eviction.
+The Railway Docker build also runs the worker package tests on Linux. Windows
+tests/cross-compilation alone do not establish actual Linux page-cache release.
+From `services/scene-renderer/`, `node --test renderer-fingerprint.test.mjs render-cache.test.mjs`
+checks build-fingerprint reuse/fallback and unchanged cache identity/integrity.
+These tests use synthetic files and do not request provider generation or a real
+production render.
+
 ## Browser editor integration
 
 For the account flows, use an explicit isolated port when another project may already own 5173:

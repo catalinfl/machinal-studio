@@ -1,9 +1,9 @@
 import { createHash } from 'node:crypto';
-import { createReadStream } from 'node:fs';
-import { access, mkdir, mkdtemp, readFile, readdir, rename, rm, stat, utimes, writeFile } from 'node:fs/promises';
-import { delimiter, join, resolve } from 'node:path';
+import { mkdir, mkdtemp, readFile, readdir, rename, rm, stat, utimes, writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import { arch, platform, release } from 'node:os';
 import { rendererExecutable } from './renderer.mjs';
+import { executableFingerprints, executablePath } from './renderer-fingerprint.mjs';
 
 // Full-length lossless Full HD scenes can exceed 512 MiB; keep the API receiver in sync.
 export const maxRenderBytes = 1024 * 1024 * 1024;
@@ -25,28 +25,13 @@ export function cacheKey(bundle, html, input, identity) {
     .update(JSON.stringify(canonical({ config: input.config, images: input.images ?? {}, videos: input.videos ?? {}, parameters: input.parameters ?? {}, models: input.models ?? {}, identity }))).digest('hex');
 }
 
-async function executablePath(name) {
-  if (name.includes('/') || name.includes('\\')) return resolve(name);
-  for (const directory of (process.env.PATH ?? process.env.Path ?? '').split(delimiter)) {
-    const path = join(directory, name + (platform() === 'win32' && !name.endsWith('.exe') ? '.exe' : ''));
-    try { await access(path); return path; } catch { /* Continue searching PATH. */ }
-  }
-  throw new Error(`Executable not found: ${name}`);
-}
-
-async function fileDigest(path) {
-  const hash = createHash('sha256');
-  for await (const chunk of createReadStream(path)) hash.update(chunk);
-  return hash.digest('hex');
-}
-
 export async function rendererIdentity(options, env = process.env) {
-  const paths = await Promise.all([rendererExecutable(env).then(executablePath), executablePath(env.SCENE_BROWSER || 'chrome-headless-shell'), executablePath(env.SCENE_FFMPEG || 'ffmpeg')]);
+  const paths = await Promise.all([rendererExecutable(env).then(name => executablePath(name, env)), executablePath(env.SCENE_BROWSER || 'chrome-headless-shell', env), executablePath(env.SCENE_FFMPEG || 'ffmpeg', env)]);
   const files = await Promise.all(paths.map(async path => { const info = await stat(path); return [path, info.size, info.mtimeMs]; }));
   const key = JSON.stringify([files, options, env.SCENE_CACHE_VERSION ?? '1', env.SCENE_GPU_FINGERPRINT ?? '', platform(), arch(), release()]);
   if (!identities.has(key)) {
     if (identities.size >= 8) identities.delete(identities.keys().next().value);
-    const identity = Promise.all(paths.map(fileDigest)).then(async hashes => {
+    const identity = executableFingerprints(paths, env.SCENE_RENDER_MANIFEST).then(async hashes => {
       let systemPackages = '';
       try { systemPackages = await readFile('/opt/scene-render-environment', 'utf8'); } catch { /* Non-container installations use SCENE_CACHE_VERSION for system-library upgrades. */ }
       // Parallelism affects scheduling, not pixels. It must not invalidate cached artwork.
