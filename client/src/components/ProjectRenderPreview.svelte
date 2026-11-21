@@ -1,6 +1,6 @@
 <script lang="ts">
   import { mediaSourceUrl } from '../lib/api'
-  import type { ProjectPresentation, PreparedComposition } from '../lib/project-presentation'
+  import { preparedCompositionJSON, type ProjectPresentation, type PreparedComposition } from '../lib/project-presentation'
 
   let { presentation, warning = '', disabled = false, onopen }: {
     presentation?: ProjectPresentation
@@ -10,6 +10,7 @@
   } = $props()
 
   let failedFile = $state('')
+  let downloadError = $state('')
   let action = $state<{ kind: 'idle' } | { kind: 'confirm'; snapshot: PreparedComposition } | { kind: 'opening' } | { kind: 'error'; message: string }>({ kind: 'idle' })
   const rendered = $derived(presentation?.lastRender)
   const prepared = $derived(presentation?.prepared)
@@ -22,6 +23,19 @@
       action = { kind: 'idle' }
     } catch (cause) {
       action = { kind: 'error', message: cause instanceof Error ? cause.message : String(cause) }
+    }
+  }
+
+  function downloadJSON(snapshot: PreparedComposition): void {
+    downloadError = ''
+    try {
+      const url = URL.createObjectURL(new Blob([preparedCompositionJSON(snapshot)], { type: 'application/json;charset=utf-8' }))
+      const link = document.createElement('a')
+      link.href = url
+      link.download = snapshot.filename ? `${snapshot.filename}.edit.json` : 'composition.edit.json'
+      try { link.click() } finally { setTimeout(() => URL.revokeObjectURL(url), 1000) }
+    } catch (cause) {
+      downloadError = cause instanceof Error ? cause.message : String(cause)
     }
   }
 </script>
@@ -41,7 +55,10 @@
     <p class="filename" title={rendered.filename}>{rendered.filename}</p>
     {#if failedFile === rendered.filename}<p role="status">The render could not be played. Reload the project to retry; its timeline is still available.</p>{/if}
     {#if rendered.composition && rendered.document}
-      <button type="button" disabled={disabled || action.kind === 'opening'} onclick={() => { action = { kind: 'confirm', snapshot: rendered } }}>Open rendered timeline</button>
+      <div class="actions">
+        <button type="button" disabled={disabled || action.kind === 'opening'} onclick={() => { action = { kind: 'confirm', snapshot: rendered } }}>Open rendered timeline</button>
+        <button type="button" disabled={disabled || action.kind === 'opening'} onclick={() => downloadJSON(rendered)}>Download render JSON</button>
+      </div>
     {:else}
       <p class="notice">No editable snapshot was retained for this export.</p>
     {/if}
@@ -51,7 +68,10 @@
   <section aria-label="Prepared timeline" class="prepared">
     <h3>Prepared timeline</h3>
     <p>{prepared.composition.duration.toLocaleString(undefined, { maximumFractionDigits: 1 })}s · {prepared.composition.output.fps} fps · {prepared.composition.output.resolution}</p>
-    <button type="button" disabled={disabled || action.kind === 'opening'} onclick={() => { action = { kind: 'confirm', snapshot: prepared } }}>Open prepared timeline</button>
+    <div class="actions">
+      <button type="button" disabled={disabled || action.kind === 'opening'} onclick={() => { action = { kind: 'confirm', snapshot: prepared } }}>Open prepared timeline</button>
+      <button type="button" disabled={disabled || action.kind === 'opening'} onclick={() => downloadJSON(prepared)}>Download timeline JSON</button>
+    </div>
   </section>
 {/if}
 {#if action.kind === 'confirm'}
@@ -65,6 +85,7 @@
 {:else if action.kind === 'error'}
   <p role="alert">{action.message}</p>
 {/if}
+{#if downloadError}<p role="alert">{downloadError}</p>{/if}
 
 <style>
   section { border-top: 1px solid var(--border); padding-block: var(--space-8); }

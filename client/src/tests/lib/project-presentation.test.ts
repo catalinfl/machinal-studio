@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_CLIP_TRANSFORM } from '../../lib/clip-transform'
-import { isPreparedProjectPristine, preparedProjectState, projectStateFingerprint, projectStateForOpen, type PreparedComposition } from '../../lib/project-presentation'
+import { isPreparedProjectPristine, preparedCompositionJSON, preparedProjectState, projectStateFingerprint, projectStateForOpen, type PreparedComposition } from '../../lib/project-presentation'
 import { revisionFingerprint } from '../../lib/composition-adapter'
 import type { ProjectState } from '../../lib/project-state'
 import type { TextItem } from '../../lib/editor-types'
@@ -30,6 +30,35 @@ function emptyState(): ProjectState {
     resolution: '1080p', projectAspect: null, videoFit: 'contain', documentSession: null, currentTime: 0,
     selectedClipIds: [], selectedEffectBlockIds: [], selectedTextItemIds: [] }, media: [] }
 }
+
+describe('exporting prepared snapshots', () => {
+  it('exports exact documents, bindings, pinned assets and prepared text without changing the snapshot', () => {
+    const prepared = fixture()
+    prepared.composition!.preparedText = { key: 'prepared-caption-render', overlays: [] }
+    const before = JSON.stringify(prepared)
+    const exported = JSON.parse(preparedCompositionJSON(prepared))
+    expect(exported).toEqual({
+      document: prepared.document, bindings: prepared.bindings, assets: prepared.composition!.assets,
+      preparedText: prepared.composition!.preparedText,
+    })
+    expect(exported.document.texts[0].text).toBe('  Știință\nși țară! ')
+    expect(exported.document.texts[0].words).toEqual(prepared.document!.texts![0].words)
+    expect(exported.document.jobs[0].resultTextIds).toEqual(['caption'])
+    expect(JSON.stringify(prepared)).toBe(before)
+  })
+
+  it('supplies empty bindings when the retained snapshot has none', () => {
+    const prepared = fixture()
+    delete prepared.bindings
+    expect(JSON.parse(preparedCompositionJSON(prepared)).bindings).toEqual({})
+  })
+
+  it('rejects incomplete legacy snapshots rather than inventing editable data', () => {
+    const prepared = fixture()
+    expect(() => preparedCompositionJSON({ ...prepared, document: undefined })).toThrow('no retained editable snapshot')
+    expect(() => preparedCompositionJSON({ ...prepared, composition: undefined })).toThrow('no retained editable snapshot')
+  })
+})
 
 describe('opening prepared projects', () => {
   it('materializes exact source geometry, output and caption entries without provider work', () => {

@@ -89,3 +89,11 @@ export function projectStateForOpen(state: ProjectState | null, presentation?: P
     || state.timeline?.textItems?.length || state.timeline?.effectBlocks?.length || state.timeline?.transitions?.length)) return state
   return prepared ? preparedProjectState(prepared, state?.media) ?? state : state
 }
+
+export function preparedCompositionJSON(prepared: PreparedComposition): string {
+  if (!prepared.document || !prepared.composition) throw new Error('This older render has no retained editable snapshot.')
+  return JSON.stringify({
+    document: prepared.document, bindings: prepared.bindings ?? {}, assets: prepared.composition.assets,
+    preparedText: prepared.composition.preparedText,
+  }, null, 2)
+}

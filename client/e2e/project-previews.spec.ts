@@ -139,7 +139,15 @@ for (const width of [1440, 390]) {
       await expect.poll(() => video.evaluate((element: HTMLVideoElement) => element.ended)).toBe(true)
       await video.evaluate((element: HTMLVideoElement) => { element.currentTime = 0 })
       await expect.poll(() => video.evaluate((element: HTMLVideoElement) => element.seeking)).toBe(false)
-      await expect(panel.getByRole('button', { name: /Download.*JSON/ })).toHaveCount(0)
+      await expect(panel.getByRole('button', { name: 'Download render JSON' })).toBeVisible()
+      const downloaded = page.waitForEvent('download')
+      await panel.getByRole('button', { name: 'Download render JSON' }).click()
+      const download = await downloaded
+      expect(download.suggestedFilename()).toBe('render_fixture.mp4.edit.json')
+      const exportedJson = JSON.parse(await readFile((await download.path())!, 'utf8'))
+      expect(exportedJson.document).toEqual(prepared.document)
+      expect(exportedJson.bindings).toEqual(prepared.bindings)
+      expect(exportedJson.assets).toEqual(prepared.composition!.assets)
       expect(records.get('p_prepared').state.media[0].displayName).toBe('My project artwork')
       await panel.getByRole('button', { name: 'Close projects' }).click()
       await page.getByRole('button', { name: 'Recipe', exact: true }).click()
@@ -168,10 +176,16 @@ for (const width of [1440, 390]) {
       project.state.timeline.channels[0].clips[0].id = 'manual-clip'
       project.state.timeline.documentSession.kind = 'dirty'
       project.presentation = structuredClone(project.presentation)
+      project.presentation.prepared = structuredClone(project.presentation.prepared)
       project.presentation.prepared.composition.id = 'new-compiled-version'
       await page.reload()
       await expect(page.locator('[data-timeline-clip-id="manual-clip"]')).toHaveCount(1)
       await page.getByRole('button', { name: 'Projects', exact: true }).click()
+      const timelineDownload = page.waitForEvent('download')
+      await panel.getByRole('button', { name: 'Download timeline JSON' }).click()
+      const timelineFile = await timelineDownload
+      expect(JSON.parse(await readFile((await timelineFile.path())!, 'utf8'))).toEqual(exported)
+      await expect(page.locator('[data-timeline-clip-id="manual-clip"]')).toHaveCount(1)
       await panel.getByRole('button', { name: 'Open rendered timeline' }).click()
       await panel.getByRole('button', { name: 'Keep current timeline' }).click()
       await expect(page.locator('[data-timeline-clip-id="manual-clip"]')).toHaveCount(1)
