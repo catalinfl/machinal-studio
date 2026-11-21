@@ -27,7 +27,7 @@ func TestPreflightSummaryRetainsDiagnosticsVersionsAndReviews(t *testing.T) {
 		t.Fatal(err)
 	}
 	handler := NewHandler(func(_ context.Context, _ http.Header, request Request) (Response, error) {
-		if string(request.Body) != string(source) {
+		if string(request.Body) != strings.ReplaceAll(string(source), "\r\n", "\n") {
 			t.Fatal("preflight changed recipe")
 		}
 		return Response{StatusCode: 200, Body: body}, nil
@@ -39,7 +39,7 @@ func TestPreflightSummaryRetainsDiagnosticsVersionsAndReviews(t *testing.T) {
 				t.Fatal(result)
 			}
 			fields := output.Data.(map[string]any)
-			if fields["compositionVersion"] != contentVersion(source) || fields["captionVersion"] != recipeCaptionVersion(string(source)) || fields["planSummary"] == nil || fields["diagnostics"] == nil || fields["requirements"] == nil {
+			if fields["compositionVersion"] != compositionVersion(string(source)) || fields["captionVersion"] != recipeCaptionVersion(string(source)) || fields["planSummary"] == nil || fields["diagnostics"] == nil || fields["requirements"] == nil {
 				t.Fatal(fields)
 			}
 			if (fields["document"] != nil) != full || (fields["composition"] != nil) != full {

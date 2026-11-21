@@ -42,6 +42,13 @@ func newJobService(accountBilling *billing.Handler) *jobqueue.Service {
 }
 
 func downloadJob(jobs *jobqueue.Service) fiber.Handler {
+	return withRenderOutput(jobs, func(c *fiber.Ctx, name string) error {
+		c.Request().URI().QueryArgs().Set("file", name)
+		return media.SignedDownload(c)
+	})
+}
+
+func withRenderOutput(jobs *jobqueue.Service, handle func(*fiber.Ctx, string) error) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		if id, err := hex.DecodeString(c.Params("id")); err != nil || len(id) != 16 {
 			return fiber.ErrNotFound
@@ -70,8 +77,7 @@ func downloadJob(jobs *jobqueue.Service) fiber.Handler {
 		if !sessions.IsRenderOutput(name) {
 			return fiber.ErrNotFound
 		}
-		c.Request().URI().QueryArgs().Set("file", name)
-		return media.SignedDownload(c)
+		return handle(c, name)
 	}
 }
 

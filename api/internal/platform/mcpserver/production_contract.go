@@ -73,6 +73,10 @@ func contentVersion(data []byte) string {
 	return "sha256:" + hex.EncodeToString(digest[:])
 }
 
+func compositionVersion(yaml string) string {
+	return contentVersion([]byte(strings.ReplaceAll(yaml, "\r\n", "\n")))
+}
+
 func (contract productionContract) validate() error {
 	if contract.Version != 1 || len(contract.Beats) < 1 || len(contract.Beats) > maxContractBeats {
 		return fmt.Errorf("productionContract needs version 1 and 1-%d beats", maxContractBeats)
@@ -196,7 +200,7 @@ func attachProductionReview(output Output, yaml string, contract *productionCont
 	if json.Unmarshal(encoded, &result) != nil {
 		return output
 	}
-	review := productionReview{Status: "contract_required", CompositionVersion: contentVersion([]byte(yaml)), Findings: []document.Diagnostic{}, Limitations: "Deterministic contract/plan checks only, not aesthetic approval. Object/action declarations, choreography and scene-internal effects need source and sampled-frame review. Scene evidence must match each pinned asset version; thumbnails do not verify final compositing, motion or audio. No render authorization is granted."}
+	review := productionReview{Status: "contract_required", CompositionVersion: compositionVersion(yaml), Findings: []document.Diagnostic{}, Limitations: "Deterministic contract/plan checks only, not aesthetic approval. Object/action declarations, choreography and scene-internal effects need source and sampled-frame review. Scene evidence must match each pinned asset version; thumbnails do not verify final compositing, motion or audio. No render authorization is granted."}
 	if result.Composition == nil || len(result.Requirements) > 0 || hasEditorialCompileErrors(result.Diagnostics) {
 		review.Status = "not_ready"
 	} else if contract != nil {
@@ -321,7 +325,13 @@ func matchesProductionTreatment(plan composition.Composition, target contractCli
 	}
 	if wanted.Kind == "effect" {
 		return slices.ContainsFunc(plan.Effects, func(effect document.EffectBlock) bool {
-			return effect.TrackID == target.track && (effect.OwnerClipID == "" || effect.OwnerClipID == target.clip.ID) && effect.Preset == wanted.Preset && effect.Start == start && effect.Duration == duration
+			if effect.TrackID != target.track || effect.Preset != wanted.Preset {
+				return false
+			}
+			if effect.OwnerClipID == "" {
+				return effect.Start <= start && effect.Start+effect.Duration >= document.Seconds(wanted.Start+wanted.Duration)
+			}
+			return effect.OwnerClipID == target.clip.ID && effect.Start == start && effect.Duration == duration
 		})
 	}
 	junction, exists := junctions[target.clip.ID]

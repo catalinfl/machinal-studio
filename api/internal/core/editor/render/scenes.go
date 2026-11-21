@@ -1,12 +1,14 @@
 package render
 
 import (
+	"cmp"
 	"context"
 	"fmt"
 	"log"
 	"math"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 
@@ -26,6 +28,7 @@ type sceneExport struct {
 }
 
 type sceneCaptureTask struct {
+	frames int
 	source string
 	output sceneExport
 }
@@ -114,7 +117,7 @@ func planSceneCaptures(request renderRequest, root string) ([]sceneCaptureTask, 
 		if startFrame > 0 || endFrame < source.Config.Frames {
 			capture = &scenes.CaptureRange{StartFrame: startFrame, EndFrame: endFrame}
 		}
-		tasks[index] = sceneCaptureTask{source: file, output: sceneExport{file: output, transparent: source.Config.Transparent, start: float64(startFrame) / source.Config.FPS, capture: capture}}
+		tasks[index] = sceneCaptureTask{frames: endFrame - startFrame, source: file, output: sceneExport{file: output, transparent: source.Config.Transparent, start: float64(startFrame) / source.Config.FPS, capture: capture}}
 	}
 	return tasks, nil
 }
@@ -123,7 +126,14 @@ func renderSceneCaptures(ctx context.Context, root string, tasks []sceneCaptureT
 	group, sceneCtx := errgroup.WithContext(ctx)
 	group.SetLimit(2)
 	reporter := newSceneProgressReporter(ctx, len(tasks), progress)
-	for index, task := range tasks {
+	// Start larger captures first so a single long shot doesn't monopolize the tail of a two-slot queue.
+	order := make([]int, len(tasks))
+	for i := range order {
+		order[i] = i
+	}
+	slices.SortStableFunc(order, func(i, j int) int { return cmp.Compare(tasks[j].frames, tasks[i].frames) })
+	for _, index := range order {
+		task := tasks[index]
 		group.Go(func() error {
 			report := func(update scenes.ExportProgress) { reporter(index, update) }
 			report(scenes.ExportProgress{Stage: "compiling"})

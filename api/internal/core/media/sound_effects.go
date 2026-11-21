@@ -66,6 +66,9 @@ func (s *SoundEffects) Import(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusConflict, "Sound metadata/licence changed. Search again and review the changed source before importing.")
 	}
 	if !sound.Importable {
+		if sound.SizeStatus == "over_limit" {
+			return soundFailure(c, soundlibrary.ErrPreviewTooLarge)
+		}
 		return fiber.NewError(fiber.StatusUnprocessableEntity, "This sound has no supported direct Freesound preview. No fallback or generation was attempted.")
 	}
 	// Never queue downloaded bodies behind a potentially large source upload.
@@ -87,6 +90,9 @@ func (s *SoundEffects) Import(c *fiber.Ctx) error {
 }
 
 func soundFailure(c *fiber.Ctx, err error) error {
+	if errors.Is(err, soundlibrary.ErrPreviewTooLarge) {
+		return fiber.NewError(fiber.StatusRequestEntityTooLarge, err.Error())
+	}
 	var failure *soundlibrary.Failure
 	if errors.As(err, &failure) {
 		if failure.RetryAfter != "" {

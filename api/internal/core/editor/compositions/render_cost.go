@@ -16,6 +16,7 @@ const renderCostTimeout = 10 * time.Second
 
 type RenderCost struct {
 	Status             string                `json:"status"`
+	PendingReason      string                `json:"pendingReason,omitempty"`
 	AICredits          float64               `json:"aiCredits"`
 	RenderCredits      float64               `json:"renderCredits"`
 	SceneRenderCredits float64               `json:"sceneRenderCredits"`
@@ -45,9 +46,21 @@ func completedRenderCost(ctx context.Context) *RenderCost {
 	status := "final"
 	if len(reservation.Attempts) > 0 {
 		status = "pending"
+		if err := meter.Store.TrackPendingReport(meter.Owner, meter.ID); err != nil {
+			log.Printf("track pending job cost %s: %v", meter.ID, err)
+		}
 	}
 	cost := &RenderCost{Status: status, AICredits: float64(reservation.Spent-reservation.Render-reservation.SceneRender) / float64(credits.UnitsPerCredit),
 		RenderCredits: float64(reservation.Render) / float64(credits.UnitsPerCredit), SceneRenderCredits: float64(reservation.SceneRender) / float64(credits.UnitsPerCredit), KnownCredits: float64(reservation.Spent) / float64(credits.UnitsPerCredit), USDPerCredit: meter.Pricing.USDPerCredit}
+	if status == "pending" {
+		cost.PendingReason = "awaiting_provider_usage"
+		for attempt := range reservation.Attempts {
+			if reservation.Generations[attempt] == "" {
+				cost.PendingReason = "missing_provider_reference"
+				break
+			}
+		}
+	}
 	for _, usage := range reservation.RenderUsage {
 		cost.RenderUsage = append(cost.RenderUsage, usage)
 	}

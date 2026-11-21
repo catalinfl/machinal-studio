@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"time"
 
+	"ffmpeg-go-server/internal/platform/jobqueue"
 	"ffmpeg-go-server/internal/utils"
 )
 
@@ -72,6 +73,7 @@ type renderProgress struct {
 	lastMessage   string
 	lastReport    time.Time
 	threadBudget  int
+	sceneShare    float64
 }
 
 func newRenderProgress(totalWork float64, callback progressCallback) *renderProgress {
@@ -98,7 +100,16 @@ func (progress *renderProgress) runFFmpeg(expectedDuration, work float64, messag
 	start := progress.completedWork
 	progress.report(start/progress.totalWork, message, true)
 	err = utils.RunFFmpegProgress(ctx, expectedDuration, func(ratio float64) {
-		progress.report((start+ratio*work)/progress.totalWork, message, false)
+		overall := (start + ratio*work) / progress.totalWork
+		stage := ProgressStage(message)
+		if progress.threadBudget == 0 && (stage == "encoding" || stage == "compositing") && ratio > 0 && ratio < 1 && expectedDuration > 0 {
+			// Report output media milliseconds, not whole-job progress (scene capture has a different rate).
+			jobProgress := progress.sceneShare + (1-progress.sceneShare)*math.Min(overall, maxProgressRatio)
+			if jobqueue.ReportStage(ctx, jobProgress, message, jobqueue.Stage{Name: stage, Scope: "pass", Completed: int(ratio * expectedDuration * 1000), Total: int(expectedDuration * 1000), ElapsedSeconds: time.Since(started).Seconds()}) {
+				return
+			}
+		}
+		progress.report(overall, message, false)
 	}, args...)
 	if err != nil {
 		return err

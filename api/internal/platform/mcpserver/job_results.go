@@ -64,10 +64,10 @@ func yamlJobResult(data any) any {
 			delete(view, key)
 		}
 		view["recipeYaml"] = recipe
-		view["compositionVersion"] = contentVersion([]byte(recipe))
+		view["compositionVersion"] = compositionVersion(recipe)
 		if parsed, _, err := compositions.ParseProject([]byte(recipe)); err == nil {
 			view["captionVersion"] = captionVersion(&parsed.Document)
-			view["captionContentReview"] = reviewCaptionContent(parsed.Document)
+			view["captionContentReview"] = reviewCaptionContent(parsed.Document, captionTimeline(result["composition"]))
 		}
 		for _, key := range []string{"diagnostics", "requirements", "summary", "cost"} {
 			if value, exists := result[key]; exists {

@@ -61,6 +61,15 @@ func withFileWhitelist(args []string) []string {
 
 // Run executes program with encoding-slot concurrency limits.
 func Run(ctx context.Context, program string, args ...string) ([]byte, error) {
+	return runProcess(ctx, program, false, args...)
+}
+
+// RunDiagnostics captures bounded filter reports written by FFmpeg to stderr.
+func RunDiagnostics(ctx context.Context, args ...string) ([]byte, error) {
+	return runProcess(ctx, "ffmpeg", true, args...)
+}
+
+func runProcess(ctx context.Context, program string, diagnostics bool, args ...string) ([]byte, error) {
 	args = withFileWhitelist(args)
 	release, err := acquireProcessSlot(ctx, program)
 	if err != nil {
@@ -81,6 +90,12 @@ func Run(ctx context.Context, program string, args ...string) ([]byte, error) {
 	}
 	if stdout.truncated {
 		return nil, fmt.Errorf("%s output exceeds %d byte limit", program, stdoutLimit)
+	}
+	if diagnostics {
+		if stderr.truncated {
+			return nil, fmt.Errorf("diagnostic report exceeds %d byte limit", stderrLimit)
+		}
+		return stderr.buffer.Bytes(), nil
 	}
 	return stdout.buffer.Bytes(), nil
 }

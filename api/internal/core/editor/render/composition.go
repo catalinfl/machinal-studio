@@ -66,6 +66,7 @@ func RenderComposition(ctx context.Context, resolved composition.Composition, op
 		}
 	})
 	progress.ctx = ctx
+	progress.sceneShare = sceneShare
 	filename, output, err := executeRender(request, plan, progress)
 	if err != nil {
 		return CompositionOutput{}, fmt.Errorf("render composition: %w", err)

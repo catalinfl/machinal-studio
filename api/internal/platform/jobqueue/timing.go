@@ -111,10 +111,13 @@ func (s *Service) describe(job Job, summary bool) map[string]any {
 		elapsed := time.Since(start).Seconds()
 		timing["elapsedSeconds"] = int(elapsed)
 	}
-	if stage := job.stage(); stage != nil && stage.Name == "capture" && stage.Completed >= 2 && stage.Completed < stage.Total && stage.ElapsedSeconds > 0 && !math.IsNaN(stage.ElapsedSeconds) && !math.IsInf(stage.ElapsedSeconds, 0) {
+	if stage := job.stage(); stage != nil && (stage.Name == "capture" || (stage.Name == "encoding" || stage.Name == "compositing") && stage.Scope == "pass") && stage.Completed >= 2 && stage.Completed < stage.Total && stage.ElapsedSeconds > 0 && !math.IsNaN(stage.ElapsedSeconds) && !math.IsInf(stage.ElapsedSeconds, 0) {
 		seconds := stage.ElapsedSeconds * float64(stage.Total-stage.Completed) / float64(stage.Completed)
 		timing["stageRemainingSeconds"] = int(math.Ceil(min(seconds, s.Options.Timeout.Seconds())))
 		timing["stageBasis"] = "scene-frames"
+		if stage.Scope == "pass" {
+			timing["stageBasis"] = "encoded-media-time"
+		}
 	}
 	if timing["basis"] == "unknown" && !start.IsZero() {
 		if duration, ok := s.typicalDuration(job.Kind); ok && duration > time.Since(start) {

@@ -69,7 +69,7 @@ func compositionRequest(projectID, composition, suffix, key string) (Request, er
 	if _, _, err := compositions.ParseProject([]byte(composition)); err != nil {
 		return Request{}, fmt.Errorf("Invalid recipe; no operation was submitted: %w", err)
 	}
-	return Request{Method: http.MethodPost, Path: path, ContentType: "application/yaml", Body: []byte(composition), IdempotencyKey: key}, nil
+	return Request{Method: http.MethodPost, Path: path, ContentType: "application/yaml", Body: []byte(strings.ReplaceAll(composition, "\r\n", "\n")), IdempotencyKey: key}, nil
 }
 
 func validateIdempotencyKey(key string) error {

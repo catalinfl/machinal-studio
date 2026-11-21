@@ -16,6 +16,7 @@ const captionPreservationToolHint = " Preserve existing captions verbatim, inclu
 const productionContractToolHint = " compile_recipe also accepts optional productionContract and adds productionReview with exact YAML/contract fingerprints and deterministic beat/asset/treatment/handoff checks; read topic=production. These reports are not aesthetic approval."
 
 type compositionInput struct {
+	RecipeRef              string              `json:"recipeRef,omitempty" jsonschema:"Reuse an unchanged YAML revision from a successful validate_recipe or compile_recipe in this project instead of composition/sourceJobId. Temporary; resend YAML after expiry or edits."`
 	ProjectID              string              `json:"projectId"`
 	Composition            string              `json:"composition,omitempty" jsonschema:"Complete YAML composition, including document, bindings and assets when needed; not JSON or a local filesystem path"`
 	SourceJobID            string              `json:"sourceJobId,omitempty" jsonschema:"Reuse the unchanged resolved YAML from an owned generation job instead of resending it; do not also set composition"`
@@ -30,6 +31,7 @@ type compositionInput struct {
 }
 
 type renderInput struct {
+	RecipeRef                  string `json:"recipeRef,omitempty" jsonschema:"Reuse this project's preflight recipeRef instead of composition/sourceJobId"`
 	ProjectID                  string `json:"projectId"`
 	Composition                string `json:"composition,omitempty" jsonschema:"Complete YAML composition; source files must already be in this project"`
 	SourceJobID                string `json:"sourceJobId,omitempty" jsonschema:"Reuse the unchanged resolved YAML from an owned generation job; do not also set composition"`
@@ -44,7 +46,9 @@ type capabilitiesInput struct {
 }
 
 func registerCompositionTools(server *mcp.Server, call Caller) {
-	registerPreviewTools(server, call)
+	refs := &recipeRefs{entries: make(map[recipeKey]recipeEntry)}
+	registerPreviewTools(server, call, refs)
+	registerRenderInspection(server, call)
 	mcp.AddTool(server, &mcp.Tool{Name: "get_capabilities", Description: "Get a compact live capability/configuration summary, schemaHash, language support and unsupported features such as music generation. Cache it for this workflow. Configuration does not prove provider health. Use fullCatalog=true only when the full catalog is needed; prefer targeted get_editing_reference lookups.", Annotations: annotations(true, false, true)},
 		func(ctx context.Context, req *mcp.CallToolRequest, input capabilitiesInput) (*mcp.CallToolResult, Output, error) {
 			path := "/v1/compositions/capabilities"
@@ -67,7 +71,7 @@ func registerCompositionTools(server *mcp.Server, call Caller) {
 	} {
 		mcp.AddTool(server, &mcp.Tool{Name: tool.name, InputSchema: compositionToolSchema(), Description: tool.description + productionContractToolHint + captionPreservationToolHint, Annotations: annotations(true, false, true)},
 			func(ctx context.Context, req *mcp.CallToolRequest, input compositionInput) (*mcp.CallToolResult, Output, error) {
-				composition, err := continuationYAML(ctx, req, call, input.ProjectID, input.SourceJobID, input.Composition)
+				composition, err := refs.resolve(ctx, req, call, input.ProjectID, input.SourceJobID, input.Composition, input.RecipeRef)
 				if err != nil {
 					return nil, Output{}, err
 				}
@@ -134,6 +138,9 @@ func registerCompositionTools(server *mcp.Server, call Caller) {
 					}
 					output = attachCompositionCheckpoint(output)
 					output = presentComposition(output, composition, input.FullResult, &parsed.Document)
+					if fields, ok := output.Data.(map[string]any); ok && output.StatusCode == http.StatusOK {
+						fields["recipeRef"] = refs.save(req, input.ProjectID, composition)
+					}
 				}
 				return result, output, err
 			})
@@ -153,11 +160,11 @@ func registerCompositionTools(server *mcp.Server, call Caller) {
 				if err := validateIdempotencyKey(input.IdempotencyKey); err != nil {
 					return nil, Output{}, err
 				}
-				composition, err := continuationYAML(ctx, req, call, input.ProjectID, input.SourceJobID, input.Composition)
+				composition, err := refs.resolve(ctx, req, call, input.ProjectID, input.SourceJobID, input.Composition, input.RecipeRef)
 				if err != nil {
 					return nil, Output{}, err
 				}
-				if input.ExpectedCompositionVersion != "" && input.ExpectedCompositionVersion != contentVersion([]byte(composition)) {
+				if input.ExpectedCompositionVersion != "" && input.ExpectedCompositionVersion != compositionVersion(composition) {
 					return nil, Output{}, errors.New("The YAML changed since review; revalidate/reconcile the exact final recipe before submitting paid work.")
 				}
 				if err := checkCaptionVersion(composition, input.ExpectedCaptionVersion); err != nil {

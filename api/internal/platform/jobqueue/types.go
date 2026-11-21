@@ -84,6 +84,7 @@ type Options struct {
 	Heartbeat          time.Duration
 	Timeout            time.Duration
 	Prepare            Prepare
+	RefreshPendingCost func(context.Context, Job, map[string]any) bool
 	StatusPollInterval time.Duration
 }
 

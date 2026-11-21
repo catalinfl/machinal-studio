@@ -21,7 +21,10 @@ const (
 	cacheLifetime    = 5 * time.Minute
 	maxCacheEntries  = 128
 	requestTimeout   = 20 * time.Second
+	audioTimeout     = 55 * time.Second
 )
+
+var ErrPreviewTooLarge = fmt.Errorf("Preview exceeds the %d-byte import limit. Choose a smaller preview.", MaxAudioBytes)
 
 var idPattern = regexp.MustCompile(`^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$`)
 
@@ -53,6 +56,8 @@ type Sound struct {
 	Filetype       string  `json:"filetype"`
 	SourceVersion  string  `json:"sourceVersion"`
 	Importable     bool    `json:"importable"`
+	SizeBytes      *int64  `json:"sizeBytes"`
+	SizeStatus     string  `json:"sizeStatus"`
 }
 
 type Search struct {
@@ -63,12 +68,13 @@ type Search struct {
 }
 
 type SearchResult struct {
-	Sounds        []Sound `json:"sounds"`
-	Page          int     `json:"page"`
-	PageCount     int     `json:"pageCount"`
-	Cached        bool    `json:"cached"`
-	Downloaded    bool    `json:"downloaded"`
-	AudioVerified bool    `json:"audioVerified"`
+	MaxImportBytes int     `json:"maxImportBytes"`
+	Sounds         []Sound `json:"sounds"`
+	Page           int     `json:"page"`
+	PageCount      int     `json:"pageCount"`
+	Cached         bool    `json:"cached"`
+	Downloaded     bool    `json:"downloaded"`
+	AudioVerified  bool    `json:"audioVerified"`
 }
 
 type cacheEntry struct {
@@ -130,7 +136,7 @@ func (c *Client) Search(ctx context.Context, input Search) (SearchResult, error)
 	if err := c.metadata(ctx, apiOrigin+"?"+key, &response); err != nil {
 		return SearchResult{}, err
 	}
-	result := SearchResult{Sounds: []Sound{}, Page: input.Page, PageCount: response.PageCount}
+	result := SearchResult{Sounds: []Sound{}, Page: input.Page, PageCount: response.PageCount, MaxImportBytes: MaxAudioBytes}
 	for _, item := range response.Results {
 		if item.License != input.License {
 			continue
@@ -167,7 +173,7 @@ func (c *Client) Lookup(ctx context.Context, id string) (Sound, error) {
 }
 
 func (c *Client) metadata(ctx context.Context, address string, result any) error {
-	body, err := c.get(ctx, address, maxMetadataBytes)
+	body, err := c.get(ctx, address, maxMetadataBytes, requestTimeout)
 	if err != nil {
 		return err
 	}
@@ -178,10 +184,16 @@ func (c *Client) metadata(ctx context.Context, address string, result any) error
 }
 
 func (c *Client) Download(ctx context.Context, sound Sound) ([]byte, error) {
+	if sound.SizeBytes != nil && *sound.SizeBytes > MaxAudioBytes {
+		return nil, ErrPreviewTooLarge
+	}
 	if !sound.Importable || !AllowedLicense(sound.License) || !previewAllowed(sound.URL, sound.Filetype) {
 		return nil, errors.New("Only approved direct Freesound CDN MP3/WAV/OGG/FLAC previews can be imported; no fallback was attempted.")
 	}
-	body, err := c.get(ctx, sound.URL, MaxAudioBytes)
+	body, err := c.get(ctx, sound.URL, MaxAudioBytes, audioTimeout)
+	if errors.Is(err, errResponseTooLarge) {
+		return nil, ErrPreviewTooLarge
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -191,8 +203,10 @@ func (c *Client) Download(ctx context.Context, sound Sound) ([]byte, error) {
 	return body, nil
 }
 
-func (c *Client) get(ctx context.Context, address string, maximum int64) ([]byte, error) {
-	ctx, cancel := context.WithTimeout(ctx, requestTimeout)
+var errResponseTooLarge = errors.New("Sound library response exceeds the size limit.")
+
+func (c *Client) get(ctx context.Context, address string, maximum int64, timeout time.Duration) ([]byte, error) {
+	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	select {
 	case c.gate <- struct{}{}:
@@ -208,6 +222,9 @@ func (c *Client) get(ctx context.Context, address string, maximum int64) ([]byte
 	req.Header.Set("User-Agent", "machinal-sound-library/1.0")
 	response, err := c.http.Do(req)
 	if err != nil {
+		if errors.Is(err, context.DeadlineExceeded) {
+			return nil, &Failure{Status: http.StatusGatewayTimeout}
+		}
 		return nil, &Failure{Status: http.StatusBadGateway}
 	}
 	defer response.Body.Close()
@@ -223,11 +240,17 @@ func (c *Client) get(ctx context.Context, address string, maximum int64) ([]byte
 		return nil, &Failure{Status: status, RetryAfter: retry}
 	}
 	if response.ContentLength > maximum {
-		return nil, errors.New("Sound library response exceeds the size limit.")
+		return nil, errResponseTooLarge
 	}
 	body, err := io.ReadAll(io.LimitReader(response.Body, maximum+1))
-	if err != nil || len(body) == 0 || int64(len(body)) > maximum || response.ContentLength >= 0 && int64(len(body)) != response.ContentLength {
-		return nil, errors.New("Sound library response was empty, incomplete or oversized.")
+	if int64(len(body)) > maximum {
+		return nil, errResponseTooLarge
+	}
+	if errors.Is(err, context.DeadlineExceeded) {
+		return nil, &Failure{Status: http.StatusGatewayTimeout}
+	}
+	if err != nil || len(body) == 0 || response.ContentLength >= 0 && int64(len(body)) != response.ContentLength {
+		return nil, errors.New("Sound library returned an empty or incomplete response.")
 	}
 	return body, nil
 }

@@ -30,6 +30,7 @@ var Catalog = []Tool{
 	{"compile_scene", "Compose and animate approved existing images or simple procedural diagrams using Svelte written by the current client AI; free source compilation, not artwork generation or video rendering. Up to four images per scene, not per video; generate missing complex or overly simplistic SVG/CSS subjects with generate_assets first."},
 	{"get_scene_source", "Read an approved live scene's editable source for changes by the current client AI."},
 	{"inspect_scene", "Inspect approved live-scene frames as bounded thumbnails and timestamped diagnostics, without encoding a video."},
+	{"inspect_render", "Inspect sampled frames and mixed audio levels from an approved completed MP4 render."},
 	{"plan_scene_review", "Plan valid phase-based inspection frames and quality checks without reading media or claiming visual approval."},
 	{"edit_scene_parameters", "Patch exposed object parameters on an approved versioned scene without rewriting its Svelte or calling a provider."},
 	{"handoff_scene", "Transfer declared object pose/appearance between two approved versioned scenes at an exact source frame; no visual inference or timeline replacement."},

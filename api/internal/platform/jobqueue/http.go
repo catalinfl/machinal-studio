@@ -21,7 +21,7 @@ import (
 
 var idPattern = regexp.MustCompile(`^[a-f0-9]{32}$`)
 
-const MaxCompletionWait = 120 * time.Second
+const MaxCompletionWait = 15 * time.Minute
 
 func (s *Service) Submit(kind string, billed bool) fiber.Handler {
 	return func(c *fiber.Ctx) error {
@@ -138,6 +138,9 @@ func (s *Service) Status(c *fiber.Ctx) error {
 	}
 	c.Set(fiber.HeaderCacheControl, "no-store")
 	c.Set(fiber.HeaderRetryAfter, "3")
+	if s.Options.RefreshPendingCost != nil && job.Status == "completed" {
+		job.refreshCost(c.UserContext(), s.Options.RefreshPendingCost)
+	}
 	if c.Query("view") == "summary" {
 		return c.JSON(s.describe(job, true))
 	}
@@ -145,6 +148,25 @@ func (s *Service) Status(c *fiber.Ctx) error {
 		return c.JSON(fiber.Map{"id": job.ID, "kind": job.Kind, "status": job.Status, "statusCode": job.StatusCode, "result": job.Result})
 	}
 	return c.JSON(s.describe(job, false))
+}
+
+func (job *Job) refreshCost(ctx context.Context, refresh func(context.Context, Job, map[string]any) bool) {
+	var fields map[string]json.RawMessage
+	if json.Unmarshal(job.Result, &fields) != nil {
+		return
+	}
+	var cost map[string]any
+	if json.Unmarshal(fields["cost"], &cost) != nil || cost["status"] != "pending" || !refresh(ctx, *job, cost) {
+		return
+	}
+	value, err := json.Marshal(cost)
+	if err != nil {
+		return
+	}
+	fields["cost"] = value
+	if data, err := json.Marshal(fields); err == nil {
+		job.Result = data
+	}
 }
 
 func (s *Service) waitForStatus(c *fiber.Ctx, job Job, changes <-chan struct{}) (Job, error) {

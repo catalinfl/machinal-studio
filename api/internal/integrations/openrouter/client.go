@@ -335,6 +335,13 @@ func (c Client) do(req *http.Request, limit int64, what string) ([]byte, int, ht
 	defer response.Body.Close()
 	data, err := readLimited(response.Body, limit, what)
 	if err != nil {
+		// A broken audio stream can still be billable; preserve the provider's lookup key.
+		if generation := strings.TrimSpace(response.Header.Get("X-Generation-Id")); attempt != "" && generation != "" {
+			meter := credits.FromContext(req.Context())
+			if noteErr := meter.Store.NoteGeneration(meter.Owner, meter.ID, attempt, generation); noteErr != nil {
+				return nil, 0, nil, fmt.Errorf("record interrupted provider usage: %w", noteErr)
+			}
+		}
 		return nil, 0, nil, err
 	}
 	if err := c.recordUsage(req.Context(), attempt, data, response.StatusCode, response.Header); err != nil {

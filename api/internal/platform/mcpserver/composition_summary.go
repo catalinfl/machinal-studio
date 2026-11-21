@@ -15,10 +15,10 @@ func presentComposition(output Output, yaml string, full bool, doc *document.Doc
 	if !ok {
 		return output
 	}
-	fields["compositionVersion"] = contentVersion([]byte(yaml))
+	fields["compositionVersion"] = compositionVersion(yaml)
 	if version := captionVersion(doc); version != "" {
 		fields["captionVersion"] = version
-		fields["captionContentReview"] = reviewCaptionContent(*doc)
+		fields["captionContentReview"] = reviewCaptionContent(*doc, captionTimeline(fields["composition"]))
 	}
 	if !full {
 		for _, key := range []string{"document", "bindings", "composition", "recovery"} {

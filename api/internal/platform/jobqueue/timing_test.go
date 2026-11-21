@@ -90,6 +90,10 @@ func TestSceneFrameEstimateIsNotPresentedAsWholeJobETA(t *testing.T) {
 	if timing := service.describe(job, true)["timing"].(map[string]any); timing["stageRemainingSeconds"] != nil {
 		t.Fatal("encoder drain is not frame capture", timing)
 	}
+	job.Snapshot, _ = json.Marshal(map[string]any{"stage": Stage{Name: "encoding", Scope: "pass", Completed: 16000, Total: 64000, ElapsedSeconds: 10}})
+	if timing := service.describe(job, true)["timing"].(map[string]any); timing["stageRemainingSeconds"] != 30 || timing["stageBasis"] != "encoded-media-time" || timing["remainingSeconds"] != nil {
+		t.Fatal("expected live pass-only ETA without historical samples", timing)
+	}
 	service.durations[job.Kind] = []time.Duration{time.Minute, time.Minute, time.Minute}
 	if timing := service.describe(job, true)["timing"].(map[string]any); timing["remainingSeconds"] != nil {
 		t.Fatal("outgrown historical estimate must be omitted", timing)

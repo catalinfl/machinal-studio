@@ -26,6 +26,7 @@ type openverseSound struct {
 	Duration       float64 `json:"duration"`
 	Filetype       string  `json:"filetype"`
 	Mature         bool    `json:"mature"`
+	FileSize       *int64  `json:"filesize"`
 }
 
 func (item openverseSound) sound() (Sound, error) {
@@ -45,6 +46,13 @@ func (item openverseSound) sound() (Sound, error) {
 		sound.Attribution = fmt.Sprintf("%q by %s (%s %s): %s; %s", sound.Title, sound.Creator, sound.License, sound.LicenseVersion, sound.LandingURL, sound.LicenseURL)
 	}
 	sound.Importable = previewAllowed(sound.URL, sound.Filetype) && item.Provider == "freesound"
+	sound.SizeStatus = "unknown"
+	if item.FileSize != nil && *item.FileSize > 0 {
+		sound.SizeBytes, sound.SizeStatus = item.FileSize, "within_limit"
+		if *item.FileSize > MaxAudioBytes {
+			sound.Importable, sound.SizeStatus = false, "over_limit"
+		}
+	}
 	encoded, err := json.Marshal(sound)
 	if err != nil {
 		return Sound{}, fmt.Errorf("encode sound source: %w", err)

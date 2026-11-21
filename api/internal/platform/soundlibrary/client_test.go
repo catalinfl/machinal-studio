@@ -16,6 +16,29 @@ import (
 
 const testID = "3849018d-0ac8-4f6b-b44d-5ec26a4b32af"
 
+func TestPreviewSizeAdmissionAndChunkedDownloadAgree(t *testing.T) {
+	item := sampleSound()
+	for _, tc := range []struct {
+		size   int64
+		status string
+		ok     bool
+	}{{0, "unknown", true}, {MaxAudioBytes, "within_limit", true}, {MaxAudioBytes + 1, "over_limit", false}} {
+		item.FileSize = &tc.size
+		sound, err := item.sound()
+		if err != nil || sound.SizeStatus != tc.status || sound.Importable != tc.ok {
+			t.Fatal(sound, err)
+		}
+	}
+	client := New(doerFunc(func(*http.Request) (*http.Response, error) {
+		return &http.Response{StatusCode: 200, ContentLength: -1, Body: io.NopCloser(bytes.NewReader(make([]byte, MaxAudioBytes+1)))}, nil
+	}))
+	item.FileSize = nil
+	sound, _ := item.sound()
+	if _, err := client.Download(context.Background(), sound); !errors.Is(err, ErrPreviewTooLarge) {
+		t.Fatal(err)
+	}
+}
+
 type doerFunc func(*http.Request) (*http.Response, error)
 
 func (f doerFunc) Do(r *http.Request) (*http.Response, error) { return f(r) }

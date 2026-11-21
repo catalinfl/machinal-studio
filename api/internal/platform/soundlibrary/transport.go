@@ -35,7 +35,7 @@ func publicIP(ip netip.Addr) bool {
 }
 
 func NewHTTPClient() *http.Client {
-	return &http.Client{Timeout: requestTimeout, CheckRedirect: func(*http.Request, []*http.Request) error {
+	return &http.Client{Timeout: audioTimeout, CheckRedirect: func(*http.Request, []*http.Request) error {
 		return errors.New("Sound library redirects are not allowed")
 	}, Transport: &http.Transport{
 		// No proxy, no caller-controlled hosts. Dial the checked IP itself so DNS

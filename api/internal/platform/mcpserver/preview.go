@@ -12,6 +12,7 @@ import (
 )
 
 type renderPreviewInput struct {
+	RecipeRef                  string  `json:"recipeRef,omitempty" jsonschema:"Reuse the project's preflight recipeRef instead of composition/sourceJobId"`
 	ProjectID                  string  `json:"projectId"`
 	Composition                string  `json:"composition,omitempty" jsonschema:"Exact fully resolved YAML; no pending generation"`
 	SourceJobID                string  `json:"sourceJobId,omitempty" jsonschema:"Unchanged resolved generation job; do not also send composition"`
@@ -22,7 +23,7 @@ type renderPreviewInput struct {
 	Duration                   float64 `json:"duration" jsonschema:"Excerpt duration, greater than zero and at most 15 seconds, covered by the fully resolved MP4 composition"`
 }
 
-func registerPreviewTools(server *mcp.Server, call Caller) {
+func registerPreviewTools(server *mcp.Server, call Caller, refs *recipeRefs) {
 	hints := annotations(false, false, true)
 	openWorld := true
 	hints.OpenWorldHint = &openWorld
@@ -36,11 +37,11 @@ func registerPreviewTools(server *mcp.Server, call Caller) {
 		if err := (render.PreviewWindow{Start: input.Start, Duration: input.Duration}).Validate(); err != nil {
 			return nil, Output{}, err
 		}
-		composition, err := continuationYAML(ctx, req, call, input.ProjectID, input.SourceJobID, input.Composition)
+		composition, err := refs.resolve(ctx, req, call, input.ProjectID, input.SourceJobID, input.Composition, input.RecipeRef)
 		if err != nil {
 			return nil, Output{}, err
 		}
-		if input.ExpectedCompositionVersion == "" || input.ExpectedCompositionVersion != contentVersion([]byte(composition)) {
+		if input.ExpectedCompositionVersion == "" || input.ExpectedCompositionVersion != compositionVersion(composition) {
 			return nil, Output{}, errors.New("Preview requires expectedCompositionVersion matching the exact reviewed/resolved YAML; compile it before paid submission.")
 		}
 		operation, err := compositionRequest(input.ProjectID, composition, "/renders/preview", input.IdempotencyKey)

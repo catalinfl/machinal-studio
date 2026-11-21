@@ -1,6 +1,8 @@
 package mcpserver
 
 import (
+	"cmp"
+	"encoding/json"
 	"regexp"
 	"slices"
 	"strings"
@@ -27,41 +29,115 @@ func captionContentReview(yaml string) map[string]any {
 	return reviewCaptionContent(input.Document)
 }
 
-func reviewCaptionContent(doc document.Document) map[string]any {
+type dialogueTimeline struct {
+	Tracks []document.Track `json:"tracks"`
+	Assets []document.Asset `json:"assets"`
+}
+
+func captionTimeline(plan any) dialogueTimeline {
+	var timeline dialogueTimeline
+	fields, _ := plan.(map[string]any)
+	for key, target := range map[string]any{"tracks": &timeline.Tracks, "assets": &timeline.Assets} {
+		if data, err := json.Marshal(fields[key]); err == nil {
+			if json.Unmarshal(data, target) != nil {
+				return dialogueTimeline{}
+			}
+		}
+	}
+	return timeline
+}
+
+func reviewCaptionContent(doc document.Document, plans ...dialogueTimeline) map[string]any {
 	review := map[string]any{"status": "not_checked", "evidence": "narration-text-comparison", "audioInspection": false,
 		"instructions": "Differences are review prompts, not proof of a speech error. Check names and omissions against approved narration/sources. Reuse explicit permission for unambiguous transcription fixes; ask once for unresolved wording or missing scope. For a single word, use the intact captionId, zero-based wordIndex and exact from/to in captionTextEdits. Never regenerate successful speech or change timings/grouping/styles automatically."}
 	var speech, captions []document.Job
 	for _, jobs := range [][]document.Job{doc.Jobs, doc.Before, doc.After} {
 		for _, job := range jobs {
-			if job.Type == "speech.generate" && job.ResultAssetID != "" {
+			if job.Type == "speech.generate" {
+				if job.ResultAssetID == "" {
+					review["reason"] = "Speech generation is unresolved."
+					return review
+				}
+				if job.Text == "" {
+					job.Text = job.Input
+				}
 				speech = append(speech, job)
 			}
-			if job.Type == "captions.generate" && len(job.ResultTextIDs) > 0 {
+			if job.Type == "captions.generate" {
+				if len(job.ResultTextIDs) == 0 {
+					review["reason"] = "Caption generation is unresolved."
+					return review
+				}
 				captions = append(captions, job)
 			}
 		}
 	}
-	if len(speech) != 1 || len(captions) != 1 || speech[0].Language == "" || speech[0].Language == "auto" || speech[0].Language != captions[0].Language {
-		review["reason"] = "Requires one resolved narration and one materialized caption job in the same language; no alignment was guessed."
+	if len(speech) == 0 || len(captions) == 0 {
+		review["reason"] = "Requires resolved speech and materialized captions."
 		return review
 	}
-	if captions[0].AssetID != "" && captions[0].AssetID != speech[0].ResultAssetID {
-		review["reason"] = "Captions explicitly reference a different audio asset; no narration alignment was guessed."
+	language := speech[0].Language
+	assets := make(map[string]bool, len(speech))
+	for _, job := range speech {
+		if language == "" || language == "auto" || job.Language != language || assets[job.ResultAssetID] || strings.TrimSpace(job.Text) == "" {
+			review["reason"] = "Missing, duplicate or mixed-language speech source."
+			return review
+		}
+		assets[job.ResultAssetID] = true
+	}
+	if len(speech) > 1 {
+		timeline := dialogueTimeline{Tracks: doc.Tracks}
+		if len(plans) > 0 && len(plans[0].Tracks) > 0 {
+			timeline = plans[0]
+		}
+		if !orderSpeechClips(speech, timeline) {
+			review["reason"] = "Dialogue requires distinct audible, untrimmed speech clips with non-overlapping timeline intervals."
+			return review
+		}
+	}
+	explicit := map[string]bool{}
+	for _, job := range captions {
+		if job.Language != language || job.AssetID != "" && (!assets[job.AssetID] || explicit[job.AssetID]) {
+			review["reason"] = "Captions reference a different language, duplicate or unrelated audio source."
+			return review
+		}
+		if job.AssetID != "" {
+			explicit[job.AssetID] = true
+		}
+	}
+	if len(explicit) > 0 && (len(explicit) != len(assets) || len(explicit) != len(captions)) {
+		review["reason"] = "Explicit caption sources do not cover the resolved speech sequence."
 		return review
 	}
 	texts := make(map[string]document.TextItem, len(doc.Texts))
 	for _, text := range doc.Texts {
 		texts[text.ID] = text
 	}
-	expected := reviewTokens(speech[0].Text, "")
-	actual := []captionToken{}
-	for _, id := range captions[0].ResultTextIDs {
-		text, exists := texts[id]
-		if !exists || !text.IsCaption {
-			review["reason"] = "A caption result ID has no materialized caption entry."
-			return review
+	var expected, actual []captionToken
+	for _, job := range speech {
+		expected = append(expected, reviewTokens(job.Text, "")...)
+		if len(expected) > maxCaptionReviewTokens {
+			break
 		}
-		actual = append(actual, reviewTokens(text.Text, id)...)
+	}
+	var cues []document.TextItem
+	for _, job := range captions {
+		for _, id := range job.ResultTextIDs {
+			text, exists := texts[id]
+			if !exists || !text.IsCaption {
+				review["reason"] = "A caption result ID has no materialized caption entry."
+				return review
+			}
+			cues = append(cues, text)
+			delete(texts, id)
+		}
+	}
+	slices.SortStableFunc(cues, func(a, b document.TextItem) int { return cmp.Compare(a.Start, b.Start) })
+	for _, cue := range cues {
+		actual = append(actual, reviewTokens(cue.Text, cue.ID)...)
+		if len(actual) > maxCaptionReviewTokens {
+			break
+		}
 	}
 	if len(expected) == 0 || len(actual) == 0 || len(expected) > maxCaptionReviewTokens || len(actual) > maxCaptionReviewTokens {
 		review["reason"] = "Empty transcript or token comparison limit exceeded; no successful comparison is claimed."
@@ -76,6 +152,38 @@ func reviewCaptionContent(doc document.Document) map[string]any {
 	review["truncated"] = len(differences) > maxCaptionDifferences
 	review["differences"] = differences[:min(len(differences), maxCaptionDifferences)]
 	return review
+}
+
+func orderSpeechClips(speech []document.Job, timeline dialogueTimeline) bool {
+	clips := make(map[string][]document.Clip)
+	for _, track := range timeline.Tracks {
+		if track.Type == "audio" && !track.Muted && !track.Hidden {
+			for _, clip := range track.Clips {
+				if clip.Volume > 0 {
+					clips[clip.AssetID] = append(clips[clip.AssetID], clip)
+				}
+			}
+		}
+	}
+	duration := map[string]document.Time{}
+	for _, asset := range timeline.Assets {
+		duration[asset.ID] = asset.Duration
+	}
+	for _, job := range speech {
+		items := clips[job.ResultAssetID]
+		if len(items) != 1 || items[0].InPoint != 0 || items[0].Duration() <= 0 || duration[job.ResultAssetID] > 0 && items[0].OutPoint != duration[job.ResultAssetID] {
+			return false
+		}
+	}
+	slices.SortFunc(speech, func(a, b document.Job) int {
+		return cmp.Compare(clips[a.ResultAssetID][0].Start, clips[b.ResultAssetID][0].Start)
+	})
+	for i := 1; i < len(speech); i++ {
+		if clips[speech[i].ResultAssetID][0].Start < clips[speech[i-1].ResultAssetID][0].End() {
+			return false
+		}
+	}
+	return true
 }
 
 func reviewTokens(text, id string) []captionToken {

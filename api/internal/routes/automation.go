@@ -69,6 +69,7 @@ func registerAutomationRoutes(app *fiber.App, store *projects.Store, jobs *jobqu
 	project.Post("/renders", requestLimiter(10, rateWindow, "render rate limit exceeded"), compositions.MCPRenderPolicy, accountBilling.RequireJobPricing, jobs.Submit("automation-render", true))
 	project.Post("/renders/preview", requestLimiter(6, rateWindow, "preview rate limit exceeded"), compositions.MCPPreviewPolicy, accountBilling.RequireJobPricing, jobs.Submit("automation-render", true))
 	project.Get("/renders/:id", jobs.Status)
+	project.Post("/renders/:id/inspect", requestLimiter(6, rateWindow, "render inspection rate limit exceeded"), withRenderOutput(jobs, media.InspectRender))
 	project.Post("/ai/compositions", requestLimiter(20, rateWindow, "AI edit rate limit exceeded"), accountBilling.RequireJobPricing, jobs.Submit("ai-composition", true))
 	project.Post("/ai/edit", requestLimiter(20, rateWindow, "AI edit rate limit exceeded"), accountBilling.RequireJobPricing, jobs.Submit("ai-edit", true))
 	project.Post("/ai/images", requestLimiter(5, rateWindow, "AI image rate limit exceeded"), accountBilling.RequireJobPricing, jobs.Submit("ai-image", true))

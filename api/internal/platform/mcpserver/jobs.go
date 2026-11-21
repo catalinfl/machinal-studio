@@ -27,7 +27,7 @@ type jobStatusInput struct {
 
 type jobWaitInput struct {
 	jobInput
-	TimeoutSeconds int `json:"timeoutSeconds,omitempty" jsonschema:"Maximum server-side wait, 1-120 seconds; default 120. Heartbeats and progress revisions do not end the wait."`
+	TimeoutSeconds int `json:"timeoutSeconds,omitempty" jsonschema:"Maximum completion wait, 1-900 seconds; default 120. Use 900 for a long 3D render when the client supports it."`
 }
 
 func registerJobTools(server *mcp.Server, call Caller) {
@@ -47,7 +47,7 @@ func registerJobTools(server *mcp.Server, call Caller) {
 			}
 			return invoke(ctx, req, call, Request{Method: http.MethodGet, Path: path})
 		})
-	mcp.AddTool(server, &mcp.Tool{Name: "wait_for_job", Description: "Wait on the server for completion, failure or cancellation, up to 120 seconds per call. Ignores heartbeat/progress revisions and returns one compact latest summary, never a composition. Prefer this to repeated get_job calls or local polling scripts. If still running, call again for the SAME job; never submit another render. A successful lookup is not job success: inspect status.", Annotations: annotations(true, false, true)},
+	mcp.AddTool(server, &mcp.Tool{Name: "wait_for_job", Description: "Wait for completion, failure or cancellation, up to 900 seconds per call (default 120). Ignores heartbeat/progress revisions and returns one compact latest summary. If still running, wait for the SAME job; never submit another render. Inspect status.", Annotations: annotations(true, false, true)},
 		func(ctx context.Context, req *mcp.CallToolRequest, input jobWaitInput) (*mcp.CallToolResult, Output, error) {
 			path, err := jobWaitPath(input)
 			if err != nil {
@@ -81,7 +81,7 @@ func jobWaitPath(input jobWaitInput) (string, error) {
 	}
 	maximum := int(jobqueue.MaxCompletionWait / time.Second)
 	if input.TimeoutSeconds == 0 {
-		input.TimeoutSeconds = maximum
+		input.TimeoutSeconds = 120
 	}
 	if input.TimeoutSeconds < 1 || input.TimeoutSeconds > maximum {
 		return "", fmt.Errorf("timeoutSeconds must be 1-%d", maximum)
