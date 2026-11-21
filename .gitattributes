@@ -7,4 +7,12 @@
 /.opencode/skills/machinal-hyperframes/references/hyperframes-library/** -text
 /services/scene-renderer/hyperframes/fonts/*.mjs linguist-generated=true
 /services/scene-renderer/hyperframes/media/*.mjs linguist-generated=true
+/services/scene-renderer/hyperframes/native/** linguist-generated=true
+/services/scene-renderer/hyperframes/shaders.mjs linguist-generated=true
+/services/scene-renderer/hyperframes/fonts.json linguist-generated=true
 /services/scene-renderer/hyperframes/shared/** -text linguist-vendored=true
+/services/scene-renderer/hyperframes/vendor/** linguist-vendored=true
+/client/public/ffmpeg/** linguist-vendored=true
+/api/internal/platform/mcpserver/reference/** linguist-vendored=true
+/packages/mcp-installer/skills/** linguist-vendored=true
+/.opencode/skills/** linguist-vendored=true
