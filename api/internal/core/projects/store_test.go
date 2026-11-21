@@ -65,7 +65,7 @@ func TestConcurrentSavesNeverOverwriteNewerProject(t *testing.T) {
 		wait.Add(1)
 		go func(name string) {
 			defer wait.Done()
-			_, err := store.Update("alice", project.ID, name, 1, nil)
+			_, err := testStore(store.Root).Update("alice", project.ID, name, 1, nil)
 			results <- err
 		}(name)
 	}

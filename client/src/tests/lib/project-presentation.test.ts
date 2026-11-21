@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_CLIP_TRANSFORM } from '../../lib/clip-transform'
-import { preparedCompositionJSON, preparedProjectState, projectStateForOpen, type PreparedComposition } from '../../lib/project-presentation'
+import { isPreparedProjectPristine, preparedProjectState, projectStateFingerprint, projectStateForOpen, type PreparedComposition } from '../../lib/project-presentation'
+import { revisionFingerprint } from '../../lib/composition-adapter'
 import type { ProjectState } from '../../lib/project-state'
 import type { TextItem } from '../../lib/editor-types'
 
@@ -48,6 +49,21 @@ describe('opening prepared projects', () => {
     expect(projectStateForOpen(emptyState(), { prepared: fixture() })?.timeline.channels[0].clips).toHaveLength(1)
   })
 
+  it('opens a media-only saved project as a timeline and keeps every existing source and display name', () => {
+    const saved = emptyState()
+    saved.media = [
+      { id: 'old-poster', name: 'poster.png', kind: 'image', duration: 10, displayName: 'My artwork' },
+      { id: 'music', name: 'music.mp3', kind: 'audio', duration: 10, sourceMode: 'wasm' },
+    ]
+    const restored = projectStateForOpen(saved, { prepared: fixture() })!
+    expect(restored.timeline.channels[0].clips).toHaveLength(1)
+    expect(restored.media).toHaveLength(2)
+    expect(restored.media[0]).toMatchObject({ sourceId: 'poster', sourceRevision: 'sha256:exact', displayName: 'My artwork' })
+    expect(restored.media[1]).toEqual(saved.media[1])
+    expect(isPreparedProjectPristine(restored)).toBe(true)
+    expect(saved.timeline.channels).toEqual([])
+  })
+
   it('never replaces a saved edit or an intentionally cleared document', () => {
     const saved = preparedProjectState(fixture())!
     saved.timeline.textItems[0].text = 'My manual edit'
@@ -85,19 +101,25 @@ describe('opening prepared projects', () => {
     expect(projectStateForOpen(saved, { prepared: next })).toBe(saved)
   })
 
-  it('exports an importable JSON recipe with exact UTF-8 captions and resolved job IDs', () => {
-    const prepared = fixture()
-    const json = preparedCompositionJSON(prepared)
-    const parsed = JSON.parse(json)
-    expect(parsed.document).toEqual(prepared.document)
-    expect(parsed.assets).toEqual(prepared.composition!.assets)
-    expect(json).toContain('Știință')
-    expect(json).not.toContain('blob:')
+  it('uses the same canonical fingerprint as the server independent of key order and escaping', () => {
+    const raw = '{"schemaVersion":1,"timeline":{"channels":[],"text":"Știință <>& 🚀\\u2028","numbers":[0.000001,100000000000000000000,1e-7],"10":true,"2":false},"media":[]}'
+    const state = JSON.parse(raw) as ProjectState
+    expect(projectStateFingerprint(state)).toBe('v2:65dae530ca537bc4')
+    const reordered = JSON.parse('{"media":[],"timeline":{"2":false,"10":true,"numbers":[0.000001,1e20,0.0000001],"text":"Știință \\u003c\\u003e\\u0026 🚀\\u2028","channels":[]},"schemaVersion":1}') as ProjectState
+    expect(projectStateFingerprint(reordered)).toBe(projectStateFingerprint(state))
+  })
+
+  it('recognizes the previous browser fingerprint without treating a manual edit as pristine', () => {
+    const state = preparedProjectState(fixture())!
+    state.preparedStateFingerprint = revisionFingerprint(JSON.stringify({ schemaVersion: state.schemaVersion, timeline: state.timeline, media: state.media }))
+    expect(isPreparedProjectPristine(state)).toBe(true)
+    state.timeline.textItems[0].text = 'Manual change'
+    expect(isPreparedProjectPristine(state)).toBe(false)
   })
 
   it('does not invent an editable snapshot for an old filename-only render', () => {
     const old = { updatedAt: '2026-11-06T12:00:00Z', filename: 'render_old.mp4' }
     expect(projectStateForOpen(null, { lastRender: old })).toBeNull()
-    expect(() => preparedCompositionJSON(old)).toThrow('no retained editable snapshot')
+    expect(preparedProjectState(old)).toBeNull()
   })
 })

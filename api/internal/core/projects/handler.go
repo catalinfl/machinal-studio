@@ -75,6 +75,20 @@ func (s *Store) GetHandler(c *fiber.Ctx) error {
 	}
 	project.Presentation = &presentation
 	project.PresentationWarning = warning
+	prepared := presentation.Prepared
+	if prepared == nil {
+		prepared = presentation.LastRender
+	}
+	if warning == "" && prepared != nil && prepared.Document != nil && prepared.Composition != nil {
+		updated, applyErr := s.ApplyPrepared(auth.UserID(c), project.SessionID, *prepared)
+		if applyErr != nil {
+			log.Printf("prepare project timeline %s: %v", project.ID, applyErr)
+			project.PresentationWarning = "The prepared timeline could not be saved. Reload the project to retry; existing edits were kept."
+		} else {
+			updated.Presentation = project.Presentation
+			project = updated
+		}
+	}
 	return sendProject(c, project, fiber.StatusOK)
 }
 

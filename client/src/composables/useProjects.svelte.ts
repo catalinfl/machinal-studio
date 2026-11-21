@@ -4,7 +4,7 @@ import { captureProjectState, restoreProjectState } from '../lib/project-state'
 import { clearMediaBinSources, subscribeMediaBinSources, subscribeMediaBinRemovals } from '../lib/media-bin'
 import { setLocalMediaScope, flushLocalSources } from '../lib/local-media'
 import { selectProjectSession } from '../lib/session'
-import { projectStateForOpen, projectStateFingerprint, type ProjectPresentation } from '../lib/project-presentation'
+import { isPreparedProjectPristine, preparedProjectState, projectStateForOpen, projectStateFingerprint, type PreparedComposition, type ProjectPresentation } from '../lib/project-presentation'
 
 type Phase = { kind: 'loading' } | { kind: 'ready' } | { kind: 'pending' } | { kind: 'saving' } | { kind: 'error'; message: string }
 
@@ -68,6 +68,7 @@ export function useProjects() {
       presentationWarning = project.presentationWarning ?? ''
       if (!project.state && presentationWarning) throw new Error(presentationWarning)
       const state = projectStateForOpen(project.state, presentation)
+      const pristine = state && isPreparedProjectPristine(state)
       preparedCompositionId = state?.preparedCompositionId
       if (state) clearMediaBinSources()
       if (state) await restoreProjectState(state, scope)
@@ -75,11 +76,12 @@ export function useProjects() {
       current = project
       remember(project.id)
       const recovered = state !== project.state
-      preparedStateFingerprint = recovered ? projectStateFingerprint(captureProjectState()) : state?.preparedStateFingerprint
-      lastSaved = project.state && !recovered ? JSON.stringify(captureState()) : ''
+      preparedStateFingerprint = recovered || pristine ? projectStateFingerprint(captureProjectState()) : state?.preparedStateFingerprint
+      const normalized = pristine && preparedStateFingerprint !== state?.preparedStateFingerprint
+      lastSaved = project.state && !recovered && !normalized ? JSON.stringify(captureState()) : ''
       loaded = true
       phase = { kind: 'ready' }
-      if (!project.state || recovered) await save()
+      if (!project.state || recovered || normalized) await save()
     } catch (cause) { if (token === generation) report(cause, () => initialize(nextOwner)) }
   }
 
@@ -141,6 +143,28 @@ export function useProjects() {
     } catch (cause) { report(cause, () => rename(name)); throw cause }
   }
 
+  async function openPrepared(prepared: PreparedComposition): Promise<void> {
+    const state = preparedProjectState(prepared, captureProjectState().media)
+    if (!state) throw new Error('This export has no retained editable timeline.')
+    try {
+      await save()
+      if (!current || !loaded) return
+      loaded = false
+      phase = { kind: 'loading' }
+      clearTimeout(timer)
+      await restoreProjectState(state, `${owner}:${current.id}`)
+      preparedCompositionId = state.preparedCompositionId
+      preparedStateFingerprint = projectStateFingerprint(captureProjectState())
+      loaded = true
+      phase = { kind: 'ready' }
+      await save()
+    } catch (cause) {
+      loaded = true
+      report(cause, () => openPrepared(prepared))
+      throw cause
+    }
+  }
+
   $effect(() => {
     const nextOwner = projectOwner()
     untrack(() => { void initialize(nextOwner) })
@@ -178,6 +202,7 @@ export function useProjects() {
     select,
     create,
     rename,
+    openPrepared,
     retry: () => { void (retryAction ? retryAction() : loaded ? save() : initialize(projectOwner())).catch(() => {}) },
     reload: () => window.location.reload(),
     get items() { return items },

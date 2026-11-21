@@ -76,6 +76,12 @@ func (s *PresentationStore) read(owner, session string) (Presentation, error) {
 	return saved, nil
 }
 
+func (s *PresentationStore) loadSaved(owner, session string) (Presentation, error) {
+	presentationMu.Lock()
+	defer presentationMu.Unlock()
+	return s.read(owner, session)
+}
+
 func (s *PresentationStore) Save(owner, session string, prepared PreparedComposition) error {
 	complete := prepared.Document != nil && prepared.Composition != nil
 	if !complete && prepared.Filename == "" {

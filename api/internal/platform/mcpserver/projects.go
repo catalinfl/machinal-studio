@@ -37,7 +37,7 @@ func registerProjectTools(server *mcp.Server, call Caller) {
 			}
 			return invoke(ctx, req, call, operation)
 		})
-	mcp.AddTool(server, &mcp.Tool{Name: "get_project", Description: "Read the saved editor state and current version of an owned project.", Annotations: annotations(true, false, true)},
+	mcp.AddTool(server, &mcp.Tool{Name: "get_project", Description: "Read an owned project's saved editable timeline, project media and current version. Successful generation/final rendering retain the complete resolved edit, not just a recipe attachment or Media Bin. Existing manual edits are preserved; a retained prepared/rendered snapshot can be explicitly opened in the editor without generating or rendering again.", Annotations: annotations(true, false, true)},
 		func(ctx context.Context, req *mcp.CallToolRequest, input projectInput) (*mcp.CallToolResult, Output, error) {
 			path, err := projectPath(input.ProjectID, "")
 			if err != nil {

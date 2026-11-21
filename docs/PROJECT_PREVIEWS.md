@@ -1,6 +1,6 @@
 # Project previews and retained compositions
 
-Opening a prepared project shows its editable timeline instead of an empty workspace. The existing **Projects** popover also exposes the last rendered result and the JSON associated with that result. Opening a project does not compile, generate media or start a render.
+Opening a prepared project shows its editable timeline instead of an empty workspace. The existing **Projects** popover also exposes the last rendered result and actions to open retained edits directly on the timeline. A recipe/JSON attachment is not a project. Opening a project does not compile, generate media or start a render.
 
 ## What is retained
 
@@ -21,27 +21,27 @@ A newer preparation can therefore coexist with an older last render. This is not
 
 ## Opening and protecting working edits
 
-`GET /projects/:projectID` (also exposed under the project-scoped `/v1` API) returns the saved working `state` alongside `presentation` and, on a presentation-loading failure, `presentationWarning`. It does **not** replace the server's saved working state with the retained composition.
+Successful generation and full rendering persist the resolved composition into the actual project's `state.timeline`/`state.media`, without needing a browser autosave. `GET /projects/:projectID` (also exposed under the project-scoped `/v1` API) returns that saved working `state` alongside `presentation` and, on a recovery failure, `presentationWarning`. Loading also repairs older empty/media-only project states from retained snapshots, with the same manual-edit protection. If publication fails after media work succeeds, the operation reports `projectWarning`; keep the successful outputs and retry project recovery, not the paid work.
 
 The client chooses what to restore:
 
-- A never-opened or genuinely empty saved project hydrates from the prepared snapshot, falling back to a complete last-render snapshot when appropriate.
+- A never-opened, genuinely empty or media-only saved project hydrates from the prepared snapshot, falling back to a complete last-render snapshot when appropriate. Existing source entries and display names are merged, not discarded merely because the timeline was empty.
 - Hydration restores tracks, source geometry, effects/transitions, captions, media entries and output settings through the existing composition adapter. The retained document, bindings, assets and prepared text become a ready document session; resolved generation IDs and caption content/timing are not regenerated.
 - An older, untouched hydrated preparation may advance to a different retained composition only when its baseline fingerprint still matches and its ready document session identifies the original preparation.
 - Saved manual edits, dirty sessions, Media Bin changes and intentional clears remain authoritative. The fingerprint covers both timeline and media. An existing document session also distinguishes an intentional clear from an uninitialized project. Invalid saved state follows the normal recovery error rather than being silently replaced.
 
-After hydration, the ordinary versioned autosave persists the working state. Session/generation guards prevent stale project loads or queued saves from being applied to another selection. Media Bin additions/removals participate in autosave.
+The client retains a compatibility hydration path and normalizes browser-ready state through ordinary versioned autosave. Server publication and HTTP autosaves share a lock across store instances; a stale version receives 409, never silently overwrites a generated edit. Canonical v2 fingerprints ignore JSON key order/escaping and are shared by Go and TypeScript; previous browser fingerprints remain recognized. Session/generation guards prevent stale project loads or queued saves from being applied to another selection. Media Bin additions/removals participate in autosave.
 
-## Last render and JSON actions
+## Last render and editable timeline actions
 
 Inside **Projects**, beneath the current project's status:
 
 - **Last render** shows its filename/date and a user-controlled native video player, or audio controls for MP3 output. There is no autoplay. Playback failure offers a reload message without discarding the timeline.
-- **Download render JSON** exports that render's retained snapshot, never an unrelated newer prepared version. Its filename is `<render filename>.edit.json`.
-- **Prepared timeline** and **Download timeline JSON** appear when a complete prepared version differs from the rendered snapshot, including preparation without a render. The section shows duration, frame rate and resolution; a filename-free preparation downloads as `composition.edit.json`.
+- **Open rendered timeline** restores that render's retained edit, never an unrelated newer prepared version. It restores source clips, not the MP4 as a flattened single clip.
+- **Prepared timeline** and **Open prepared timeline** appear when a complete prepared version differs from the rendered snapshot, including preparation without a render. The section shows duration, frame rate and resolution.
 - Filename-only legacy/editor exports can be shown for playback but explicitly say **“No editable snapshot was retained for this export.”** They do not acquire an inferred recipe from a newer preparation.
 
-JSON downloads contain the selected snapshot's `document`, `bindings`, `assets` and optional `preparedText`. They are editable recipe envelopes, not the presentation-store wrapper, a media bundle or a fresh compile. A presentation-loading warning is separate from working-state save errors; a project with no working state cannot silently ignore a failed recovery.
+Both actions ask for explicit confirmation before replacing the current timeline. Existing media is kept, edits save normally, and resolved speech/images/captions are reused without provider or rendering calls. **Keep current timeline** cancels without changing the edit. Download-JSON actions no longer stand in for opening a project. A presentation-loading warning is separate from working-state save errors; a project with no working state cannot silently ignore a failed recovery.
 
 ## Historical recovery and limits
 
@@ -66,7 +66,7 @@ The documentation cross-check found inherited drift: root `DESIGN.md` describes 
 
 ## Verification evidence
 
-The final implementation checks below were supplied by the implementation session, not rerun during this documentation pass:
+The table below is historical evidence for the original presentation feature, not a fresh test run of this correction. Current correction evidence is recorded in [editable timeline review](../.impeccable/review/project-editable-timeline-verdict.md).
 
 | Check | Reported result |
 | --- | --- |

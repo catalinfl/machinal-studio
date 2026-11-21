@@ -25,6 +25,8 @@ var (
 	ErrNotFound = errors.New("project not found")
 	ErrConflict = errors.New("project changed in another tab; reload it before saving")
 	ErrInvalid  = errors.New("invalid project")
+	// HTTP autosaves and background jobs use different Store instances.
+	projectsMu sync.Mutex
 )
 
 type Summary struct {
@@ -48,7 +50,6 @@ type Store struct {
 	Now           func() time.Time
 	Session       func(owner, id string) string
 	Presentations *PresentationStore
-	mu            sync.Mutex
 }
 
 func ValidID(id string) bool {
@@ -91,14 +92,14 @@ func (s *Store) read(owner, id string) (Project, error) {
 }
 
 func (s *Store) Get(owner, id string) (Project, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	projectsMu.Lock()
+	defer projectsMu.Unlock()
 	return s.read(owner, id)
 }
 
 func (s *Store) List(owner string) ([]Summary, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	projectsMu.Lock()
+	defer projectsMu.Unlock()
 	return s.list(owner)
 }
 
@@ -181,8 +182,8 @@ func (s *Store) create(owner, id, name string) (Project, error) {
 }
 
 func (s *Store) EnsureInitial(owner string) ([]Summary, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	projectsMu.Lock()
+	defer projectsMu.Unlock()
 	items, err := s.list(owner)
 	if err != nil || len(items) > 0 {
 		return items, err
@@ -195,8 +196,8 @@ func (s *Store) EnsureInitial(owner string) ([]Summary, error) {
 }
 
 func (s *Store) Create(owner, name string) (Project, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	projectsMu.Lock()
+	defer projectsMu.Unlock()
 	var random [16]byte
 	if _, err := rand.Read(random[:]); err != nil {
 		return Project{}, fmt.Errorf("generate project ID: %w", err)
@@ -205,8 +206,8 @@ func (s *Store) Create(owner, name string) (Project, error) {
 }
 
 func (s *Store) Update(owner, id, name string, version int, state json.RawMessage) (Project, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	projectsMu.Lock()
+	defer projectsMu.Unlock()
 	project, err := s.read(owner, id)
 	if err != nil {
 		return Project{}, err

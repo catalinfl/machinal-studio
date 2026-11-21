@@ -48,7 +48,8 @@ var generateSpeechCall = func(ctx context.Context, dataDir string, safeJoin func
 
 type generationResult struct {
 	composition.Result
-	Cost *RenderCost `json:"cost,omitempty"`
+	Cost           *RenderCost `json:"cost,omitempty"`
+	ProjectWarning string      `json:"projectWarning,omitempty"`
 }
 
 // CompileAndGenerate behaves like Compile but also executes pending
@@ -80,7 +81,9 @@ func CompileAndGenerate(c *fiber.Ctx) error {
 	if HasErrors(result) {
 		c.Status(fiber.StatusUnprocessableEntity)
 	} else {
-		retainProjectComposition(c, result, "")
+		if err := retainProjectComposition(c, result, ""); err != nil {
+			response.ProjectWarning = err.Error()
+		}
 	}
 	return c.JSON(response)
 }

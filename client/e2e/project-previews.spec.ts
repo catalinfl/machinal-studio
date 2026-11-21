@@ -1,9 +1,9 @@
 import { expect, test, type Page } from '@playwright/test'
-import { resolve } from 'node:path'
 import { readFile } from 'node:fs/promises'
 import { parse } from 'yaml'
 import type { CompositionInput } from '../src/lib/composition-types'
 import type { PreparedComposition } from '../src/lib/project-presentation'
+import type { ProjectState } from '../src/lib/project-state'
 
 function preparedFixture(): PreparedComposition {
   const output = { aspect: 'landscape' as const, resolution: '720p' as const, fps: 30, format: 'mp4' as const, quality: 'normal' as const }
@@ -65,10 +65,15 @@ for (const width of [1440, 390]) {
       const media = await mediaFixture(page)
       const prepared = preparedFixture()
       const now = prepared.updatedAt
+      const mediaOnly: ProjectState = {
+        schemaVersion: 1, media: [{ id: 'poster', sourceId: 'poster', name: 'poster.png', kind: 'image', duration: 5, displayName: 'My project artwork' }],
+        timeline: { channels: [], effectBlocks: [], transitions: [], textItems: [], fps: 30, resolution: '720p', projectAspect: null,
+          videoFit: 'contain', documentSession: null, currentTime: 0, selectedClipIds: [], selectedEffectBlockIds: [], selectedTextItemIds: [] },
+      }
       const records = new Map<string, any>([
         ['default', { id: 'default', name: 'Empty workspace', sessionId: 'u_local', version: 2, createdAt: now, updatedAt: now, state: null }],
         ['p_prepared', { id: 'p_prepared', name: 'Prepared film', sessionId: 'p_prepared', version: 1, createdAt: now, updatedAt: now,
-          state: null, presentation: { prepared, lastRender: prepared } }],
+          state: mediaOnly, presentation: { prepared, lastRender: prepared } }],
       ])
       const forbidden: string[] = []
       let compilerAvailable = true
@@ -134,14 +139,8 @@ for (const width of [1440, 390]) {
       await expect.poll(() => video.evaluate((element: HTMLVideoElement) => element.ended)).toBe(true)
       await video.evaluate((element: HTMLVideoElement) => { element.currentTime = 0 })
       await expect.poll(() => video.evaluate((element: HTMLVideoElement) => element.seeking)).toBe(false)
-      const downloaded = page.waitForEvent('download')
-      await panel.getByRole('button', { name: 'Download render JSON' }).click()
-      const download = await downloaded
-      expect(download.suggestedFilename()).toBe('render_fixture.mp4.edit.json')
-      const json = JSON.parse(await readFile((await download.path())!, 'utf8'))
-      expect(json.document).toEqual(prepared.document)
-      expect(json.assets).toEqual(prepared.composition!.assets)
-      await page.screenshot({ path: resolve(`../.impeccable/review/project-previews-local-${width}-${theme}.png`), fullPage: true, animations: 'disabled' })
+      await expect(panel.getByRole('button', { name: /Download.*JSON/ })).toHaveCount(0)
+      expect(records.get('p_prepared').state.media[0].displayName).toBe('My project artwork')
       await panel.getByRole('button', { name: 'Close projects' }).click()
       await page.getByRole('button', { name: 'Recipe', exact: true }).click()
       const recipe = page.getByRole('dialog', { name: 'Video recipe' })
@@ -151,12 +150,6 @@ for (const width of [1440, 390]) {
       const original = parse(await source.inputValue())
       expect(original.document.tracks[0].clips[0]).toMatchObject({ id: 'prepared-clip', assetId: 'poster', start: 0, outPoint: 5 })
       expect(original.assets).toEqual(prepared.composition!.assets)
-      await page.screenshot({ path: resolve(`../.impeccable/review/local-project-yaml-${width}-${theme}.png`), fullPage: true, animations: 'disabled' })
-      const yamlDownload = page.waitForEvent('download')
-      await recipe.getByRole('button', { name: 'Save YAML', exact: true }).click()
-      const yamlFile = await yamlDownload
-      expect(yamlFile.suggestedFilename()).toBe('composition.edit.yaml')
-      const exported = parse(await readFile((await yamlFile.path())!, 'utf8'))
       expect(exported.document.tracks).toEqual(original.document.tracks)
       expect(exported.assets).toEqual(original.assets)
       await source.fill((await source.inputValue()).replace('name: Prepared video', 'name: Reviewed locally'))
@@ -178,6 +171,17 @@ for (const width of [1440, 390]) {
       project.presentation.prepared.composition.id = 'new-compiled-version'
       await page.reload()
       await expect(page.locator('[data-timeline-clip-id="manual-clip"]')).toHaveCount(1)
+      await page.getByRole('button', { name: 'Projects', exact: true }).click()
+      await panel.getByRole('button', { name: 'Open rendered timeline' }).click()
+      await panel.getByRole('button', { name: 'Keep current timeline' }).click()
+      await expect(page.locator('[data-timeline-clip-id="manual-clip"]')).toHaveCount(1)
+      await panel.getByRole('button', { name: 'Open rendered timeline' }).click()
+      await panel.getByRole('button', { name: 'Replace timeline', exact: true }).click()
+      await expect(page.locator('[data-timeline-clip-id="prepared-clip"]')).toHaveCount(1)
+      await expect.poll(() => records.get('p_prepared').state.timeline.documentSession.kind).toBe('ready')
+      expect(records.get('p_prepared').state.timeline.documentSession.assets).toEqual(prepared.composition!.assets)
+      await page.reload()
+      await expect(page.locator('[data-timeline-clip-id="prepared-clip"]')).toHaveCount(1)
       expect(forbidden).toEqual([])
       expect(await page.evaluate(() => localStorage.getItem('pocketbase_auth'))).toBeNull()
       expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width)

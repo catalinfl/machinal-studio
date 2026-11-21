@@ -15,6 +15,16 @@ Signed-in users can create, rename and select projects from **Projects** in the 
 - Media Bin's pencil action saves a project-specific display name for any ready source or render. The original filename, source ID, preview URLs and export references stay unchanged; names persist with project autosave and appear on timeline clips and in inspectors. Renaming does not copy or move media.
 - Clips within one project reference their existing originals. Separate projects currently have separate server spaces and browser-local storage scopes; importing the same file into multiple projects is not globally deduplicated.
 
+## Recipe/MCP projects are editable projects
+
+A recipe is an authoring/checkpoint format, not the delivered project. Successful recipe generation and final rendering save their resolved edit as the owned project's actual `state.timeline` and `state.media`, even before a browser opens it. This includes source clips/live scenes, narration, exact caption entries and resolved job IDs, effects, transitions, transforms/keyframes and output settings. The final MP4 stays a separate export; it is not flattened back into a one-clip timeline.
+
+An empty or media-only workspace is populated automatically. An untouched prepared timeline advances through subsequent timing/visual passes; manually edited timelines, renamed media and intentionally cleared documents are not silently overwritten. Background saves and HTTP autosaves share optimistic concurrency protection; stale browser saves receive 409 instead of erasing a newly prepared edit. Legacy media-only states are repaired from retained owned snapshots on project load, without generating or rendering anything.
+
+Projects also offers **Open prepared timeline** and **Open rendered timeline** for explicit recovery/replacement, with confirmation, autosave and the existing media kept. These actions open the real edit in the timeline, not a JSON download, and do not incur generation/render charges. A filename-only historical export without a retained composition cannot be reconstructed exactly; the UI reports that limitation instead of inventing a project.
+
+Deploy the API and web client together to activate this behavior. Source changes and passing local tests do not update an already running hosted installation or repair a historical export that never retained an editable snapshot.
+
 ## HTTP interface
 
 All project endpoints require the current PocketBase Bearer token. Account ownership is derived from the verified token, never from request input.
@@ -36,4 +46,4 @@ The same project UI is implemented separately in the `machinal-public` repositor
 
 ## Verification
 
-Focused browser coverage: `pnpm exec playwright test e2e/projects.spec.ts`. The main application uses mocked authentication/API with actual browser IndexedDB restoration; the public test opts into a real isolated Docker API using `LOCAL_WORKSPACE_TEST=1`, `E2E_API_BASE`, and optionally `PROJECT_DOCKER_NAME` for restart verification. Backend tests cover persistence, migration, account ownership, version conflicts and isolated media deletion.
+Focused browser coverage: `pnpm exec playwright test e2e/projects.spec.ts e2e/project-previews.spec.ts e2e/recipe-project-restore.spec.ts`. The main application uses mocked authentication/API with actual browser IndexedDB restoration; the public test opts into a real isolated Docker API using `LOCAL_WORKSPACE_TEST=1`, `E2E_API_BASE`, and optionally `PROJECT_DOCKER_NAME` for restart verification. Backend tests cover persistence before browser access, complete composition-to-editor mapping, caption/job-ID preservation, media-only recovery, manual-edit protection, account ownership, version conflicts and isolated media deletion.

@@ -91,7 +91,9 @@ func (runner *JobRunner) renderQueued(c *fiber.Ctx, ctx context.Context, root, s
 		response["billingBasis"] = "complete-composition-duration; referenced scenes retain full scene-render billing"
 		response["processedDuration"] = result.Composition.Duration.Seconds()
 	} else {
-		retainProjectComposition(c, result, output.Filename)
+		if err := retainProjectComposition(c, result, output.Filename); err != nil {
+			response["projectWarning"] = err.Error()
+		}
 	}
 	return c.JSON(response)
 }

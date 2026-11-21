@@ -27,13 +27,14 @@ export async function restoreProjectState(state: ProjectState, scope: string): P
     throw new Error('This project could not be read. Your saved data has been kept; try reloading it.')
   }
   const local = state.media.some(source => source.sourceMode === 'wasm') ? await restoreLocalSources(scope) : new Map<string, string>()
+  const missing = state.media.find(source => source.sourceMode === 'wasm' && !isLiveSceneFile(source.name) && !local.get(source.sourceId ?? ''))
+  if (missing) throw new Error(`Local file ${missing.name} is missing from this browser. Open this project in the browser where you imported it.`)
   for (const source of state.media) {
     if (isLiveSceneFile(source.name)) {
       registerMediaBinSource({ ...source, previewUrl: null, scrubBlobUrl: null, thumbnailUrl: null })
       continue
     }
     const preview = source.sourceMode === 'wasm' ? local.get(source.sourceId ?? '') : mediaSourceUrl(source.name)
-    if (source.sourceMode === 'wasm' && !preview) throw new Error(`Local file ${source.name} is missing from this browser. Open this project in the browser where you imported it.`)
     registerMediaBinSource({ ...source, previewUrl: preview, scrubBlobUrl: source.kind === 'video' ? null : preview,
       thumbnailUrl: source.sourceMode === 'wasm' ? source.kind === 'image' ? preview : null : source.kind === 'audio' ? null : mediaThumbnailUrl(source.name) })
   }
