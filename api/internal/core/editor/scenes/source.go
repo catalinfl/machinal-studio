@@ -130,15 +130,30 @@ func SourceAsset(root, filename, id string) (document.Asset, error) {
 }
 
 func Materialize(ctx context.Context, root, filename, output string) error {
+	return MaterializeRange(ctx, root, filename, output, nil)
+}
+
+func MaterializeRange(ctx context.Context, root, filename, output string, capture *CaptureRange) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	source, err := ReadSource(root, filename)
 	if err != nil {
 		return err
 	}
 	duration := float64(source.Config.Frames) / source.Config.FPS
+	if capture != nil {
+		if capture.StartFrame < 0 || capture.EndFrame <= capture.StartFrame || capture.EndFrame > source.Config.Frames {
+			return fmt.Errorf("invalid scene capture range")
+		}
+		duration = float64(capture.EndFrame-capture.StartFrame) / source.Config.FPS
+	}
 	if err := credits.CheckSceneRender(ctx, duration); err != nil {
 		return fmt.Errorf("authorize scene rendering: %w", err)
 	}
-	manifest, err := renderParameterizedRemote(ctx, source.Component, source.Config, source.compilationMedia(), output)
+	media := source.compilationMedia()
+	media.Range = capture
+	manifest, err := renderParameterizedRemote(ctx, source.Component, source.Config, media, output)
 	if err != nil {
 		return fmt.Errorf("render live scene: %w", err)
 	}

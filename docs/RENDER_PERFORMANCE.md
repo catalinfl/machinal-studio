@@ -62,6 +62,7 @@ filesystem. Do not remove security constraints as a performance workaround.
 | `SCENE_CPU_LIMIT` | `4` | Compose CPU ceiling |
 | `SCENE_MEMORY_LIMIT` | `3g` | Compose memory ceiling |
 | `SCENE_WORKERS` | `auto` | Up to four capture pages, bounded by quota, available memory and frame count; explicit 1–16 also memory-bounded |
+| `SCENE_RENDER_CONCURRENCY` | `auto` | Up to two scene jobs with at least four CPU equivalents, 2304 MiB available and 384 available PID/thread slots at worker startup (or no PID cap); otherwise one. Explicit 1–2 remains resource-bounded. Parallel jobs divide the CPU/RAM/capture-page budget. |
 | `SCENE_ENCODER_THREADS` | `auto` | Bounded FFmpeg thread budget; explicit 1–32 |
 | `SCENE_X264_PRESET` | `ultrafast` | Lossless intermediate compression speed |
 | `RENDER_X264_PRESET` | `medium` | Final CPU encode speed; does not change the selected CRF |
@@ -88,7 +89,19 @@ docker compose -f compose.editengine.yaml up -d --build api scene-renderer
 
 The scene service also retains a bounded **32 MiB in-memory compilation cache**, keyed by component source, preview/export mode, visual mode and inspection entry point. Concurrent identical compilations share one build; failures are not cached and oversized bundles are returned without displacing retained entries. Bundled runtime/font changes require restarting the service. This skips repeated Svelte/esbuild work, not layout inspection or final-render identity checks.
 
-Heavy scene/text calls are serialized through a bounded FIFO rather than rejecting an ordinary second API worker as busy. Compile requests have a separate bounded queue. Transparent native capture sets the background override once per worker page rather than making the same CDP call for every frame. None of these changes reduces output resolution, cadence or image quality. See [workspace retention](WORKSPACE_RETENTION.md) for publication, cleanup and deployment boundaries.
+Scene exports admit up to two jobs through a bounded FIFO, falling back to one on smaller CPU/RAM/PID budgets. Concurrent jobs divide the existing CPU/RAM budget and use at most four capture pages in aggregate, not four per job. The API submits at most two independent scene materializations per export and reuses each unique source once. Where parallel admission is safe, text preparation has its own one-job FIFO so a scene encode does not hold the text queue; constrained servers retain shared serial admission. Compilation/diagnostic queues retain their existing separate bounds. Transparent native capture sets the background override once per worker page rather than making the same CDP call for every frame. The 60-second idle shutdown and page-cache reclamation policy are unchanged. None of these changes lowers output resolution, cadence or image quality.
+
+### File-backed scene delivery and fewer encoding passes
+
+Scene outputs and cache hits retain an open read-only file descriptor, not an entire video Buffer. SHA-256 verification reads 256 KiB chunks; authenticated HTTP delivery uses a backpressured 64 KiB stream. Cancellation/response closure releases the descriptor and temporary render directory, and the worker remains active through streaming. Cache publication first tries an immutable hard link, with an OS file-copy fallback across filesystems, then atomically publishes the manifest. Cached files are still length/checksum verified before delivery; this removes the up-to-1-GiB Node video allocation, not necessary Chromium/frame/encoder memory.
+
+Identity transforms no longer run perspective/rotation/shear filters. Eligible single opaque clips fuse clip filtering, up to 24 caption/text rasters and final delivery encoding in one FFmpeg pass, bypassing video intermediates. More complex timelines with up to 24 rasters retain their existing layer/transition pipeline but fuse text compositing into the final encode. Larger text stacks, alpha/masks and segmented/transition work retain the bounded lossless fallback. Encoder, CRF, output dimensions, FPS and caption/source data are unchanged; no faster lossy preset or automatic GPU substitution is introduced.
+
+### Interval-based previews and scene frame ranges
+
+Previews operate on a render-private interval and necessary temporal dependencies, not the complete timeline. Plain isolated clips are trimmed; connected transition groups and effect/animated-transform/speed/fade history are conservatively retained. Unrelated sources are not warmed/staged/materialized. Only intersecting caption rasters are prepared, and their original motion timing is retained; the YAML/caption entries themselves are untouched. The actual work window can therefore exceed the requested excerpt, and is returned as `processedDuration` and used for final-render billing.
+
+Scene materialization captures the union of referenced original frame ranges (rounded outward to source frames), for both previews and final exports. The component still sees its original full-duration configuration and absolute frame/time/progress, so a late excerpt does not restart its animation. Range and original configuration are cache identity inputs. Only the captured range contributes to scene-render duration accounting. Final excerpt selection happens after compositing/audio mixing, with the existing tariff/rounding. This is not a promise that every temporal effect can be rendered without preroll.
 
 ## Persistent scene cache
 
@@ -206,8 +219,8 @@ Publication is atomic. Cache reads verify byte count and SHA-256; corrupt entrie
 are discarded and rerendered. Cancellation/failure never publishes a partial
 entry. Cache failures fall back to rendering rather than failing a valid export.
 Compilation still runs to obtain the exact artifact identity; a hit skips browser
-startup, frame capture and video encoding. API clip materialization stays sequential
-to avoid overrunning the service's existing one-render-at-a-time contract.
+startup, frame capture and video encoding. API materialization uses bounded
+parallelism matching the resource-aware service admission described above.
 
 The cache contains derived private media. Removing the named volume removes it;
 ordinary container recreation does not. Do not run `down -v` to deploy an update.

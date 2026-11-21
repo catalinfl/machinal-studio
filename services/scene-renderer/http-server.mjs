@@ -1,5 +1,6 @@
 import { createServer } from 'node:http';
 import { randomUUID, timingSafeEqual } from 'node:crypto';
+import { pipeline } from 'node:stream/promises';
 import { WorkQueue, QueueFullError } from './work-queue.mjs';
 import { SceneDiagnosticError, SceneInfrastructureError, reportSceneFailure } from './diagnostics.mjs';
 
@@ -38,9 +39,10 @@ function componentDiagnostics(error) {
   return 'Scene processing failed. Check the component and configuration.';
 }
 
-export function createSceneServer({ token, compile, render, text, inspect, ready = async () => {}, reportError = reportSceneFailure }) {
+export function createSceneServer({ token, compile, render, text, inspect, renderConcurrency = 1, ready = async () => {}, reportError = reportSceneFailure }) {
   if (typeof token !== 'string' || !token.trim()) throw new Error('SCENE_SERVICE_TOKEN is required; the scene service cannot run unauthenticated');
-  const rendering = new WorkQueue(1, 8);
+  const rendering = new WorkQueue(renderConcurrency, 8);
+  const textWork = renderConcurrency > 1 ? new WorkQueue(1, 8) : rendering;
   const compiling = new WorkQueue(2, 8);
   const inspecting = new WorkQueue(1, 2);
   const exports = new Map();
@@ -78,9 +80,10 @@ export function createSceneServer({ token, compile, render, text, inspect, ready
     let release;
     let inputParsed = false;
     let progressId;
+    let rendered;
     try {
       // Reserve a bounded slot before buffering potentially large embedded media.
-      release = await (request.url === '/inspect' ? inspecting : request.url === '/compile' ? compiling : rendering).acquire(controller.signal);
+      release = await (request.url === '/inspect' ? inspecting : request.url === '/compile' ? compiling : request.url === '/text' ? textWork : rendering).acquire(controller.signal);
       const input = await bodyJSON(request, controller.signal);
       inputParsed = true;
       controller.signal.throwIfAborted();
@@ -97,10 +100,12 @@ export function createSceneServer({ token, compile, render, text, inspect, ready
           if (!Number.isSafeInteger(writtenFrames) || !Number.isSafeInteger(totalFrames) || writtenFrames < 0 || writtenFrames > totalFrames || !Number.isFinite(elapsedMs) || elapsedMs < 0) return;
           exports.set(progressId, { stage: update.stage, writtenFrames, totalFrames, elapsedMs });
         };
-        const { manifest, video } = await render(input, controller.signal, { requestId, onProgress });
+        rendered = await render(input, controller.signal, { requestId, onProgress, concurrency: renderConcurrency });
+        const { manifest } = rendered;
         controller.signal.throwIfAborted();
-        response.writeHead(200, { 'Content-Type': manifest.transparent ? 'video/webm' : 'video/mp4', 'Content-Length': video.length, 'X-Scene-Manifest': Buffer.from(JSON.stringify(manifest)).toString('base64') });
-        response.end(video);
+        response.writeHead(200, { 'Content-Type': manifest.transparent ? 'video/webm' : 'video/mp4', 'Content-Length': rendered.bytes ?? rendered.video.length, 'X-Scene-Manifest': Buffer.from(JSON.stringify(manifest)).toString('base64') });
+        if (rendered.openStream) await pipeline(rendered.openStream(), response, { signal: controller.signal });
+        else response.end(rendered.video);
       } else {
         const result = await (request.url === '/inspect' ? inspect : request.url === '/compile' ? compile : text)(input, controller.signal);
         controller.signal.throwIfAborted();
@@ -125,6 +130,8 @@ export function createSceneServer({ token, compile, render, text, inspect, ready
       }
       response.writeHead(status, { 'Content-Type': 'text/plain' }).end(message);
     } finally {
+      try { await rendered?.dispose?.(); }
+      catch (error) { reportError(error, { requestId, route: request.url, phase: 'cleanup' }); }
       clearTimeout(timeout);
       response.off('close', disconnected);
       request.off('aborted', disconnected);

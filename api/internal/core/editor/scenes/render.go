@@ -39,6 +39,12 @@ type compilationMedia struct {
 	Videos     map[string]string `json:"videos,omitempty"`
 	Parameters SceneParameters   `json:"parameters,omitempty"`
 	Models     map[string]string `json:"models,omitempty"`
+	Range      *CaptureRange     `json:"range,omitempty"`
+}
+
+type CaptureRange struct {
+	StartFrame int `json:"startFrame"`
+	EndFrame   int `json:"endFrame"`
 }
 
 func compileRemote(ctx context.Context, component string, config Config) (string, error) {
@@ -145,11 +151,15 @@ func renderParameterizedRemote(ctx context.Context, component string, config Con
 		request.Header.Set("Authorization", "Bearer "+token)
 	}
 	started := time.Now()
+	frames := config.Frames
+	if media.Range != nil {
+		frames = media.Range.EndFrame - media.Range.StartFrame
+	}
 	if id := jobqueue.ID(ctx); id != "" {
 		request.Header.Set("X-Scene-Request-Id", id)
 	}
-	log.Printf("scene_export_started job=%q width=%d height=%d fps=%g frames=%d", jobqueue.ID(ctx), config.Width, config.Height, config.FPS, config.Frames)
-	stopProgress := watchExportProgress(ctx, request, config.Frames)
+	log.Printf("scene_export_started job=%q width=%d height=%d fps=%g frames=%d", jobqueue.ID(ctx), config.Width, config.Height, config.FPS, frames)
+	stopProgress := watchExportProgress(ctx, request, frames)
 	defer stopProgress()
 	response, err := rendererHTTP.Do(request)
 	if err != nil {

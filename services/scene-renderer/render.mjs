@@ -6,11 +6,13 @@ import { promisify } from 'node:util';
 import { randomUUID } from 'node:crypto';
 import { bundleComponent, sceneHTML, validateInput } from './bundle.mjs';
 import { inspectComponent } from './inspect.mjs';
-import { renderOptions, renderResources, rendererArgs } from './render-options.mjs';
+import { renderOptions, renderResources, rendererArgs, sharedRenderResources } from './render-options.mjs';
 import { cacheBudget, cacheKey, maxRenderBytes, readCachedRender, rendererIdentity, writeCachedRender } from './render-cache.mjs';
 import { observeRendererProgress } from './render-progress.mjs';
 import { resourceSnapshot, filesystemSnapshot } from './diagnostics.mjs';
 import { rendererExecutable } from './renderer.mjs';
+import { openRenderFile } from './render-file.mjs';
+import { SceneDiagnosticError } from './diagnostics.mjs';
 
 const execute = promisify(execFile);
 
@@ -26,13 +28,17 @@ export async function compileComponent(input) {
   }
 }
 
-export async function renderComponent(input, signal, { requestId, onProgress = () => {} } = {}) {
+export async function renderComponent(input, signal, { requestId, onProgress = () => {}, concurrency = 1 } = {}) {
   const started = performance.now();
   const trace = { renderId: randomUUID(), requestId };
-  const config = validateInput(input);
+  const authoredConfig = validateInput(input);
+  const config = captureConfig(authoredConfig, input.range);
   onProgress({ stage: 'compiling', totalFrames: config.durationInFrames });
   signal?.throwIfAborted();
-  const options = renderOptions(config, process.env, await renderResources());
+  const resources = sharedRenderResources(await renderResources(), concurrency);
+  const options = renderOptions(config, process.env, resources);
+  if (concurrency > 1) options.workers = Math.min(options.workers, Math.max(1, Math.floor(4 / concurrency)), resources.cpus);
+  if (concurrency > 1) options.threads = Math.min(options.threads, resources.cpus);
   console.info('scene_render_started', JSON.stringify({ ...trace, width: config.width, height: config.height, fps: config.fps, frames: config.durationInFrames, ...options }));
   const budget = cacheBudget(process.env.SCENE_CACHE_MAX_BYTES);
   // Hardware-dependent pixels cannot share a cache without an explicit device fingerprint.
@@ -41,6 +47,7 @@ export async function renderComponent(input, signal, { requestId, onProgress = (
   const directory = await mkdtemp(join(tmpdir(), 'direction-scene-'));
   const resourcesBefore = await resourceSnapshot();
   const filesystemsBefore = await filesystemSnapshot();
+  let retained = false;
   try {
     await bundleComponent(input.component, directory, false, input.config);
     const compiledMs = performance.now() - started;
@@ -49,11 +56,11 @@ export async function renderComponent(input, signal, { requestId, onProgress = (
     if (cacheRoot) {
       onProgress({ stage: 'cache-lookup', totalFrames: config.durationInFrames });
       try {
-        key = cacheKey(await readFile(join(directory, 'scene.js')), sceneHTML, { ...input, config }, await rendererIdentity(options));
+        key = cacheKey(await readFile(join(directory, 'scene.js')), sceneHTML, { ...input, config: authoredConfig }, await rendererIdentity(options));
         const cached = await readCachedRender(cacheRoot, key, signal);
         if (cached) {
           onProgress({ stage: 'cache-hit', writtenFrames: config.durationInFrames, totalFrames: config.durationInFrames });
-          console.info('scene_render', JSON.stringify({ ...trace, cache: 'hit', compiledMs, totalMs: performance.now() - started, bytes: cached.video.length }));
+          console.info('scene_render', JSON.stringify({ ...trace, cache: 'hit', compiledMs, totalMs: performance.now() - started, bytes: cached.bytes }));
           return cached;
         }
         onProgress({ stage: 'cache-miss', totalFrames: config.durationInFrames });
@@ -66,7 +73,7 @@ export async function renderComponent(input, signal, { requestId, onProgress = (
       onProgress({ stage: 'cache-disabled', totalFrames: config.durationInFrames });
     }
     await writeFile(join(directory, 'scene.html'), sceneHTML);
-    await writeFile(join(directory, 'request.json'), JSON.stringify({ version: 1, url: '/scene.html', sceneId: 'generated', seed: 'generated', config, props: { images: input.images ?? {}, videos: input.videos ?? {}, parameters: input.parameters ?? {}, models: input.models ?? {} } }));
+    await writeFile(join(directory, 'request.json'), JSON.stringify({ version: 1, url: '/scene.html', sceneId: 'generated', seed: 'generated', config, props: { images: input.images ?? {}, videos: input.videos ?? {}, parameters: input.parameters ?? {}, models: input.models ?? {}, ...(input.range ? { __capture: { config: authoredConfig, startFrame: input.range.startFrame } } : {}) } }));
     const args = rendererArgs(directory, filename, options);
     if (process.env.SCENE_BROWSER) args.push('-browser', process.env.SCENE_BROWSER);
     if (process.env.SCENE_FFMPEG) args.push('-ffmpeg', process.env.SCENE_FFMPEG);
@@ -90,18 +97,29 @@ export async function renderComponent(input, signal, { requestId, onProgress = (
     delete manifest.scene.props.images;
     delete manifest.scene.props.videos;
     delete manifest.scene.props.models;
+    delete manifest.scene.props.__capture;
     signal?.throwIfAborted();
-    const result = { manifest, video: await readFile(join(directory, filename), { signal }) };
+    const result = await openRenderFile(join(directory, filename), manifest, { signal, maxBytes: maxRenderBytes, cleanup: () => rm(directory, { recursive: true, force: true }) });
+    retained = true;
     if (cacheRoot && key) {
       try { await writeCachedRender(cacheRoot, key, result, budget); }
       catch (error) { console.warn('scene_cache write_failed', error.message); }
     }
-    console.info('scene_render', JSON.stringify({ ...trace, cache: cacheRoot ? 'miss' : 'disabled', compiledMs, totalMs: performance.now() - started, bytes: result.video.length, ...options, metrics: manifest.metrics }));
+    console.info('scene_render', JSON.stringify({ ...trace, cache: cacheRoot ? 'miss' : 'disabled', compiledMs, totalMs: performance.now() - started, bytes: result.bytes, ...options, metrics: manifest.metrics }));
     return result;
   } catch (error) {
     console.error('scene_render_failed', JSON.stringify({ ...trace, elapsedMs: Math.round(performance.now() - started), ...options, resourcesBefore, resourcesAfter: await resourceSnapshot(), filesystemsBefore, filesystemsAfter: await filesystemSnapshot() }));
     throw error;
   } finally {
-    await rm(directory, { recursive: true, force: true });
+    if (!retained) await rm(directory, { recursive: true, force: true });
   }
+}
+
+export function captureConfig(config, range) {
+  if (range === undefined) return config;
+  if (!range || !Number.isSafeInteger(range.startFrame) || !Number.isSafeInteger(range.endFrame)
+    || range.startFrame < 0 || range.endFrame <= range.startFrame || range.endFrame > config.durationInFrames) {
+    throw new SceneDiagnosticError('Invalid scene capture frame range');
+  }
+  return { ...config, durationInFrames: range.endFrame - range.startFrame };
 }

@@ -8,12 +8,13 @@ if (!sourceFile || process.argv.length !== 3) {
   process.exitCode = 1;
 } else {
   const started = performance.now();
+  let result;
   try {
     const source = JSON.parse(await readFile(sourceFile, 'utf8'));
-    const result = await renderComponent(source, AbortSignal.timeout(12 * 60 * 1000));
+    result = await renderComponent(source, AbortSignal.timeout(12 * 60 * 1000));
     console.info('scene_diagnostic_completed', JSON.stringify({
       elapsedMs: Math.round(performance.now() - started),
-      bytes: result.video.length,
+      bytes: result.bytes,
       frames: result.manifest.frames,
       width: result.manifest.width,
       height: result.manifest.height,
@@ -22,5 +23,5 @@ if (!sourceFile || process.argv.length !== 3) {
   } catch (error) {
     reportSceneFailure(error, { route: 'diagnostic', elapsedMs: Math.round(performance.now() - started) });
     process.exitCode = 1;
-  }
+  } finally { await result?.dispose(); }
 }

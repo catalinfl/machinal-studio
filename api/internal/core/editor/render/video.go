@@ -264,6 +264,9 @@ func videoMaskFilter(clip clip, w, h, fps int, fit document.VideoFit) string {
 		videoFitFilter(w, h, fit, "black"),
 		"fps=" + strconv.Itoa(fps),
 	}
+	if clip.previewPreroll > 0 {
+		filters = append(filters, strings.TrimPrefix(previewPrerollFilter(clip, fps), ","))
+	}
 	if transformFilter := clipTransformFilter(clip, w, h, 0, duration, fps); transformFilter != "" {
 		filters = append(filters, transformFilter)
 	}
@@ -631,6 +634,7 @@ func textItemForOverlayChunk(item textItem, chunkStart, chunkDuration float64) t
 	localMotionStart := motionStart - chunkStart
 	item.MotionStart = &localMotionStart
 	item.MotionDuration = &motionDuration
+	item.motionOffset = 0
 	return item
 }
 
@@ -700,6 +704,7 @@ func textMotionWindow(item textItem) (float64, float64) {
 	if item.MotionStart != nil {
 		start = *item.MotionStart
 	}
+	start += item.motionOffset
 	if item.MotionDuration != nil {
 		duration = *item.MotionDuration
 	}

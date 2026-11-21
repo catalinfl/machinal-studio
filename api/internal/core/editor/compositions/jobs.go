@@ -19,6 +19,7 @@ import (
 	"ffmpeg-go-server/editengine/document"
 	"ffmpeg-go-server/editengine/render/ffmpeg"
 	"ffmpeg-go-server/editengine/render/textprepare"
+	"ffmpeg-go-server/internal/core/editor/render"
 	"ffmpeg-go-server/internal/core/media"
 	"ffmpeg-go-server/internal/integrations/openrouter"
 	"ffmpeg-go-server/internal/platform/credits"
@@ -235,6 +236,13 @@ func prepareAutomationRender(ctx context.Context, input compiler.Input, root, se
 			log.Printf("publish generated source: %v", err)
 			return result, fmt.Errorf("Cloud persistence failed for a generated source. Retry after storage is available.")
 		}
+	}
+	if window, present := render.PreviewFromContext(ctx); present {
+		working, err := render.PreviewTextComposition(*result.Composition, window)
+		if err != nil {
+			return result, err
+		}
+		result.Composition = &working
 	}
 	if err := textprepare.Prepare(ctx, result.Composition); err != nil {
 		result.Recovery = recoveryEnvelope(*result.Document, input.Bindings, result.Composition.Assets)

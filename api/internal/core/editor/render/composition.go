@@ -38,6 +38,11 @@ func RenderComposition(ctx context.Context, resolved composition.Composition, op
 	if err != nil {
 		return CompositionOutput{}, err
 	}
+	if window, present := PreviewFromContext(ctx); present {
+		var local PreviewWindow
+		request, local = previewRequest(request, window)
+		ctx = WithPreviewWindow(ctx, local)
+	}
 	staging, err := os.MkdirTemp(options.Root, "composition_")
 	if err != nil {
 		return CompositionOutput{}, fmt.Errorf("create composition staging directory: %w", err)

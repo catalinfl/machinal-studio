@@ -7,7 +7,7 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import ffmpeg from 'ffmpeg-static';
 import ffprobe from 'ffprobe-static';
-import { renderComponent } from './render.mjs';
+import { renderComponent } from './test-render.mjs';
 import { overlayComponent, overlayConfig } from './overlay-fixture.mjs';
 
 test('Go composition export blends native overlay alpha over unchanged footage', { skip: !process.env.SCENE_RENDER_BIN || !process.env.SCENE_BROWSER, timeout: 120000 }, async () => {
@@ -27,7 +27,7 @@ test('Go composition export blends native overlay alpha over unchanged footage',
     await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
     const { stdout } = await promisify(execFile)('go', ['test', './internal/core/editor/render', '-run', '^TestNativeTransparentOverlayCompositionExport$', '-count=1', '-v'], {
       cwd: resolve(import.meta.dirname, '../../api'), timeout: 110000, windowsHide: true,
-      env: { ...process.env, SCENE_OVERLAY_FIXTURE: fixture, SCENE_SERVICE_URL: `http://127.0.0.1:${server.address().port}`, PATH: `${dirname(ffmpeg)}${delimiter}${dirname(ffprobe.path)}${delimiter}${process.env.PATH || process.env.Path}` },
+      env: { ...process.env, SCENE_OVERLAY_FIXTURE: fixture, SCENE_SERVICE_URL: `http://127.0.0.1:${server.address().port}`, PATH: `${dirname(process.env.SCENE_FFMPEG || ffmpeg)}${delimiter}${dirname(ffprobe.path)}${delimiter}${process.env.PATH || process.env.Path}` },
     });
     console.info(stdout);
   } finally {

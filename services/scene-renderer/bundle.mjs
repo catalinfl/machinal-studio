@@ -63,11 +63,15 @@ import { exposeScene } from '@machinal/scenes/runtime';
 import { installSceneEnvironment, settleSceneFonts } from './scene-environment.js';
 try {
   await installSceneEnvironment();
-  const controller = mountSvelteScene(Scene, document.getElementById('scene'), window.__sceneRequest, {});
+   const request = window.__sceneRequest;
+   const capture = request.props?.__capture;
+   const authoredRequest = capture ? { ...request, config: capture.config } : request;
+   const controller = mountSvelteScene(Scene, document.getElementById('scene'), authoredRequest, {});
   const target = document.getElementById('scene');
-  exposeScene({ ...controller,
-    async ready() { await controller.ready(); await settleSceneFonts(target); },
-    async seek(frame) { await controller.seek(frame); await settleSceneFonts(target); },
+   exposeScene({ ...controller,
+     manifest: { ...controller.manifest, config: request.config },
+     async ready() { await controller.ready(); await settleSceneFonts(target); },
+     async seek(frame) { await controller.seek(frame + (capture?.startFrame ?? 0)); await settleSceneFonts(target); },
   });
   controller.ready().catch(error => { window.__sceneError = error.message; });
 } catch (error) { window.__sceneError = error.message; }`,

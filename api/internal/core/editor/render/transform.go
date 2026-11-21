@@ -247,6 +247,9 @@ func clipTransformFilter(clip clip, width, height int, segmentOffset, segmentDur
 		return ""
 	}
 	base := normalizeTransform(clip.Transform)
+	if base == normalizeTransform(nil) && len(clip.TransformKeyframes) == 0 {
+		return ""
+	}
 	keyframes := clip.TransformKeyframes
 	expressions := buildTransformExpressions(base, keyframes, segmentOffset, fps)
 	guard := transformGuardPixels

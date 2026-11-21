@@ -30,6 +30,7 @@ type transformKeyframe struct {
 
 type clip struct {
 	sceneTransparent   bool
+	previewPreroll     float64
 	File               string              `json:"file"`
 	MediaKind          string              `json:"mediaKind"`
 	InPoint            float64             `json:"inPoint"`
@@ -51,6 +52,7 @@ type channel struct {
 }
 
 type renderRequest struct {
+	previewBlank bool
 	Fit          document.VideoFit `json:"fit,omitempty"`
 	sceneExports []string
 	Duration     *float64 `json:"duration,omitempty"`
@@ -78,6 +80,7 @@ type outputSettings struct {
 }
 
 type textItem struct {
+	motionOffset      float64
 	Start             float64  `json:"start"`
 	Duration          float64  `json:"duration"`
 	X                 int      `json:"x"`

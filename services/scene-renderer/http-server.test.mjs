@@ -1,12 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { once } from 'node:events';
+import { PassThrough } from 'node:stream';
 import { createSceneServer } from './http-server.mjs';
 import { SceneInfrastructureError } from './diagnostics.mjs';
 
-async function fixture(t, render = async () => ({ manifest: {}, video: Buffer.from('video') }), ready) {
+async function fixture(t, render = async () => ({ manifest: {}, video: Buffer.from('video') }), ready, options = {}) {
   const failures = [];
-  const server = createSceneServer({ token: 'test-token', render, ready, compile: async () => ({ javascript: 'compiled' }), text: async () => ({ prepared: true }), reportError: (error, context) => failures.push({ error, context }) });
+  const server = createSceneServer({ token: 'test-token', render, ready, compile: async () => ({ javascript: 'compiled' }), text: async () => ({ prepared: true }), reportError: (error, context) => failures.push({ error, context }), ...options });
   server.listen(0, '127.0.0.1');
   await once(server, 'listening');
   t.after(() => new Promise(resolve => { server.close(resolve); server.closeAllConnections(); }));
@@ -20,6 +21,32 @@ test('requires a private-service token and rejects unauthenticated requests', as
   const { origin } = await fixture(t);
   assert.equal((await fetch(origin + '/health')).status, 401);
   assert.equal((await fetch(origin + '/health', { headers: { Authorization: 'Bearer test-token' } })).status, 200);
+});
+
+test('bounded parallel scenes do not block text preparation or admit a third render', async t => {
+  const twoStarted = Promise.withResolvers();
+  const unblock = Promise.withResolvers();
+  let active = 0, maximum = 0, calls = 0;
+  const { post } = await fixture(t, async (_, __, { concurrency }) => {
+    assert.equal(concurrency, 2);
+    calls++;
+    maximum = Math.max(maximum, ++active);
+    if (active === 2) twoStarted.resolve();
+    await unblock.promise;
+    active--;
+    return { manifest: {}, video: Buffer.from('video') };
+  }, undefined, { renderConcurrency: 2 });
+  t.after(() => unblock.resolve());
+  const first = post('/render'), second = post('/render');
+  await twoStarted.promise;
+  const third = post('/render');
+  assert.equal((await post('/text')).status, 200);
+  assert.equal((await post('/compile')).status, 200);
+  assert.equal(calls, 2);
+  unblock.resolve();
+  for (const response of await Promise.all([first, second, third])) assert.equal(response.status, 200);
+  assert.equal(maximum, 2);
+  assert.equal(calls, 3);
 });
 
 test('native infrastructure failure blocks health and encoding with actionable diagnostics', async t => {
@@ -43,6 +70,26 @@ test('long operations have a bounded request deadline without an idle response t
   const { server } = await fixture(t);
   assert.equal(server.requestTimeout, 30 * 60 * 1000);
   assert.equal(server.timeout, 0);
+});
+
+test('file streams keep their render lease until completion and dispose on client disconnect', async t => {
+  const stream = new PassThrough();
+  const disposed = Promise.withResolvers();
+  let calls = 0;
+  const { post } = await fixture(t, async () => {
+    if (++calls > 1) return { manifest: {}, video: Buffer.from('next') };
+    stream.write('video');
+    return { manifest: {}, bytes: 10000, openStream: () => stream, dispose: async () => disposed.resolve() };
+  });
+  const response = await post('/render');
+  const next = post('/render');
+  assert.equal((await post('/compile')).status, 200);
+  assert.equal(calls, 1, 'render lease was released before the stream finished');
+  await response.body.cancel();
+  await disposed.promise;
+  assert.equal(stream.destroyed, true);
+  assert.equal((await next).status, 200);
+  assert.equal(calls, 2);
 });
 
 test('render diagnostics correlate with the API job without logging arbitrary header content', async t => {

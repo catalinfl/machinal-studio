@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { renderComponent } from './render.mjs';
+import { renderComponent } from './test-render.mjs';
 import { threeComponent, videoComponent, colorVideoSource } from './multimedia-fixture.mjs';
 
 const native = { skip: !process.env.SCENE_RENDER_BIN || !process.env.SCENE_BROWSER, timeout:120000 };

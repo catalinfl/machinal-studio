@@ -145,6 +145,14 @@ func executeRender(req renderRequest, plan renderPlan, progress *renderProgress)
 	if err != nil {
 		return "", "", fmt.Errorf("resolve output %s: %w", outputName, err)
 	}
+	if handled, err := renderFusedOutput(req, plan, work, outputPath, progress); handled {
+		if err != nil {
+			_ = os.Remove(outputPath)
+			return "", "", err
+		}
+		filecache.ReleasePath(outputPath)
+		return outputName, outputPath, nil
+	}
 
 	videoFile, audioFile, err := renderTracks(req, plan, work, progress)
 	if err != nil {
@@ -244,7 +252,7 @@ func prepareRenderPlan(req renderRequest, scope fileScope) (renderPlan, error) {
 	if plan.totalDuration*float64(plan.fps) > float64(maxTotalFrames) {
 		return renderPlan{}, fmt.Errorf("composition too large: duration x fps exceeds limit")
 	}
-	plan.hasVideo = plan.videoClipCount > 0 || len(req.TextItems) > 0
+	plan.hasVideo = plan.videoClipCount > 0 || len(req.TextItems) > 0 || req.previewBlank
 	plan.hasAudio = plan.audioClipCount > 0
 	return plan, nil
 }
@@ -292,7 +300,7 @@ func validateRenderRequest(req renderRequest, plan renderPlan) error {
 }
 
 func hasRenderableContent(req renderRequest, plan renderPlan) bool {
-	return plan.videoClipCount > 0 || plan.audioClipCount > 0 || len(req.TextItems) > 0
+	return plan.videoClipCount > 0 || plan.audioClipCount > 0 || len(req.TextItems) > 0 || req.previewBlank
 }
 
 func hasValidResolution(req renderRequest) bool {
@@ -378,6 +386,10 @@ func renderTracks(req renderRequest, plan renderPlan, work string, progress *ren
 }
 
 func renderVideoTrack(req renderRequest, plan renderPlan, work string, progress *renderProgress) (string, error) {
+	if req.previewBlank {
+		output := filepath.Join(work, "preview_black.mp4")
+		return output, generateBlackVideoWithWork(plan.totalDuration, req.Resolution.W, req.Resolution.H, plan.fps, output, plan.totalDuration, "rendering preview gap", progress)
+	}
 	videoFile, err := buildVideo(req, plan.videoClipCount, plan.fps, plan.totalDuration, work, progress, plan.scope)
 	if err != nil || len(req.TextItems) == 0 {
 		return videoFile, err

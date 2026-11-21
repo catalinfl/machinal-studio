@@ -722,8 +722,8 @@ func TestClipTransformFilterUsesCommandableShearValues(t *testing.T) {
 	base := normalizeTransform(nil)
 	static := clip{Transform: &base}
 	staticFilter := clipTransformFilter(static, 640, 360, 0, 1.2, 30)
-	if !strings.Contains(staticFilter, "shear@transform_shear=shx=0:shy=0:fillcolor=black") {
-		t.Fatalf("static transform filter = %q", staticFilter)
+	if staticFilter != "" {
+		t.Fatalf("identity transform should not run perspective/rotate/shear filters: %q", staticFilter)
 	}
 	if strings.Contains(staticFilter, "sendcmd=") {
 		t.Fatalf("static transform unexpectedly uses commands: %q", staticFilter)

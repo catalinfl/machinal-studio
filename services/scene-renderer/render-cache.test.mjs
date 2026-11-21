@@ -12,9 +12,25 @@ test('lossless scene output allows the same one-GiB ceiling as the API receiver'
 
 async function fixture(t) {
   const root = await mkdtemp(join(tmpdir(), 'scene-cache-test-'));
-  t.after(() => rm(root, { recursive: true, force: true }));
+  const sourceDirectory = await mkdtemp(join(tmpdir(), 'scene-cache-source-'));
+  t.after(async () => {
+    await rm(root, { recursive: true, force: true });
+    await rm(sourceDirectory, { recursive: true, force: true });
+  });
   const video = Buffer.from('lossless-rendered-scene');
-  return { root, video, manifest: { file: 'scene.mp4', size: video.length, sha256: createHash('sha256').update(video).digest('hex') } };
+  const path = join(sourceDirectory, 'scene.mp4');
+  await writeFile(path, video);
+  return { root, video, path, bytes: video.length, manifest: { file: 'scene.mp4', size: video.length, sha256: createHash('sha256').update(video).digest('hex') } };
+}
+
+async function readVideo(result) {
+  const chunks = [];
+  try {
+    for await (const chunk of result.openStream()) chunks.push(chunk);
+    return Buffer.concat(chunks);
+  } finally {
+    await result.dispose();
+  }
 }
 
 test('cache key includes artwork, media, timing, dimensions and renderer identity', () => {
@@ -39,7 +55,7 @@ test('complete cache entries survive a fresh reader and preserve exact bytes', a
   assert.equal(await readCachedRender(data.root, key), null);
   await writeCachedRender(data.root, key, data);
   const hit = await readCachedRender(data.root, key);
-  assert.deepEqual(hit.video, data.video);
+  assert.deepEqual(await readVideo(hit), data.video);
   assert.equal(hit.manifest.sha256, data.manifest.sha256);
   assert.deepEqual(await readdir(data.root), [key]);
   await assert.rejects(readCachedRender(data.root, '../escape'), /Invalid scene cache key/);
@@ -49,16 +65,18 @@ test('corrupt or partial entries never return a cached video', async t => {
   const data = await fixture(t);
   const key = 'b'.repeat(64);
   await writeCachedRender(data.root, key, data);
-  await writeFile(join(data.root, key, 'scene.mp4'), Buffer.alloc(data.video.length));
+  const cachedVideo = join(data.root, key, 'scene.mp4');
+  await rm(cachedVideo);
+  await writeFile(cachedVideo, Buffer.alloc(data.video.length));
   assert.equal(await readCachedRender(data.root, key), null);
   await writeCachedRender(data.root, key, data);
-  assert.deepEqual((await readCachedRender(data.root, key)).video, data.video, 'corrupt entries must recover, not miss forever');
+  assert.deepEqual(await readVideo(await readCachedRender(data.root, key)), data.video, 'corrupt entries must recover, not miss forever');
   const partial = 'f'.repeat(64);
   await mkdir(join(data.root, partial));
   await writeFile(join(data.root, partial, 'manifest.json'), JSON.stringify(data.manifest));
   assert.equal(await readCachedRender(data.root, partial), null);
   await writeCachedRender(data.root, partial, data);
-  assert.deepEqual((await readCachedRender(data.root, partial)).video, data.video);
+  assert.deepEqual(await readVideo(await readCachedRender(data.root, partial)), data.video);
   assert.equal(await readCachedRender(data.root, 'c'.repeat(64)), null);
   const controller = new AbortController();
   controller.abort();
@@ -73,10 +91,12 @@ test('cache eviction is bounded, LRU and does not remove unrelated files', async
   await utimes(join(data.root, first), old, old);
   await writeCachedRender(data.root, second, data);
   await writeFile(join(data.root, 'keep.txt'), 'unrelated');
-  const size = data.video.length + (await readFile(join(data.root, second, 'manifest.json'))).length;
+  const size = data.bytes + (await readFile(join(data.root, second, 'manifest.json'))).length;
   await pruneRenderCache(data.root, size + 1);
   assert.equal(await readCachedRender(data.root, first), null);
-  assert.ok(await readCachedRender(data.root, second));
+  const retained = await readCachedRender(data.root, second);
+  assert.ok(retained);
+  await retained.dispose();
   assert.equal(await readFile(join(data.root, 'keep.txt'), 'utf8'), 'unrelated');
   await pruneRenderCache(data.root, 0);
   assert.equal(await readCachedRender(data.root, second), null);

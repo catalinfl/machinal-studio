@@ -64,7 +64,7 @@ func TestPreviewCannotPretendPartialRenderBillingOrMutateCaptionGeometry(t *test
 	}
 }
 
-func TestPreviewChargesFullCompositionRatherThanExcerptDuration(t *testing.T) {
+func TestPreviewChargesProcessingWindowWithoutChangingOriginalComposition(t *testing.T) {
 	store, err := credits.Open(filepath.Join(t.TempDir(), "credits.db"), time.Now)
 	if err != nil {
 		t.Fatal(err)
@@ -81,8 +81,8 @@ func TestPreviewChargesFullCompositionRatherThanExcerptDuration(t *testing.T) {
 	runner.render = func(ctx context.Context, _ string, plan composition.Composition, _ func(float64, string)) (ffmpeg.Output, error) {
 		called = true
 		usage, err := store.Operation("alice", "preview-full-basis")
-		if err != nil || usage.Render != 4*credits.UnitsPerCredit || plan.Duration != document.Seconds(120) {
-			t.Fatal("preview silently billed only the excerpt", usage, err, plan.Duration)
+		if err != nil || usage.Render != 0 || usage.RenderUsage["render"].DurationSeconds != 1 || plan.Duration != document.Seconds(120) {
+			t.Fatal("preview did not bill its actual processing window", usage, err, plan.Duration)
 		}
 		window, ok := render.PreviewFromContext(ctx)
 		if !ok || window.Duration != 1 {

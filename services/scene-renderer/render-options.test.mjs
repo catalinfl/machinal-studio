@@ -1,9 +1,21 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { renderOptions, rendererArgs } from './render-options.mjs';
+import { renderOptions, rendererArgs, renderConcurrency, sharedRenderResources } from './render-options.mjs';
 
 const GiB = 1024 ** 3;
 const config = { width: 1920, height: 1080, durationInFrames: 300 };
+
+test('parallel scenes share CPU/memory and stay serial on small servers', () => {
+  assert.equal(renderConcurrency({ cpus: 2, memory: 4 * GiB }), 1);
+  assert.equal(renderConcurrency({ cpus: 8, memory: GiB }), 1);
+  assert.equal(renderConcurrency({ cpus: 4, memory: 3 * GiB }), 2);
+  assert.equal(renderConcurrency({ cpus: 4, memory: 3 * GiB, pidsAvailable: 128 }), 1);
+  assert.equal(renderConcurrency({ cpus: 4, memory: 3 * GiB, pidsAvailable: 512 }), 2);
+  assert.equal(renderConcurrency({ cpus: 4, memory: 3 * GiB }, '1'), 1);
+  assert.equal(renderConcurrency({ cpus: 1, memory: GiB }, '2'), 1);
+  assert.throws(() => renderConcurrency({ cpus: 4, memory: 3 * GiB }, '4'), /SCENE_RENDER_CONCURRENCY/);
+  assert.deepEqual(sharedRenderResources({ cpus: 4, memory: 3 * GiB }, 2), { cpus: 2, memory: 1.5 * GiB });
+});
 
 test('automatic workers honor CPU, memory and frame count without changing quality', () => {
   const options = renderOptions(config, {}, { cpus: 4, memory: 3 * GiB });

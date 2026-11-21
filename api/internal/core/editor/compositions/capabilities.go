@@ -59,7 +59,8 @@ func generationCapabilities() map[string]any {
 		"compositionPreview": map[string]any{
 			"supported": true, "tool": "render_preview", "maxDurationSeconds": 15,
 			"resolvedAssetsOnly": true, "format": "mp4", "includesMixedAudio": true,
-			"billingBasis": "none-local-hardware", "processingBasis": "complete-composition-duration", "fullReferencedSceneRenderingBilled": false,
+			"billingBasis": "none-local-hardware", "processingBasis": "preview-work-window-including-temporal-dependencies", "fullReferencedSceneRenderingBilled": false,
+			"sceneFrameRanges": true, "unrelatedSourcesSkipped": true,
 			"excerptAtFinalEncoding": true, "automaticReviewLoop": false,
 		},
 		"captions": map[string]any{

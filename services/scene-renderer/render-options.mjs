@@ -2,6 +2,7 @@ import { availableParallelism, freemem } from 'node:os';
 import { readFile } from 'node:fs/promises';
 
 const MiB = 1024 * 1024;
+const minParallelScenePIDs = 384;
 const presets = new Set(['ultrafast', 'superfast', 'veryfast', 'faster', 'fast', 'medium', 'slow', 'slower', 'veryslow']);
 
 export function renderOptions(config, env = process.env, resources = {}) {
@@ -23,6 +24,17 @@ export function renderOptions(config, env = process.env, resources = {}) {
   return { workers, threads, preset, gpu: env.SCENE_ENABLE_GPU === 'true', lossless: true };
 }
 
+export function renderConcurrency(resources, value = 'auto') {
+  const safe = resources.cpus >= 4 && resources.memory >= 2304 * MiB
+    && (resources.pidsAvailable ?? Infinity) >= minParallelScenePIDs ? 2 : 1;
+  if (value === 'auto') return safe;
+  return Math.min(safe, integerOption(value, 'SCENE_RENDER_CONCURRENCY', 1, 2));
+}
+
+export function sharedRenderResources(resources, concurrency) {
+  return { cpus: Math.max(1, Math.floor(resources.cpus / concurrency)), memory: Math.floor(resources.memory / concurrency) };
+}
+
 function integerOption(value, name, min, max) {
   if (!/^\d+$/.test(value) || Number(value) < min || Number(value) > max) throw new Error(`${name} must be an integer from ${min} to ${max}`);
   return Number(value);
@@ -34,10 +46,11 @@ async function text(path) {
 
 export async function renderResources() {
   let cpus = availableParallelism();
-  const [quota, limit, current, meminfo, v1Quota, v1Period, v1Limit, v1Current] = await Promise.all([
+  const [quota, limit, current, meminfo, v1Quota, v1Period, v1Limit, v1Current, pidLimit, pidCurrent] = await Promise.all([
     text('/sys/fs/cgroup/cpu.max'), text('/sys/fs/cgroup/memory.max'), text('/sys/fs/cgroup/memory.current'), text('/proc/meminfo'),
     text('/sys/fs/cgroup/cpu/cpu.cfs_quota_us'), text('/sys/fs/cgroup/cpu/cpu.cfs_period_us'),
     text('/sys/fs/cgroup/memory/memory.limit_in_bytes'), text('/sys/fs/cgroup/memory/memory.usage_in_bytes'),
+    text('/sys/fs/cgroup/pids.max'), text('/sys/fs/cgroup/pids.current'),
   ]);
   const [amount, period] = quota.trim().split(/\s+/).map(Number);
   if (amount > 0 && period > 0) cpus = Math.min(cpus, Math.max(1, Math.floor(amount / period)));
@@ -47,7 +60,8 @@ export async function renderResources() {
   const cap = Number(limit) > 0 ? Number(limit) : Number(v1Limit);
   const used = Number(current || v1Current);
   if (cap > 0 && Number.isFinite(cap)) memory = Math.min(memory, Math.max(0, cap - used));
-  return { cpus, memory };
+  const pidsAvailable = Number(pidLimit) > 0 ? Math.max(0, Number(pidLimit) - Number(pidCurrent)) : Infinity;
+  return { cpus, memory, pidsAvailable };
 }
 
 export function rendererArgs(directory, filename, options) {

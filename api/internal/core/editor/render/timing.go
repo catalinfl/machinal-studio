@@ -111,7 +111,9 @@ func validateClipCompositing(clips []clip) error {
 
 func clipSourceDur(clip clip) float64 { return clip.OutPoint - clip.InPoint }
 
-func clipDurT(clip clip) float64 { return clipSourceDur(clip) / clipPlaybackRate(clip) }
+func clipDurT(clip clip) float64 {
+	return clipSourceDur(clip)/clipPlaybackRate(clip) - clip.previewPreroll
+}
 
 func clipEndT(clip clip) float64 { return clip.Start + clipDurT(clip) }
 
@@ -146,8 +148,8 @@ func hasClipCompositing(clip clip) bool {
 
 func videoSegmentFrameCount(clip clip, segment segment, fps int) int {
 	rate := clipPlaybackRate(clip)
-	startFrame := math.Round(math.Max(0, (segment.SrcStart-clip.InPoint)/rate) * float64(fps))
-	endFrame := math.Round(math.Max(0, (segment.SrcEnd-clip.InPoint)/rate) * float64(fps))
+	startFrame := math.Round(math.Max(0, (segment.SrcStart-clip.InPoint)/rate-clip.previewPreroll) * float64(fps))
+	endFrame := math.Round(math.Max(0, (segment.SrcEnd-clip.InPoint)/rate-clip.previewPreroll) * float64(fps))
 	return max(0, int(endFrame-startFrame))
 }
 

@@ -2,7 +2,7 @@ import { spawnSync } from 'node:child_process';
 import ffmpeg from 'ffmpeg-static';
 
 export function colorVideoSource() {
-  const result = spawnSync(ffmpeg, ['-v','error','-f','lavfi','-i','color=c=red:s=160x90:r=10:d=0.5','-f','lavfi','-i','color=c=blue:s=160x90:r=10:d=0.5','-filter_complex','[0:v][1:v]concat=n=2:v=1:a=0','-c:v','libx264','-pix_fmt','yuv420p','-movflags','frag_keyframe+empty_moov','-f','mp4','pipe:1'], {windowsHide:true});
+  const result = spawnSync(process.env.SCENE_FFMPEG || ffmpeg, ['-v','error','-f','lavfi','-i','color=c=red:s=160x90:r=10:d=0.5','-f','lavfi','-i','color=c=blue:s=160x90:r=10:d=0.5','-filter_complex','[0:v][1:v]concat=n=2:v=1:a=0','-c:v','libx264','-pix_fmt','yuv420p','-movflags','frag_keyframe+empty_moov','-f','mp4','pipe:1'], {windowsHide:true});
   if (result.status !== 0) throw new Error(`Video fixture failed: ${result.stderr}`);
   return `data:video/mp4;base64,${result.stdout.toString('base64')}`;
 }

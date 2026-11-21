@@ -4,7 +4,8 @@ import { chromium } from '@playwright/test';
 import { spawnSync } from 'node:child_process';
 import { modelFixture, modelComponent } from './fixtures/model-fixture.mjs';
 import { inspectEvidence } from './evidence.mjs';
-import { compileComponent, renderComponent } from './render.mjs';
+import { compileComponent } from './render.mjs';
+import { renderComponent } from './test-render.mjs';
 import { imageDataURL } from './image-fixture.mjs';
 
 const config = {width:320,height:180,fps:10,durationInFrames:10,visualMode:'3d'};

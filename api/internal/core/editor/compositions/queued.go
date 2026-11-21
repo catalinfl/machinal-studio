@@ -37,11 +37,11 @@ func (runner *JobRunner) RunQueued(generate bool) fiber.Handler {
 			if err := validatePreviewPlan(*preview, result); err != nil {
 				return fiber.NewError(fiber.StatusUnprocessableEntity, err.Error())
 			}
+			ctx = render.WithPreviewWindow(ctx, *preview)
 			result, err = prepareAutomationRender(ctx, input, root, session)
 			if err != nil {
 				return fiber.NewError(fiber.StatusUnprocessableEntity, "Preview source or text preparation failed; no new generation was requested.")
 			}
-			ctx = render.WithPreviewWindow(ctx, *preview)
 		} else if generate {
 			result, err = prepareAutomationRender(ctx, input, root, session)
 			if err != nil {
@@ -59,7 +59,17 @@ func (runner *JobRunner) RunQueued(generate bool) fiber.Handler {
 				return fiber.NewError(422, err.Error())
 			}
 		}
+		var previewFiles map[string]bool
+		if preview != nil {
+			previewFiles, err = render.PreviewSourceFiles(*result.Composition, *preview)
+			if err != nil {
+				return fiber.NewError(422, "Preview sources could not be resolved.")
+			}
+		}
 		for _, asset := range result.Composition.Assets {
+			if previewFiles != nil && !previewFiles[asset.File] {
+				continue
+			}
 			media.WarmSession(ctx, session, root, asset.File)
 		}
 		return runner.renderQueued(c, ctx, root, session, result)
@@ -67,7 +77,15 @@ func (runner *JobRunner) RunQueued(generate bool) fiber.Handler {
 }
 
 func (runner *JobRunner) renderQueued(c *fiber.Ctx, ctx context.Context, root, session string, result composition.Result) error {
-	if err := credits.ChargeRender(ctx, result.Composition.Duration.Seconds()); err != nil {
+	processedDuration := result.Composition.Duration.Seconds()
+	if preview, present := render.PreviewFromContext(ctx); present {
+		var err error
+		processedDuration, err = render.PreviewProcessingDuration(*result.Composition, preview)
+		if err != nil {
+			return fiber.NewError(422, "Preview processing interval could not be resolved.")
+		}
+	}
+	if err := credits.ChargeRender(ctx, processedDuration); err != nil {
 		return fiber.NewError(402, "Not enough credits for this render.")
 	}
 	output, err := runner.render(ctx, root, *result.Composition, func(ratio float64, message string) {
@@ -88,8 +106,8 @@ func (runner *JobRunner) renderQueued(c *fiber.Ctx, ctx context.Context, root, s
 		"documentRevision": result.Document.Revision, "cost": completedRenderCost(ctx)}
 	if preview, present := render.PreviewFromContext(ctx); present {
 		response["preview"] = preview
-		response["billingBasis"] = "complete-composition-duration; referenced scenes retain full scene-render billing"
-		response["processedDuration"] = result.Composition.Duration.Seconds()
+		response["billingBasis"] = "preview-work-window-including-temporal-dependencies; rendered source scene frame ranges billed separately"
+		response["processedDuration"] = processedDuration
 	} else {
 		if err := retainProjectComposition(c, result, output.Filename); err != nil {
 			response["projectWarning"] = err.Error()

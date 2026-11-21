@@ -51,16 +51,18 @@ for (const [index, count] of workers.entries()) {
   const started = performance.now();
   await resources(`${label}-start`);
   const sampling = setInterval(() => { resources(label).catch(error => console.warn('diagnostic_sampling_failed', error.message)); }, 5000);
+  let result;
   try {
-    const result = await renderComponent(input, new AbortController().signal, { requestId: label });
+    result = await renderComponent(input, new AbortController().signal, { requestId: label });
     const { scene, ...manifest } = result.manifest;
     await writeFile(join(output, `${label}.manifest.json`), JSON.stringify(manifest, null, 2), { flag: 'wx' });
-    summary.push({ label, success: true, elapsedMs: Math.round(performance.now() - started), bytes: result.video.length, metrics: manifest.metrics });
+    summary.push({ label, success: true, elapsedMs: Math.round(performance.now() - started), bytes: result.bytes, metrics: manifest.metrics });
   } catch (error) {
     const failure = { label, success: false, elapsedMs: Math.round(performance.now() - started), message: error.message.slice(0, 2000), stderrTail: String(error.stderr ?? '').slice(-8192) };
     console.error('diagnostic_render_failed', failure);
     summary.push(failure);
   } finally {
+    await result?.dispose();
     clearInterval(sampling);
     await resources(`${label}-end`);
     await writeFile(join(output, 'summary.json'), JSON.stringify(summary, null, 2));

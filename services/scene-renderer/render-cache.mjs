@@ -1,9 +1,10 @@
 import { createHash } from 'node:crypto';
-import { mkdir, mkdtemp, readFile, readdir, rename, rm, stat, utimes, writeFile } from 'node:fs/promises';
+import { copyFile, link, mkdir, mkdtemp, readFile, readdir, rename, rm, stat, utimes, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { arch, platform, release } from 'node:os';
 import { rendererExecutable } from './renderer.mjs';
 import { executableFingerprints, executablePath } from './renderer-fingerprint.mjs';
+import { openRenderFile } from './render-file.mjs';
 
 // Full-length lossless Full HD scenes can exceed 512 MiB; keep the API receiver in sync.
 export const maxRenderBytes = 1024 * 1024 * 1024;
@@ -11,8 +12,6 @@ const maxManifestBytes = 256 * 1024;
 const defaultCacheBytes = 2 * 1024 * 1024 * 1024;
 const cacheMaxAgeMs = 7 * 24 * 60 * 60 * 1000;
 const identities = new Map();
-
-function digest(bytes) { return createHash('sha256').update(bytes).digest('hex'); }
 
 function canonical(value) {
   if (Array.isArray(value)) return value.map(canonical);
@@ -22,7 +21,7 @@ function canonical(value) {
 
 export function cacheKey(bundle, html, input, identity) {
   return createHash('sha256').update(bundle).update('\0').update(html).update('\0')
-    .update(JSON.stringify(canonical({ config: input.config, images: input.images ?? {}, videos: input.videos ?? {}, parameters: input.parameters ?? {}, models: input.models ?? {}, identity }))).digest('hex');
+    .update(JSON.stringify(canonical({ config: input.config, range: input.range ?? null, images: input.images ?? {}, videos: input.videos ?? {}, parameters: input.parameters ?? {}, models: input.models ?? {}, identity }))).digest('hex');
 }
 
 export async function rendererIdentity(options, env = process.env) {
@@ -63,10 +62,11 @@ export async function readCachedRender(root, key, signal) {
     const filename = manifest.transparent ? 'scene.webm' : 'scene.mp4';
     const videoInfo = await stat(join(entry, filename));
     if (videoInfo.size <= 0 || videoInfo.size > maxRenderBytes || videoInfo.size !== manifest.size) return await discard();
-    const video = await readFile(join(entry, filename), { signal });
-    if (digest(video) !== manifest.sha256) return await discard();
-    await utimes(entry, new Date(), new Date());
-    return { manifest, video };
+    const result = await openRenderFile(join(entry, filename), manifest, { signal, maxBytes: maxRenderBytes });
+    if (result.manifest.sha256 !== manifest.sha256) { await result.dispose(); return await discard(); }
+    try { await utimes(entry, new Date(), new Date()); }
+    catch (error) { await result.dispose(); throw error; }
+    return result;
   } catch (error) {
     signal?.throwIfAborted();
     if (error.code !== 'ENOENT') {
@@ -77,13 +77,18 @@ export async function readCachedRender(root, key, signal) {
 }
 
 export async function writeCachedRender(root, key, result, maxBytes = defaultCacheBytes) {
-  if (!root || result.video.length > maxBytes) return;
+  if (!root || result.bytes > maxBytes) return;
   const entry = entryPath(root, key);
   await mkdir(root, { recursive: true, mode: 0o700 });
   const staging = await mkdtemp(join(root, '.pending-'));
   try {
-    const manifest = { ...result.manifest, size: result.video.length, sha256: digest(result.video) };
-    await writeFile(join(staging, manifest.transparent ? 'scene.webm' : 'scene.mp4'), result.video, { mode: 0o600 });
+    const manifest = result.manifest;
+    const destination = join(staging, manifest.transparent ? 'scene.webm' : 'scene.mp4');
+    try { await link(result.path, destination); }
+    catch (error) {
+      if (!['EXDEV', 'EPERM', 'EACCES', 'ENOSYS', 'ENOTSUP'].includes(error.code)) throw error;
+      await copyFile(result.path, destination);
+    }
     await writeFile(join(staging, 'manifest.json'), JSON.stringify(manifest), { mode: 0o600 });
     try { await rename(staging, entry); }
     catch (error) {

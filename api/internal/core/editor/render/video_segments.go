@@ -2,6 +2,7 @@ package render
 
 import (
 	"fmt"
+	"math"
 	"path/filepath"
 	"strconv"
 
@@ -70,20 +71,10 @@ func renderVideoSegment(task videoSegmentTask, weight float64, w, h, fps int, wo
 		return "", fmt.Errorf("resolve clip %d: %w", task.clipIndex, err)
 	}
 	duration := (part.SrcEnd - part.SrcStart) / clipPlaybackRate(moving)
-	effectFilter, err := buildFilterForDuration(part.Effects, duration)
+	videoFilter, effectFilter, err := videoSegmentFilter(moving, part, w, h, fps, fit)
 	if err != nil {
-		return "", fmt.Errorf("clip %d segment %d filter: %w", task.clipIndex, task.segmentIndex, err)
+		return "", err
 	}
-	cadencedEffect := "fps=" + strconv.Itoa(fps)
-	if effectFilter != "" {
-		cadencedEffect += "," + effectFilter
-	}
-	videoFilter := videoClipFilter(moving, cadencedEffect, videoFitFilter(w, h, fit, "")+",fps="+strconv.Itoa(fps))
-	segmentOffset := (part.SrcStart - moving.InPoint) / clipPlaybackRate(moving)
-	if transformFilter := clipTransformFilter(moving, w, h, segmentOffset, duration, fps); transformFilter != "" {
-		videoFilter += "," + transformFilter
-	}
-	videoFilter += "," + exactVideoFrameFilter(fps, videoSegmentFrameCount(moving, part, fps))
 	inputArgs := append(segmentInputArgs(part, moving.MediaKind), sceneDecoderArgs(moving)...)
 	debugVideoSegment(task.clipIndex, task.segmentIndex, moving.File, part, clipPlaybackRate(moving), effectFilter, videoFilter, inputArgs, inputPath)
 	piece := filepath.Join(work, fmt.Sprintf("vc%d_s%d.mp4", task.clipIndex, task.segmentIndex))
@@ -95,4 +86,30 @@ func renderVideoSegment(task videoSegmentTask, weight float64, w, h, fps int, wo
 		return "", fmt.Errorf("ffmpeg segment error (clip %d seg %d): %w", task.clipIndex, task.segmentIndex, err)
 	}
 	return piece, nil
+}
+
+func videoSegmentFilter(moving clip, part segment, w, h, fps int, fit document.VideoFit) (string, string, error) {
+	duration := (part.SrcEnd - part.SrcStart) / clipPlaybackRate(moving)
+	effectFilter, err := buildFilterForDuration(part.Effects, duration)
+	if err != nil {
+		return "", "", fmt.Errorf("build video segment filter: %w", err)
+	}
+	cadencedEffect := "fps=" + strconv.Itoa(fps)
+	if effectFilter != "" {
+		cadencedEffect += "," + effectFilter
+	}
+	videoFilter := videoClipFilter(moving, cadencedEffect, videoFitFilter(w, h, fit, "")+",fps="+strconv.Itoa(fps))
+	if moving.previewPreroll > 0 {
+		videoFilter += previewPrerollFilter(moving, fps)
+	}
+	segmentOffset := (part.SrcStart - moving.InPoint) / clipPlaybackRate(moving)
+	if transformFilter := clipTransformFilter(moving, w, h, segmentOffset, duration, fps); transformFilter != "" {
+		videoFilter += "," + transformFilter
+	}
+	videoFilter += "," + exactVideoFrameFilter(fps, videoSegmentFrameCount(moving, part, fps))
+	return videoFilter, effectFilter, nil
+}
+
+func previewPrerollFilter(moving clip, fps int) string {
+	return fmt.Sprintf(",trim=start_frame=%d,setpts=PTS-STARTPTS", int(math.Round(moving.previewPreroll*float64(fps))))
 }

@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { readFile, realpath } from 'node:fs/promises';
+import { sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 import { spawnSync } from 'node:child_process';
@@ -14,7 +15,8 @@ test('the service installs the versioned registry library, not a local workspace
   assert.match(lock.packages['node_modules/@machinal/scenes'].resolved, /^https:\/\/registry\.npmjs\.org\//);
   assert.ok(lock.packages['node_modules/@machinal/scenes'].integrity);
   const renderer = await rendererExecutable({});
-  assert.ok(renderer.startsWith(fileURLToPath(new URL('./node_modules/@machinal/scenes/', import.meta.url))));
+  const packageRoot = await realpath(new URL('./node_modules/@machinal/scenes/', import.meta.url));
+  assert.ok((await realpath(renderer)).startsWith(packageRoot + sep));
   assert.equal(await rendererExecutable({ SCENE_RENDER_BIN: 'custom-renderer' }), 'custom-renderer');
 });
 
