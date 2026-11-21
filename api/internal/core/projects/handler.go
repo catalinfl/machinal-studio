@@ -57,39 +57,13 @@ func (s *Store) CreateHandler(c *fiber.Ctx) error {
 }
 
 func (s *Store) GetHandler(c *fiber.Ctx) error {
-	project, err := s.Get(auth.UserID(c), c.Params("projectID"))
-	if err == nil {
-		err = s.activate(auth.UserID(c), project.Summary)
-	}
+	stream, err := s.openResponse(c.UserContext(), auth.UserID(c), c.Params("projectID"))
 	if err != nil {
 		return projectError(c, err)
 	}
-	presentation := Presentation{}
-	warning := ""
-	if s.Presentations != nil {
-		presentation, err = s.Presentations.Load(c.UserContext(), auth.UserID(c), project.SessionID)
-		if err != nil {
-			log.Printf("load project presentation %s: %v", project.ID, err)
-			warning = "The prepared composition could not be loaded. Your saved timeline is safe; reload the project to retry."
-		}
-	}
-	project.Presentation = &presentation
-	project.PresentationWarning = warning
-	prepared := presentation.Prepared
-	if prepared == nil {
-		prepared = presentation.LastRender
-	}
-	if warning == "" && prepared != nil && prepared.Document != nil && prepared.Composition != nil {
-		updated, applyErr := s.ApplyPrepared(auth.UserID(c), project.SessionID, *prepared)
-		if applyErr != nil {
-			log.Printf("prepare project timeline %s: %v", project.ID, applyErr)
-			project.PresentationWarning = "The prepared timeline could not be saved. Reload the project to retry; existing edits were kept."
-		} else {
-			updated.Presentation = project.Presentation
-			project = updated
-		}
-	}
-	return sendProject(c, project, fiber.StatusOK)
+	c.Set(fiber.HeaderCacheControl, "no-store")
+	c.Set(fiber.HeaderContentType, fiber.MIMEApplicationJSONCharsetUTF8)
+	return c.SendStream(stream, int(stream.size))
 }
 
 func sendProject(c *fiber.Ctx, project Project, status int) error {
@@ -109,9 +83,9 @@ func sendProject(c *fiber.Ctx, project Project, status int) error {
 }
 
 func (s *Store) ScopeAPI(c *fiber.Ctx) error {
-	project, err := s.Get(auth.UserID(c), c.Params("projectID"))
+	project, err := s.GetSummary(auth.UserID(c), c.Params("projectID"))
 	if err == nil {
-		err = s.activate(auth.UserID(c), project.Summary)
+		err = s.activate(auth.UserID(c), project)
 	}
 	if err != nil {
 		return projectError(c, err)

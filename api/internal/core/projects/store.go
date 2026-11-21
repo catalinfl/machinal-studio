@@ -162,7 +162,7 @@ func (s *Store) write(owner string, project Project) error {
 	if err := file.Close(); err != nil {
 		return fmt.Errorf("close project: %w", err)
 	}
-	if err := os.Rename(file.Name(), path); err != nil {
+	if err := publishJSONFile(file.Name(), path); err != nil {
 		return fmt.Errorf("publish project: %w", err)
 	}
 	return nil
@@ -208,7 +208,7 @@ func (s *Store) Create(owner, name string) (Project, error) {
 func (s *Store) Update(owner, id, name string, version int, state json.RawMessage) (Project, error) {
 	projectsMu.Lock()
 	defer projectsMu.Unlock()
-	project, err := s.read(owner, id)
+	project, err := s.readForUpdate(owner, id, state)
 	if err != nil {
 		return Project{}, err
 	}
@@ -235,4 +235,16 @@ func (s *Store) Update(owner, id, name string, version int, state json.RawMessag
 		return Project{}, err
 	}
 	return project, nil
+}
+
+func (s *Store) readForUpdate(owner, id string, state json.RawMessage) (Project, error) {
+	if state == nil {
+		return s.read(owner, id)
+	}
+	// A complete replacement does not need a second copy of the old timeline.
+	summary, err := s.readSummary(owner, id)
+	if errors.Is(err, os.ErrNotExist) {
+		return Project{}, ErrNotFound
+	}
+	return Project{Summary: summary}, err
 }

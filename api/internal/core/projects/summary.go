@@ -2,6 +2,7 @@ package projects
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -9,6 +10,16 @@ import (
 
 // Store.write puts Summary before State, so listing never needs the editor payload.
 const maxSummaryBytes = 4 << 10
+
+func (s *Store) GetSummary(owner, id string) (Summary, error) {
+	projectsMu.Lock()
+	defer projectsMu.Unlock()
+	summary, err := s.readSummary(owner, id)
+	if errors.Is(err, os.ErrNotExist) {
+		return Summary{}, ErrNotFound
+	}
+	return summary, err
+}
 
 func (s *Store) readSummary(owner, id string) (Summary, error) {
 	path, err := s.path(owner, id)
@@ -20,7 +31,11 @@ func (s *Store) readSummary(owner, id string) (Summary, error) {
 		return Summary{}, fmt.Errorf("open project summary: %w", err)
 	}
 	defer file.Close()
-	decoder := json.NewDecoder(io.LimitReader(file, maxSummaryBytes))
+	return decodeSummary(file, id)
+}
+
+func decodeSummary(reader io.Reader, id string) (Summary, error) {
+	decoder := json.NewDecoder(io.LimitReader(reader, maxSummaryBytes))
 	opening, err := decoder.Token()
 	if err != nil || opening != json.Delim('{') {
 		return Summary{}, fmt.Errorf("decode project summary: %w", ErrInvalid)

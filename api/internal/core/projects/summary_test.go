@@ -10,12 +10,17 @@ import (
 
 func projectWithLargeState(t testing.TB) (*Store, Project) {
 	t.Helper()
+	return projectWithStatePayload(t, 8<<20)
+}
+
+func projectWithStatePayload(t testing.TB, size int) (*Store, Project) {
+	t.Helper()
 	store := testStore(t.TempDir())
 	project, err := store.Create("alice", "Film")
 	if err != nil {
 		t.Fatal(err)
 	}
-	state := json.RawMessage(`{"schemaVersion":1,"timeline":{"channels":[]},"media":[{"scene":{"javascript":"` + strings.Repeat("x", 8<<20) + `"}}]}`)
+	state := json.RawMessage(`{"schemaVersion":1,"timeline":{"channels":[]},"media":[{"scene":{"javascript":"` + strings.Repeat("x", size) + `"}}]}`)
 	project, err = store.Update("alice", project.ID, project.Name, project.Version, state)
 	if err != nil {
 		t.Fatal(err)

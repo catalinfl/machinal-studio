@@ -105,8 +105,9 @@ async function setup(page: Page, voice = false, source = liveSource) {
 
 async function multimediaSource() {
   const config = {width:320,height:180,fps:10,durationInFrames:10}
-  const {javascript} = await compileComponent({component:multimediaComponent,config})
-  return {version:1,component:multimediaComponent,javascript,config,videos:{video_1:colorVideoSource()},explanation:'A rotating 3D cube alongside silent, frame-synchronized footage with a black-and-white treatment.'}
+  const videos = {video_1:colorVideoSource()}
+  const {javascript} = await compileComponent({component:multimediaComponent,config,videos})
+  return {version:1,component:multimediaComponent,javascript,config,videos,explanation:'A rotating 3D cube alongside silent, frame-synchronized footage with a black-and-white treatment.'}
 }
 
 test('3D design, separate copy and video looks survive reopening and produce moving timeline frames', async ({page}) => {

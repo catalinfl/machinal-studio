@@ -79,9 +79,9 @@ export function projectStateForOpen(state: ProjectState | null, presentation?: P
   const prepared = presentation?.prepared ?? presentation?.lastRender
   if (state?.preparedCompositionId) {
     const session = state.timeline.documentSession
-    if (isPreparedProjectPristine(state)
+    if (prepared?.composition && prepared.composition.id !== state.preparedCompositionId
       && session?.kind === 'ready' && session.composition.id === state.preparedCompositionId
-      && prepared?.composition && prepared.composition.id !== state.preparedCompositionId) return preparedProjectState(prepared, state.media) ?? state
+      && isPreparedProjectPristine(state)) return preparedProjectState(prepared, state.media) ?? state
     return state
   }
   // An existing document session also represents an intentionally cleared timeline.

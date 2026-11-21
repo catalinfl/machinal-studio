@@ -208,7 +208,7 @@ func TestProjectFingerprintMatchesBrowserCanonicalFixture(t *testing.T) {
 	}
 }
 
-func TestProjectLoadRepairsLegacyMediaOnlyStateFromRetainedComposition(t *testing.T) {
+func TestProjectLoadLeavesLegacyRecoveryToBrowserWithoutRewritingState(t *testing.T) {
 	previous := storage.DataDir
 	storage.DataDir = t.TempDir()
 	t.Cleanup(func() { storage.DataDir = previous })
@@ -217,8 +217,9 @@ func TestProjectLoadRepairsLegacyMediaOnlyStateFromRetainedComposition(t *testin
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := store.Update("alice", project.ID, project.Name, project.Version,
-		json.RawMessage(`{"schemaVersion":1,"timeline":{"channels":[]},"media":[{"name":"poster.png","displayName":"Keep me"}]}`)); err != nil {
+	project, err = store.Update("alice", project.ID, project.Name, project.Version,
+		json.RawMessage(`{"schemaVersion":1,"timeline":{"channels":[]},"media":[{"name":"poster.png","displayName":"Keep me"}]}`))
+	if err != nil {
 		t.Fatal(err)
 	}
 	if err := store.Presentations.Save("alice", project.SessionID, editableFixture()); err != nil {
@@ -235,11 +236,14 @@ func TestProjectLoadRepairsLegacyMediaOnlyStateFromRetainedComposition(t *testin
 	if err := json.NewDecoder(response.Body).Decode(&loaded); err != nil {
 		t.Fatal(err)
 	}
-	if response.StatusCode != 200 || loaded.Version != 3 {
-		t.Fatalf("project did not recover its editable timeline: %d %+v", response.StatusCode, loaded.Summary)
+	if response.StatusCode != 200 || loaded.Version != project.Version || string(loaded.State) != string(project.State) {
+		t.Fatalf("viewing changed the saved project: %d %+v", response.StatusCode, loaded.Summary)
+	}
+	if loaded.Presentation == nil || loaded.Presentation.Prepared == nil || loaded.Presentation.Prepared.Composition.ID != "compiled" {
+		t.Fatal("browser did not receive the retained composition for legacy recovery")
 	}
 	persisted, err := store.Get("alice", project.ID)
-	if err != nil || string(persisted.State) != string(loaded.State) {
-		t.Fatal("recovered timeline was only returned, not persisted")
+	if err != nil || string(persisted.State) != string(project.State) || persisted.Version != project.Version {
+		t.Fatal("opening a project rewrote its timeline or version")
 	}
 }

@@ -133,7 +133,7 @@ func (s *PresentationStore) write(owner, session string, saved Presentation) err
 	if err := file.Close(); err != nil {
 		return fmt.Errorf("close project presentation: %w", err)
 	}
-	if err := os.Rename(file.Name(), path); err != nil {
+	if err := publishJSONFile(file.Name(), path); err != nil {
 		return fmt.Errorf("publish project presentation: %w", err)
 	}
 	return nil

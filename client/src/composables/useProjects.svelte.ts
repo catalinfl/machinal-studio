@@ -77,7 +77,8 @@ export function useProjects() {
       remember(project.id)
       const recovered = state !== project.state
       preparedStateFingerprint = recovered || pristine ? projectStateFingerprint(captureProjectState()) : state?.preparedStateFingerprint
-      const normalized = pristine && preparedStateFingerprint !== state?.preparedStateFingerprint
+      const compacted = state?.media.some(source => source.scene !== undefined)
+      const normalized = compacted || pristine && preparedStateFingerprint !== state?.preparedStateFingerprint
       lastSaved = project.state && !recovered && !normalized ? JSON.stringify(captureState()) : ''
       loaded = true
       phase = { kind: 'ready' }

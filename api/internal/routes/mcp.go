@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"os"
@@ -11,6 +13,7 @@ import (
 	"sync"
 
 	"ffmpeg-go-server/internal/core/media"
+	"ffmpeg-go-server/internal/core/projects"
 	"ffmpeg-go-server/internal/platform/auth"
 	"ffmpeg-go-server/internal/platform/credits"
 	"ffmpeg-go-server/internal/platform/mcpserver"
@@ -114,11 +117,38 @@ func internalAPICaller(app *fiber.App, local ...bool) mcpserver.Caller {
 		// Dispatch through the real /v1 middleware, including key revocation,
 		// ownership, shared rate limits, pricing and persistent job admission.
 		handler()(&nested)
-		if nested.Response.IsBodyStream() || len(nested.Response.Body()) > mcpserver.MaxResultBytes {
-			return mcpserver.Response{}, mcpserver.ErrResultTooLarge
+		body, err := internalAPIResponseBody(&nested.Response, operation)
+		if err != nil {
+			return mcpserver.Response{}, err
 		}
-		response := mcpserver.Response{StatusCode: nested.Response.StatusCode(), Header: make(http.Header), Body: bytes.Clone(nested.Response.Body())}
+		response := mcpserver.Response{StatusCode: nested.Response.StatusCode(), Header: make(http.Header), Body: body}
 		nested.Response.Header.VisitAll(func(key, value []byte) { response.Header.Add(string(key), string(value)) })
 		return response, nil
 	}
+}
+
+func internalAPIResponseBody(response *fasthttp.Response, operation mcpserver.Request) ([]byte, error) {
+	if !response.IsBodyStream() {
+		body := response.Body()
+		if len(body) > mcpserver.MaxResultBytes {
+			return nil, mcpserver.ErrResultTooLarge
+		}
+		return bytes.Clone(body), nil
+	}
+	path, _, _ := strings.Cut(operation.Path, "?")
+	id, projectRead := strings.CutPrefix(strings.TrimRight(path, "/"), "/v1/projects/")
+	if operation.Method != http.MethodGet || !projectRead || !projects.ValidID(id) ||
+		!bytes.HasPrefix(response.Header.ContentType(), []byte(fiber.MIMEApplicationJSON)) ||
+		response.Header.ContentLength() > mcpserver.MaxResultBytes {
+		return nil, mcpserver.ErrResultTooLarge
+	}
+	// MCP needs bounded structured JSON, never an unbounded media stream.
+	body, err := io.ReadAll(io.LimitReader(response.BodyStream(), mcpserver.MaxResultBytes+1))
+	if err != nil {
+		return nil, fmt.Errorf("read internal project response: %w", err)
+	}
+	if len(body) > mcpserver.MaxResultBytes {
+		return nil, mcpserver.ErrResultTooLarge
+	}
+	return body, nil
 }
