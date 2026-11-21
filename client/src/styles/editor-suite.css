@@ -24,12 +24,12 @@
   --action: #c6adff;
   --action-hover: #d5c2ff;
   --action-ink: #262a30;
-  --ribbon: light-dark(#eee7f8, #b6a3cf);
-  --ribbon-ink: #30233f;
-  --ribbon-hover: light-dark(#dfd2ef, #c9b8df);
-  --ribbon-active: #7047c7;
-  --ribbon-active-ink: #ffffff;
-  --ribbon-ring: #49287d;
+  --ribbon: var(--surface);
+  --ribbon-ink: var(--muted-foreground);
+  --ribbon-hover: light-dark(#f0edf3, #2e2939);
+  --ribbon-active: var(--primary-subtle);
+  --ribbon-active-ink: var(--primary);
+  --ribbon-ring: var(--ring);
   --destructive: light-dark(#b03e56, #f4a0b3);
   --destructive-subtle: light-dark(#fae6eb, #422b39);
   --destructive-foreground: light-dark(#ffffff, #321823);
@@ -115,13 +115,15 @@
 .editor-suite .editor-taskbar nav button { display: inline-flex; align-items: center; justify-content: center; min-height: 34px; gap: 7px; padding: 6px 13px; border: 0; border-radius: 3px; background: transparent; color: var(--ribbon-ink); font-size: 12px; font-weight: 500; cursor: pointer; white-space: nowrap; }
 .editor-suite .editor-taskbar nav button:hover:not(:disabled):not(.active) { background: var(--ribbon-hover); }
 .editor-suite .editor-taskbar nav button.active { background: var(--ribbon-active); color: var(--ribbon-active-ink); }
+.editor-suite :is(.editor-taskbar nav button, .mobile-panels .ptab) { position: relative; }
+.editor-suite :is(.editor-taskbar nav button, .mobile-panels .ptab).active::after { position: absolute; right: 12px; bottom: 0; left: 12px; height: 2px; border-radius: var(--radius-sm); background: var(--ribbon-active-ink); content: ''; }
 .editor-suite .editor-taskbar nav button:disabled { opacity: .5; cursor: wait; }
 .editor-suite .editor-taskbar nav svg { width: 17px; height: 17px; }
 .editor-suite .editor-taskbar button:focus-visible { outline-color: var(--ribbon-ring); }
 
-.editor-suite .editor-tool-ribbon { flex: 0 0 auto; min-width: 0; background: var(--ribbon); color: var(--ribbon-ink); }
+.editor-suite .editor-tool-ribbon { flex: 0 0 auto; min-width: 0; border-bottom: 1px solid var(--border); background: var(--ribbon); color: var(--ribbon-ink); }
 .editor-suite .editor-tool-ribbon-track { display: flex; align-items: center; min-width: 0; }
-.editor-suite .editor-creation-actions { display: flex; align-items: center; flex: 0 0 auto; gap: 3px; margin-left: auto; margin-right: 16px; padding-left: 12px; border-left: 1px solid color-mix(in srgb, var(--ribbon-ink) 25%, transparent); }
+.editor-suite .editor-creation-actions { display: flex; align-items: center; flex: 0 0 auto; gap: 3px; margin-left: auto; margin-right: 16px; padding-left: 12px; border-left: 1px solid var(--border); }
 .editor-suite .editor-creation-actions :is(.scene-action, .document-button) { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 34px; padding: 6px 13px; border: 0; border-radius: 3px; background: transparent; color: var(--ribbon-ink); font: 500 12px / 1.4 var(--font-sans); white-space: nowrap; cursor: pointer; }
 .editor-suite .editor-creation-actions :is(.scene-action, .document-button):hover { background: var(--ribbon-hover); color: var(--ribbon-ink); }
 .editor-suite .editor-creation-actions :is(.scene-action, .document-button):focus-visible { outline: 2px solid var(--ribbon-ring); outline-offset: 2px; }

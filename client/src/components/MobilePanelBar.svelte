@@ -128,7 +128,7 @@
       stroke-linecap: round;
       stroke-linejoin: round;
     }
-    .ptab:hover {
+    .ptab:hover:not(:disabled):not(.active) {
       background: var(--surface-muted);
       color: var(--foreground);
     }
