@@ -70,6 +70,19 @@ checks build-fingerprint reuse/fallback and unchanged cache identity/integrity.
 These tests use synthetic files and do not request provider generation or a real
 production render.
 
+For media page-cache changes, run these tests from `api/`:
+
+```sh
+go test ./internal/platform/filecache ./internal/platform/objectstore ./internal/platform/mediacache ./internal/core/editor/render ./internal/core/media ./internal/core/projects
+```
+
+The Railway build runs these packages on Linux as well. The Linux file-cache test
+starts with a newly written, unflushed synthetic file, checks `mincore` residency
+before/after release, and verifies persisted bytes and the still-open descriptor's
+offset. It also rejects symlinks, directories and FIFOs. Windows runs only the
+portable staging/publication regressions; an advisory-eviction skip is not proof
+of reduced Linux residency.
+
 ## Browser editor integration
 
 For the account flows, use an explicit isolated port when another project may already own 5173:

@@ -109,8 +109,42 @@ worker alive. Failure/unsupported advice is logged and never turns a successful
 render into a failed job. `scene_worker page_cache_release` logs total, anonymous,
 file and kernel memory before/after, plus advice/failure counts. Advice counts are
 not reclaimed bytes; dirty, mapped or shared pages and filesystem behavior mean
-there is no guaranteed idle-memory target. Source media/final outputs under
-`/data` retain their existing storage and publication policies.
+there is no guaranteed idle-memory target.
+
+### Media page-cache lifetime
+
+Linux render paths favor low idle RAM over warm disk reads. Once a source has
+been copied and version-checked into a composition's private staging directory,
+its original descriptor is flushed and advised with `POSIX_FADV_DONTNEED`.
+Legacy exports release their named source files after the FFmpeg passes finish.
+The completed output is released after encoding, and S3 publication releases its
+descriptor again after hashing/uploading so publication does not leave it warm.
+Failed upload attempts also release their descriptor while retaining local bytes.
+
+Saved-project and prepared-presentation snapshots follow the same policy after
+atomic writes, complete reads and streamed-response closure. Media HTTP streams
+release their descriptors only on response closure (including partial/cancelled
+transfers), not when the handler returns. Thumbnail/metadata/proxy generation
+releases local source pages after generation and completed disk-cache entries
+after publication; remote sources are not opened locally for reclamation.
+
+The targeted flush is necessary because newly written files can still have dirty
+pages that `DONTNEED` alone will not discard. Temporary render/staging files retain
+their existing deletion lifecycle. Files remain on disk and are reread as needed;
+no media deletion, recursive `/data` scan, global `drop_caches`, new background
+worker or privileged kernel configuration is involved. Advice failures are logged
+without changing a render/upload result. Non-Linux platforms keep existing behavior.
+In-use/mapped pages and subsequent readers can retain or repopulate cache: this is
+not a zero-RAM guarantee or a change to runtime/decoded-frame memory requirements.
+
+Verification used the Linux test executable on the existing Railway `/data`
+volume as UID/GID 10001, with only temporary synthetic files. A newly written
+5.5 MiB file went from 1,408 resident pages to zero after release, with identical
+persisted bytes and an unchanged open-descriptor position. The test also rejected
+symlinks, directories and FIFOs. All temporary diagnostic files were removed.
+This establishes targeted eviction on that filesystem, not an end-to-end render
+memory benchmark. The portable full Go suite, `go vet ./...` and documentation
+checks also passed before deployment.
 
 An externally managed Compose scene service does not gain the Go idle lifecycle;
 it benefits from packaged fingerprints only. Rebuild the relevant image to adopt

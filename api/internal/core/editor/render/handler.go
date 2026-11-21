@@ -11,6 +11,7 @@ import (
 	"sort"
 	"strings"
 
+	"ffmpeg-go-server/internal/platform/filecache"
 	"ffmpeg-go-server/internal/platform/objectstore"
 	"ffmpeg-go-server/internal/platform/sessions"
 	"ffmpeg-go-server/internal/platform/storage"
@@ -95,6 +96,11 @@ func streamExport(c *fiber.Ctx, req renderRequest, plan renderPlan) error {
 }
 
 func executeRender(req renderRequest, plan renderPlan, progress *renderProgress) (string, string, error) {
+	// Composition sources are released after staging; only legacy exports read
+	// persistent session files throughout the FFmpeg passes.
+	if plan.scope.session != "" {
+		defer releaseRenderSources(plan.scope, plan.allClips)
+	}
 	if sceneProgressShare(req) > 0 {
 		ctx := context.Background()
 		if progress != nil && progress.ctx != nil {
@@ -148,6 +154,7 @@ func executeRender(req renderRequest, plan renderPlan, progress *renderProgress)
 		_ = os.Remove(outputPath)
 		return "", "", err
 	}
+	filecache.ReleasePath(outputPath)
 	return outputName, outputPath, nil
 }
 

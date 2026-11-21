@@ -8,6 +8,8 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+
+	"ffmpeg-go-server/internal/platform/filecache"
 )
 
 const Directory = ".media-cache"
@@ -145,6 +147,9 @@ func (cache *Cache) generate(ctx context.Context, source Source, path string, ge
 	if err := temp.Close(); err != nil {
 		return fmt.Errorf("close cache temp file: %w", err)
 	}
+	if source.Remote == nil {
+		defer filecache.ReleasePath(source.Path)
+	}
 	if err := generate(tempPath); err != nil {
 		return fmt.Errorf("generate cache entry: %w", err)
 	}
@@ -165,5 +170,6 @@ func (cache *Cache) generate(ctx context.Context, source Source, path string, ge
 	if err := os.Rename(tempPath, path); err != nil {
 		return fmt.Errorf("publish cache entry: %w", err)
 	}
+	filecache.ReleasePath(path)
 	return nil
 }

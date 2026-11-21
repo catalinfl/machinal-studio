@@ -13,6 +13,8 @@ import (
 	"sync"
 	"time"
 	"unicode/utf8"
+
+	"ffmpeg-go-server/internal/platform/filecache"
 )
 
 const (
@@ -77,6 +79,7 @@ func (s *Store) read(owner, id string) (Project, error) {
 	if err != nil {
 		return Project{}, err
 	}
+	defer filecache.ReleasePath(path)
 	data, err := os.ReadFile(path)
 	if errors.Is(err, os.ErrNotExist) {
 		return Project{}, ErrNotFound
@@ -155,6 +158,7 @@ func (s *Store) write(owner string, project Project) error {
 		file.Close()
 		return fmt.Errorf("sync project: %w", err)
 	}
+	filecache.Release(file)
 	if err := file.Close(); err != nil {
 		return fmt.Errorf("close project: %w", err)
 	}

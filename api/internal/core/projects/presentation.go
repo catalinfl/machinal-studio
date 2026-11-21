@@ -13,6 +13,7 @@ import (
 
 	"ffmpeg-go-server/editengine/composition"
 	"ffmpeg-go-server/editengine/document"
+	"ffmpeg-go-server/internal/platform/filecache"
 	"ffmpeg-go-server/internal/platform/jobqueue"
 	"ffmpeg-go-server/internal/platform/sessions"
 	"ffmpeg-go-server/internal/platform/storage"
@@ -62,6 +63,7 @@ func (s *PresentationStore) read(owner, session string) (Presentation, error) {
 	if err != nil {
 		return Presentation{}, err
 	}
+	defer filecache.ReleasePath(path)
 	data, err := os.ReadFile(path)
 	if errors.Is(err, os.ErrNotExist) {
 		return Presentation{}, nil
@@ -130,6 +132,7 @@ func (s *PresentationStore) write(owner, session string, saved Presentation) err
 		file.Close()
 		return fmt.Errorf("sync project presentation: %w", err)
 	}
+	filecache.Release(file)
 	if err := file.Close(); err != nil {
 		return fmt.Errorf("close project presentation: %w", err)
 	}

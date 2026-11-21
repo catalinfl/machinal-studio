@@ -201,7 +201,7 @@ func sendDeliveryFile(c *fiber.Ctx, root, name string) error {
 		c.Response().Header.SetContentLength(int(info.Size()))
 		return nil
 	}
-	return c.SendStream(file, int(info.Size()))
+	return c.SendStream(&assetStream{Reader: file, file: file}, int(info.Size()))
 }
 
 func (h *DeliveryLinks) Revoke(c *fiber.Ctx) error {

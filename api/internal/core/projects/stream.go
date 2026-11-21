@@ -11,6 +11,7 @@ import (
 	"os"
 	"strings"
 
+	"ffmpeg-go-server/internal/platform/filecache"
 	"ffmpeg-go-server/internal/platform/sessions"
 )
 
@@ -106,6 +107,7 @@ type projectStream struct {
 func (s *projectStream) Close() error {
 	var err error
 	for _, file := range s.files {
+		filecache.Release(file)
 		err = errors.Join(err, file.Close())
 	}
 	s.files = nil

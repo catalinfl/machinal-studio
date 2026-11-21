@@ -55,6 +55,25 @@ func TestStagingRejectsChangedAssets(t *testing.T) {
 	}
 }
 
+func TestStagingPreservesSourceAndIndependentRenderCopy(t *testing.T) {
+	root, staging := t.TempDir(), t.TempDir()
+	data := bytes.Repeat([]byte("synthetic source"), 65536)
+	name := "source.mp4"
+	if err := os.WriteFile(filepath.Join(root, name), data, 0600); err != nil {
+		t.Fatal(err)
+	}
+	sum := sha256.Sum256(data)
+	if err := stageVersionedAsset(root, staging, name, "sha256:"+hex.EncodeToString(sum[:])); err != nil {
+		t.Fatal(err)
+	}
+	for _, directory := range []string{root, staging} {
+		actual, err := os.ReadFile(filepath.Join(directory, name))
+		if err != nil || !bytes.Equal(actual, data) {
+			t.Fatalf("media changed during staging/cache release: %v", err)
+		}
+	}
+}
+
 func TestHeadlessCompositionRendersAndReusesMaterializedText(t *testing.T) {
 	if _, err := exec.LookPath("ffmpeg"); err != nil {
 		t.Skip("FFmpeg integration requires ffmpeg")

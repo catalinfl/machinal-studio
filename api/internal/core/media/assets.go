@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"ffmpeg-go-server/internal/platform/filecache"
 	"ffmpeg-go-server/internal/platform/mediacache"
 	"ffmpeg-go-server/internal/platform/objectstore"
 	"ffmpeg-go-server/internal/platform/sessions"
@@ -177,10 +178,20 @@ func serveAssetStream(c *fiber.Ctx, file *os.File, contentType string, length, s
 		return file.Close()
 	}
 	// The response owns and closes this file, without Fiber's persistent FS cache.
-	return c.SendStream(&assetStream{Reader: io.LimitReader(file, int64(length)), Closer: file}, length)
+	return c.SendStream(&assetStream{Reader: io.LimitReader(file, int64(length)), file: file}, length)
 }
 
 type assetStream struct {
 	io.Reader
-	io.Closer
+	file *os.File
+}
+
+func (stream *assetStream) Close() error {
+	if stream.file == nil {
+		return nil
+	}
+	filecache.Release(stream.file)
+	err := stream.file.Close()
+	stream.file = nil
+	return err
 }

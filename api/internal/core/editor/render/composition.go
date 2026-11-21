@@ -15,6 +15,7 @@ import (
 	"ffmpeg-go-server/editengine/catalog"
 	"ffmpeg-go-server/editengine/composition"
 	"ffmpeg-go-server/editengine/document"
+	"ffmpeg-go-server/internal/platform/filecache"
 	"ffmpeg-go-server/internal/platform/storage"
 )
 
@@ -216,6 +217,7 @@ func stageVersionedAsset(root, staging, name, version string) error {
 		return fmt.Errorf("open asset %s: %w", name, err)
 	}
 	defer input.Close()
+	defer filecache.Release(input)
 	output, err := os.Create(destination)
 	if err != nil {
 		return fmt.Errorf("stage asset %s: %w", name, err)
