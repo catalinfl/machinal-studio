@@ -41,3 +41,13 @@ A subsequent read-only, in-memory projection against the same saved project redu
 - The new browser regression follows a real cross-origin 302 into a loopback synthetic storage server. The storage request has no Authorization header; reload and a second tab make no second raster download. Reference-only JSON export recovers the exact successful raster cache without extra network/provider work.
 
 An initial browser run exposed an invalid test interception of the post-redirect URL (Playwright only intercepts the first request in that chain), and one existing recorded-video fixture timed out during playback. The storage fixture was corrected to real bounded loopback HTTP, and the complete ten-test run subsequently passed. No production render or paid diagnostic was used.
+
+## Approved production rollout
+
+The user explicitly approved commit/push, API/client deployment and a one-time initial cache publication if missing. Release `c8dfef9d85399fe5229514ecf551283169952b01` reached Railway SUCCESS on both services (API deployment `2a7ed149-8fd0-4fa1-bae5-e46c8f086090`, client deployment `4e833a9a-be79-4d07-9c48-e9632c9d74a8`).
+
+Two authenticated production project reads returned HTTP 200 with a 254,475-byte JSON document and no inline presentation rasters. Project version remained 8. Independent server-side SHA-256 checks confirmed unchanged saved state, complete prepared/last-render documents and compiled caption entries; the retained raster file still matched its original immutable content ID. The compact presentation on disk is 143,866 bytes.
+
+The approved 22,726,684-byte cache was then published once to its exact private owner/project/content-scoped S3 key, before the user's next opening. Publication did not overwrite a differing existing object. Local SHA-256 and remote size/ETag checks passed. Actual bounded S3 Range probes downloaded only two bytes each for `Origin: https://machinal.app` and `Origin: null`; both returned HTTP 206 with allowed read CORS. No credentials, signed URLs or caption/image contents were logged. The normal API publication helper can adopt this identical verified copy without uploading it again.
+
+This establishes the deployed small project payload and the ready S3 object/CORS transport. Browser cross-origin redirect, account/project-scoped persistent reuse and export behavior were verified in the synthetic browser regression, not by signing into or controlling the user's production browser. The first browser load downloads the cache from S3; warm-cache reloads/tabs avoid that download. Small API responses and other application traffic still exist; no claim of zero total billed traffic is made.

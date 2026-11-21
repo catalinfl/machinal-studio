@@ -106,8 +106,12 @@ func (s *PresentationStore) compactLegacyFile(owner, session, path string) error
 	if err != nil {
 		return err
 	}
-	defer file.Close()
-	defer filecache.Release(file)
+	defer func() {
+		if file != nil {
+			filecache.Release(file)
+			file.Close()
+		}
+	}()
 	var header [len(compactPresentationHeader)]byte
 	count, err := file.ReadAt(header[:], 0)
 	if err != nil && err != io.EOF {
@@ -135,8 +139,10 @@ func (s *PresentationStore) compactLegacyFile(owner, session, path string) error
 		return nil
 	}
 	filecache.Release(file)
-	if err := file.Close(); err != nil {
-		return err
+	err = file.Close()
+	file = nil
+	if err != nil {
+		return fmt.Errorf("close legacy presentation: %w", err)
 	}
 	return s.writeData(owner, session, compacted)
 }
