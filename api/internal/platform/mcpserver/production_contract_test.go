@@ -54,13 +54,14 @@ func TestContractSchemaExposesConcretePhaseAndTreatmentFields(t *testing.T) {
 }
 
 func TestInvalidContractIntervalReturnsStructuredFieldDiagnostic(t *testing.T) {
-	_, contract := contractFixture("recipe")
+	const recipe = "document:\n  version: 2\n"
+	_, contract := contractFixture(recipe)
 	contract.Beats[0].Treatments[0].Duration = 99
 	handler := NewHandler(func(context.Context, http.Header, Request) (Response, error) {
 		t.Fatal("invalid contract reached API")
 		return Response{}, nil
 	})
-	result, output := callTool(t, handler, "compile_recipe", map[string]any{"projectId": "owned", "composition": "recipe", "productionContract": contract})
+	result, output := callTool(t, handler, "compile_recipe", map[string]any{"projectId": "owned", "composition": recipe, "productionContract": contract})
 	if !result.IsError || output.StatusCode != 422 {
 		t.Fatal(result, output)
 	}

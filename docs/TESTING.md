@@ -57,6 +57,8 @@ npm run test:evaluation
 
 Service preview tests require Chromium even when native export tests are skipped. Native text/layout checks additionally require `SCENE_BROWSER`; the complete native workflow below enables them.
 
+Animation-craft regressions: `go test ./internal/platform/mcpserver ./internal/platform/soundlibrary ./internal/core/media ./internal/routes` from `api/`, and `node --test test/animation-skills.test.mjs test/skills.test.mjs test/opencode-workflow.test.mjs` from `packages/mcp-installer/`. Sound tests use injected HTTP/audio fixtures, not public downloads, production keys or provider calls; they cover stale licence versions, attribution persistence, content-addressed reuse/no-overwrite, source-use approval, ownership and outbound destination/body limits. `node --test scene-templates.test.mjs` from the scene service checks all twelve bundled sources, actual landscape/portrait layout and deterministic backward seeks. `npm run test:evaluation` checks all eight brief definitions, evidence/cost comparison and the synthetic-review command's no-overwrite boundary; it does not certify aesthetics or audition audio. See [developer template sheets](../services/scene-renderer/evaluation/README.md) for optional actual synthetic frame capture.
+
 For managed-worker idle-memory changes, run `go test -race ./internal/platform/sceneworker`
 from `api/`. Set `SCENE_WORKER_INTEGRATION=1` to include the synthetic Node
 start/stream/idle/restart lifecycle (requires unused loopback ports 8091/8092).

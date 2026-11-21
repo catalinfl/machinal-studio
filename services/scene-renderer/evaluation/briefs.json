@@ -28,6 +28,16 @@
       "observe": ["Only one job is processed at a time", "Waiting is visible", "Object identities persist", "Motion explains state rather than decorating a title"]
     },
     {
+      "id": "piston-causality", "version": 1, "duration": 9, "width": 1080, "height": 1920,
+      "brief": "Explain a schematic positive-displacement pump: chamber expansion with inlet open, pause with both valves closed, contraction with outlet open, then hold. No external assets or quantitative engineering claims. Keep the relevant valve visible at each action phase.",
+      "observe": ["Valve state matches piston direction", "Flow follows the open valve only", "Both causal phases have separate inspection samples", "Portrait framing preserves labels and complete mechanism"]
+    },
+    {
+      "id": "aligned-image-comparison", "version": 1, "duration": 7, "width": 1280, "height": 720,
+      "brief": "Compare two separately approved registered photographs of the same subject. Keep their scale and position matched; move a comparison boundary to expose the second state, then hold both states. Preserve supplied labels; do not invent causal or authenticity claims.",
+      "observe": ["Subject registration remains fixed during wipe", "Both actual images are visible at the hold", "Marker is independent of artwork", "Missing assets are not silently generated"]
+    },
+    {
       "id": "minimal-typography", "version": 1, "duration": 8, "width": 1080, "height": 1920,
       "brief": "Display the exact Romanian text «Mișcarea are sens când explică.» with a restrained staggered reveal, a long reading hold and a motivated cut. Preserve diacritics. No images, particles, 3D, narration or captions.",
       "observe": ["Exact UTF-8 copy", "Readable hierarchy and margins", "Most of the duration remains available for reading", "No unnecessary treatments"]

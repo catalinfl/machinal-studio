@@ -32,6 +32,7 @@ var referenceTopics = []referenceTopic{
 	{"scene-runtime", "scene-runtime", ""},
 	{"scene-authoring", "scene-authoring", ""},
 	{"scene-templates", "scene-templates", "sceneTemplates"},
+	{"animation-skills", "animation-skills", "animationSkills"},
 	{"film-styles", "film-styles", "filmStyles"},
 	{"film-techniques", "film-styles", "filmTechniques"},
 	{"commands", "commands", "commands"},
@@ -98,6 +99,11 @@ func loadReferenceEntries() (map[string][]json.RawMessage, error) {
 		return nil, err
 	}
 	entries["sceneTemplates"] = templates
+	animationSkills, err := loadAnimationSkillEntries()
+	if err != nil {
+		return nil, err
+	}
+	entries["animationSkills"] = animationSkills
 	for _, category := range []struct{ topic, key string }{{"film-styles", "filmStyles"}, {"film-techniques", "filmTechniques"}} {
 		values, err := loadFilmReferenceEntries(category.topic)
 		if err != nil {

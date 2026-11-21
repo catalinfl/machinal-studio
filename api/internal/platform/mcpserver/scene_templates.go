@@ -29,6 +29,7 @@ type sceneTemplate struct {
 	Adaptation     []string                 `json:"adaptation"`
 	URI            string                   `json:"uri"`
 	Component      string                   `json:"component,omitempty"`
+	ReviewPlan     *sceneReviewPlan         `json:"reviewPlan,omitempty"`
 }
 
 type sceneTemplateConfig struct {
@@ -69,6 +70,11 @@ func loadSceneTemplateEntries() ([]json.RawMessage, error) {
 		}
 		seen[template.ID] = true
 		template.URI = "machinal://scene-templates/" + template.ID
+		plan, err := planSceneReview(sceneReviewPlanInput{Duration: float64(template.Config.Duration), FPS: float64(template.Config.FPS)})
+		if err != nil {
+			return nil, fmt.Errorf("invalid template review config %s: %w", template.ID, err)
+		}
+		template.ReviewPlan = &plan
 		entry, err := json.Marshal(template)
 		if err != nil {
 			return nil, fmt.Errorf("encode scene template %s: %w", template.ID, err)

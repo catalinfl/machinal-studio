@@ -29,11 +29,8 @@ const (
 	maxSourceImageSize = 16 << 20
 	maxOutputImageSize = 24 << 20
 	// 240s covers slow image providers without hanging the editor forever.
-	providerTimeout = 240 * time.Second
-	// Only 2 concurrent generations: image models are slow and expensive,
-	// so shed load fast instead of queueing unbounded provider calls.
-	maxConcurrentImageRequests = 2
-	maxSourceNameLength        = 255
+	providerTimeout     = 240 * time.Second
+	maxSourceNameLength = 255
 
 	defaultImageModel = "openai/gpt-image-2.5-sunburst"
 )
@@ -76,7 +73,7 @@ var allowedAspects = []string{"auto", "1:1", "3:2", "2:3", "4:3", "3:4", "4:5", 
 var allowedBackgrounds = []string{"auto", "transparent", "opaque"}
 var allowedQualities = []string{"auto", "low", "medium", "high"}
 
-var requestSlots = make(chan struct{}, maxConcurrentImageRequests)
+var requestSlots = make(chan struct{}, ConcurrencyLimit())
 
 // sharedHTTPClient is reused across requests so generations share one pooled
 // transport instead of building a client per call.

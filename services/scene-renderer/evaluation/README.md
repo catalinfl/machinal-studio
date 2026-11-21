@@ -1,6 +1,6 @@
 # Production evaluation fixtures
 
-Six fixed briefs in [briefs.json](briefs.json) separate creative ambition from compilation success. They are evaluation inputs, **not completed or visually verified videos**. Media-dependent cases require separately approved source files and the same sources/caption baseline in both runs. No fixture authorizes provider work or rendering.
+Eight fixed briefs in [briefs.json](briefs.json) separate creative ambition from compilation success, including causal valve timing and aligned image comparisons. They are evaluation inputs, **not completed or visually verified videos**. Media-dependent cases require separately approved source files and the same sources/caption baseline in both runs. No fixture authorizes provider work or rendering.
 
 Record baseline and candidate JSON separately. Each run has `version: 1` and `cases`, with one result for every manifest case:
 
@@ -36,5 +36,14 @@ From `services/scene-renderer/`:
 node scripts/evaluate-production.mjs baseline.json candidate.json
 node --test scripts/evaluate-production.test.mjs
 ```
+
+For a concrete template's developer-only synthetic contact sheet, use a new directory (never overwrites):
+
+```sh
+node scripts/review-template.mjs piston-cycle NEW_REVIEW_DIRECTORY
+node scripts/review-template.mjs piston-cycle NEW_PORTRAIT_DIRECTORY --portrait
+```
+
+Set `SCENE_BROWSER` to an installed Chromium executable if the Playwright default is unavailable. This command uses the real compiler/layout inspection and bounded JPEG evidence path, writes an HTML sheet plus `evidence.json` with source/browser/bundle fingerprints, and uses synthetic image placeholders only. It does not encode video, access customer projects, run providers or spend credits. Actual visual review remains necessary. This development check is not a local production rendering alternative for an MCP agent.
 
 The comparator validates completeness and emits per-dimension before/after judgments and measured metric differences. It neither judges images nor generates a beauty score. No provider or render is called. A first real before/after evaluation remains work requiring approved sources and any applicable spending.

@@ -4,10 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"regexp"
 	"strings"
 
+	"ffmpeg-go-server/internal/core/editor/compositions"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -63,6 +65,9 @@ func compositionRequest(projectID, composition, suffix, key string) (Request, er
 	}
 	if strings.TrimSpace(composition) == "" || len(composition) > maxCompositionBytes {
 		return Request{}, errors.New("Provide a non-empty YAML composition of at most 2 MiB. Upload source media separately.")
+	}
+	if _, _, err := compositions.ParseProject([]byte(composition)); err != nil {
+		return Request{}, fmt.Errorf("Invalid recipe; no operation was submitted: %w", err)
 	}
 	return Request{Method: http.MethodPost, Path: path, ContentType: "application/yaml", Body: []byte(composition), IdempotencyKey: key}, nil
 }

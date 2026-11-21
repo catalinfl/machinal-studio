@@ -12,6 +12,7 @@ import (
 	"ffmpeg-go-server/internal/core/toolrouting"
 	"ffmpeg-go-server/internal/platform/auth"
 	"ffmpeg-go-server/internal/platform/jobqueue"
+	"ffmpeg-go-server/internal/platform/soundlibrary"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -34,6 +35,8 @@ func registerAutomationRoutes(app *fiber.App, store *projects.Store, jobs *jobqu
 	api.Post("/projects", store.CreateHandler)
 	api.Get("/compositions/schema", compositions.Schema)
 	api.Get("/compositions/capabilities", compositions.Capabilities)
+	sounds := &media.SoundEffects{Library: soundlibrary.New(soundlibrary.NewHTTPClient())}
+	api.Get("/sounds/search", requestLimiter(12, rateWindow, "sound search rate limit exceeded"), sounds.Search)
 	api.Post("/ai/tool-selection", requestLimiter(20, rateWindow, "Tool routing rate limit exceeded"), toolrouting.Validate, accountBilling.Meter, toolrouting.Select)
 	project := api.Group("/projects/:projectID", store.ScopeAPI)
 	project.Get("/", store.GetHandler)
@@ -44,6 +47,7 @@ func registerAutomationRoutes(app *fiber.App, store *projects.Store, jobs *jobqu
 	project.Get("/versions/:versionID", store.GetVersionHandler)
 	project.Delete("/versions/:versionID", store.DeleteVersionHandler)
 	project.Post("/upload", requestLimiter(30, rateWindow, "upload rate limit exceeded"), media.Upload)
+	project.Post("/sounds/import", requestLimiter(6, rateWindow, "sound import rate limit exceeded"), sounds.Import)
 	localSources := media.NewLocalSources(os.Getenv("LOCAL_MEDIA_ROOTS_JSON"))
 	project.Get("/media/local", localSources.List)
 	project.Post("/media/local/inspect", requestLimiter(6, rateWindow, "local inspection rate limit exceeded"), localSources.Inspect)

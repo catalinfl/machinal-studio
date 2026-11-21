@@ -5,12 +5,11 @@ import (
 	"sync"
 
 	"ffmpeg-go-server/editengine/document"
+	"ffmpeg-go-server/internal/core/editor/imagegen"
 )
 
-const maxConcurrentMediaJobs = 2
-
 // Provider work shares a process-wide bound, including concurrent accounts.
-var mediaJobSlots = make(chan struct{}, maxConcurrentMediaJobs)
+var mediaJobSlots = make(chan struct{}, imagegen.ConcurrencyLimit())
 
 type mediaJobResult struct {
 	job    document.Job
@@ -68,7 +67,7 @@ func materializeMediaBatch(ctx context.Context, root, session string, jobs []doc
 	var mu sync.Mutex
 	next, failed := 0, false
 	var workers sync.WaitGroup
-	for range min(maxConcurrentMediaJobs, len(jobs)) {
+	for range min(cap(mediaJobSlots), len(jobs)) {
 		workers.Go(func() {
 			for {
 				mu.Lock()

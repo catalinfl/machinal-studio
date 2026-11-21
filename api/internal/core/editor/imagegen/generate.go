@@ -51,8 +51,8 @@ func GenerateImage(ctx context.Context, dataDir string, safeJoin safeJoinFunc, p
 	if err != nil {
 		return GeneratedImage{}, err
 	}
-	if !acquireRequestSlot() {
-		return GeneratedImage{}, requestError(429, "AI image generation is busy. Please try again later.")
+	if err := waitForRequestSlot(ctx); err != nil {
+		return GeneratedImage{}, err
 	}
 	defer releaseRequestSlot()
 	imageBytes, metadata, err := fetchProviderImage(ctx, config, providerRequest)

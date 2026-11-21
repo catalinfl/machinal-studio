@@ -3,20 +3,22 @@ package mcpserver
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 
 	"ffmpeg-go-server/editengine/composition"
 	"ffmpeg-go-server/editengine/document"
 	"ffmpeg-go-server/internal/core/editor/compositions"
 )
 
-func presentComposition(output Output, yaml string, full bool) Output {
+func presentComposition(output Output, yaml string, full bool, doc *document.Document) Output {
 	fields, ok := output.Data.(map[string]any)
 	if !ok {
 		return output
 	}
 	fields["compositionVersion"] = contentVersion([]byte(yaml))
-	if version := recipeCaptionVersion(yaml); version != "" {
+	if version := captionVersion(doc); version != "" {
 		fields["captionVersion"] = version
+		fields["captionContentReview"] = reviewCaptionContent(*doc)
 	}
 	if !full {
 		for _, key := range []string{"document", "bindings", "composition", "recovery"} {
@@ -63,7 +65,14 @@ func recipeCaptionVersion(yaml string) string {
 }
 
 func checkCaptionVersion(yaml, expected string) error {
-	if expected != "" && (!contractVersionPattern(expected) || recipeCaptionVersion(yaml) != expected) {
+	if expected == "" {
+		return nil
+	}
+	input, _, err := compositions.ParseProject([]byte(yaml))
+	if err != nil {
+		return fmt.Errorf("Cannot verify caption preservation: invalid recipe: %w", err)
+	}
+	if !contractVersionPattern(expected) || captionVersion(&input.Document) != expected {
 		return errors.New("Existing text entries or caption resultTextIds changed from expectedCaptionVersion. Restore the exact baseline, or omit this optional guard only for an explicitly authorized text/caption edit.")
 	}
 	return nil

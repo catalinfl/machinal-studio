@@ -60,7 +60,7 @@ func newHandler(call Caller, local bool) http.Handler {
 		serverInstructions = localInstructions
 		name = "machinal-local"
 	}
-	server := mcp.NewServer(&mcp.Implementation{Name: name, Version: "1.9.0"}, &mcp.ServerOptions{
+	server := mcp.NewServer(&mcp.Implementation{Name: name, Version: "1.10.0"}, &mcp.ServerOptions{
 		Instructions: serverInstructions,
 		Capabilities: &mcp.ServerCapabilities{},
 	})
@@ -84,6 +84,7 @@ func newHandler(call Caller, local bool) http.Handler {
 		})
 	registerReferenceTools(server)
 	registerSpeechTools(server)
+	registerSoundEffectTools(server, call)
 	recipeInstructions := recipeGuide
 	if local {
 		recipeInstructions = localRecipeGuide

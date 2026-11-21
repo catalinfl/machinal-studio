@@ -6,7 +6,7 @@
     "start": "node server.mjs",
     "test": "node --test --test-concurrency=1 *.test.mjs",
     "test:native": "node test-native.mjs",
-    "test:evaluation": "node --test scripts/evaluate-production.test.mjs",
+    "test:evaluation": "node --test scripts/evaluate-production.test.mjs scripts/review-template.test.mjs",
     "prepare:fixtures": "node scripts/prepare-browser-fixtures.mjs",
     "setup": "machinal-scenes setup",
     "doctor": "machinal-scenes doctor"

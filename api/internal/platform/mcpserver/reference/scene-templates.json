@@ -174,5 +174,37 @@
     "requiredImages": [],
     "choreography": {"reveal": "0–0.24: page leaves rotate around the book spine.", "action": "0.25–0.65: three independent paper panels rise; camera arcs until 0.74.", "hold": "0.74–0.94: open book and all facades remain visible with stable lighting.", "exit": "0.94–1: retain open stage; match the next shot's paper palette or cut."},
     "adaptation": ["Read film-styles/paper-popup or paper-lantern for direction; this native example is not an upstream film copy.", "Use genuine SceneThree geometry/lighting, not CSS perspective. Change the panels/artwork to explain the subject.", "Use approved image attachments for detailed illustrations instead of inventing fragile shape-stack characters; preserve no-generation choices."]
+  },
+  {
+    "id":"comparison-wipe", "version":"1", "label":"Aligned before/after comparison", "category":"comparison",
+    "description":"Two approved aligned states share one frame while an independent comparison boundary exposes the change, then both remain readable.",
+    "visualMode":"2d", "whenToUse":["Compare two supplied states with the same subject registration and scale."],
+    "avoid":["Unmatched viewpoints, invented changes, or a wipe that misleadingly implies causal evidence."],
+    "config":{"width":1920,"height":1080,"fps":30,"duration":7,"captionSafeArea":true},
+    "parameters":[{"path":"design.before","description":"Exact supplied outgoing-state label."},{"path":"design.after","description":"Exact supplied incoming-state label."},{"path":"design.accent","description":"Comparison marker colour."},{"path":"design.split","description":"Final revealed fraction; keep between 0.3 and 0.7."}],
+    "requiredImages":[{"id":"image_1","role":"Approved baseline state."},{"id":"image_2","role":"Approved changed state, aligned to baseline."}],
+    "choreography":{"reveal":"0–0.20: baseline is visible without a fade.","action":"0.20–0.65: boundary moves to expose the changed state.","hold":"0.65–0.92: both states remain visible and aligned.","exit":"0.92–1: marker recedes, image states stay for a cut."},
+    "adaptation":["Use two actually approved image files; align their content before claiming a comparison.","Use animation-skills/machinal-motion and machinal-visual-review; inspect both sides at the hold.","Source-level design settings are not edit_scene_parameters fields. Test both portrait and landscape."]
+  },
+  {
+    "id":"route-journey", "version":"1", "label":"Schematic route journey", "category":"diagram",
+    "description":"A traveler follows a two-segment route, activates three stops in causal order and settles at the destination. Explicitly schematic, not geographic evidence.",
+    "visualMode":"2d", "whenToUse":["Explain a supplied ordered route or delivery path."], "avoid":["Using these arbitrary coordinates as a real geographic map or inventing places."],
+    "config":{"width":1920,"height":1080,"fps":30,"duration":8,"captionSafeArea":true},
+    "parameters":[{"path":"design.labels","description":"Exactly three supplied stop names."},{"path":"design.title","description":"Supplied short heading; identify schematic status where needed."},{"path":"design.accent","description":"Traveler and active-stop colour."}],
+    "requiredImages":[],
+    "choreography":{"reveal":"0–0.20: stops establish the path.","action":"0.20–0.70: traveler follows segments and stops activate on arrival.","hold":"0.70–0.94: the complete route remains readable.","exit":"0.94–1: destination holds for an intentional cut."},
+    "adaptation":["For real maps use approved cartography and verified coordinates; replace both path and traveler geometry together.","Adapt labels/point placement for actual content. Do not claim sampled states prove smooth travel."]
+  },
+  {
+    "id":"piston-cycle", "version":"1", "label":"Causal piston pump cycle", "category":"mechanism",
+    "description":"Schematic piston displacement expands then contracts a chamber while separate inlet/outlet valves gate the corresponding flow. A readable final hold, not a spinning primitive.",
+    "visualMode":"2d", "whenToUse":["Explain a schematic positive-displacement pump cycle without claiming measured engineering accuracy."],
+    "avoid":["Replacing a specific verified product's geometry or implying quantitative fluid simulation."],
+    "config":{"width":1920,"height":1080,"fps":30,"duration":9,"captionSafeArea":true},
+    "parameters":[{"path":"design.title","description":"Supplied short mechanism heading."},{"path":"design.accent","description":"Fluid/active-valve colour."},{"path":"design.stroke","description":"Schematic travel distance, 80–150 SVG units."}],
+    "requiredImages":[],
+    "choreography":{"reveal":"0–0.18: chamber, piston and closed valves establish the mechanism.","action":"0.18–0.44: intake expands chamber; 0.49–0.75: discharge contracts chamber with the other valve open.","hold":"0.75–0.94: piston and closed valves settle.","exit":"0.94–1: retain the complete mechanism for a cut."},
+    "adaptation":["Keep valve timing coupled to piston direction; adapt actual geometry, not just the title.","Use machinal-choreography and inspect both intake and discharge, not only the final state.","Source-level design settings are not an exposed runtime parameter surface."]
   }
 ]

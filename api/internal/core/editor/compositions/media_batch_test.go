@@ -3,6 +3,7 @@ package compositions
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"sync/atomic"
 	"testing"
@@ -15,7 +16,7 @@ import (
 func TestIndependentMediaRunsBoundedAndMergesInRecipeOrder(t *testing.T) {
 	previous := generateImageCall
 	t.Cleanup(func() { generateImageCall = previous })
-	started, release := make(chan string, 4), make(chan struct{})
+	started, release := make(chan string, cap(mediaJobSlots)+1), make(chan struct{})
 	var active, maximum atomic.Int32
 	generateImageCall = func(ctx context.Context, _ string, join func(string) (string, error), prompt, _, _, _ string) (imagegen.GeneratedImage, error) {
 		current := active.Add(1)
@@ -34,7 +35,11 @@ func TestIndependentMediaRunsBoundedAndMergesInRecipeOrder(t *testing.T) {
 		}
 		return imagegen.GeneratedImage{Name: prompt + ".png", Width: 8, Height: 8}, err
 	}
-	doc := document.Document{Before: []document.Job{{ID: "a", Type: "image.generate", Prompt: "a"}, {ID: "b", Type: "image.generate", Prompt: "b"}, {ID: "c", Type: "image.generate", Prompt: "c"}}}
+	doc := document.Document{}
+	for index := range cap(mediaJobSlots) + 1 {
+		id := fmt.Sprintf("image-%d", index)
+		doc.Before = append(doc.Before, document.Job{ID: id, Type: "image.generate", Prompt: id})
+	}
 	done := make(chan struct{})
 	var result document.Document
 	var assets []document.Asset
@@ -44,7 +49,7 @@ func TestIndependentMediaRunsBoundedAndMergesInRecipeOrder(t *testing.T) {
 		result, assets, _, failure = materializeMediaJobs(context.Background(), root, "", doc, nil, doc.Before)
 		close(done)
 	}()
-	for range 2 {
+	for range cap(mediaJobSlots) {
 		select {
 		case <-started:
 		case <-time.After(5 * time.Second):
@@ -59,7 +64,7 @@ func TestIndependentMediaRunsBoundedAndMergesInRecipeOrder(t *testing.T) {
 	}
 	close(release)
 	<-done
-	if failure != nil || maximum.Load() != 2 || len(assets) != 3 {
+	if failure != nil || maximum.Load() != int32(cap(mediaJobSlots)) || len(assets) != len(doc.Before) {
 		t.Fatal(failure, maximum.Load(), assets)
 	}
 	for index, job := range result.Before {
@@ -70,6 +75,9 @@ func TestIndependentMediaRunsBoundedAndMergesInRecipeOrder(t *testing.T) {
 }
 
 func TestFailedParallelMediaRetainsSuccessfulSiblingWithoutReplay(t *testing.T) {
+	if cap(mediaJobSlots) < 2 {
+		t.Skip("parallel sibling recovery requires at least two configured provider slots")
+	}
 	previous := generateImageCall
 	t.Cleanup(func() { generateImageCall = previous })
 	siblingStarted := make(chan struct{})

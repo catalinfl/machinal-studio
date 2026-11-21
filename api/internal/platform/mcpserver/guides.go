@@ -9,7 +9,7 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
-//go:embed guides/*.md reference/*.json reference/examples/*.yaml reference/scene-templates/*.svelte reference/film-library
+//go:embed guides/*.md reference/*.json reference/examples/*.yaml reference/scene-templates/*.svelte reference/animation-skills/*.md reference/film-library
 var bundledGuides embed.FS
 
 var guideResources = []struct{ uri, name, title, file string }{
@@ -29,6 +29,7 @@ var guideResources = []struct{ uri, name, title, file string }{
 	{"machinal://reference/jobs-scenes", "job-scene-reference", "Staged generation jobs and concrete scene direction", "guides/jobs-scenes.md"},
 	{"machinal://reference/scene-authoring", "client-scene-authoring", "Current-client Svelte authoring, free compilation and source editing", "guides/scene-authoring.md"},
 	{"machinal://reference/scene-templates", "scene-template-guide", "Reusable effect components, selection and source-level adaptation", "guides/scene-templates.md"},
+	{"machinal://reference/animation-skills", "animation-craft-guide", "Focused motion, choreography, spatial, visual-review and sound skills", "guides/animation-skills.md"},
 	{"machinal://reference/film-styles", "film-style-guide", "Cinematic film styles and safe adaptation to machinal", "guides/film-styles.md"},
 	{"machinal://reference/commands", "command-reference", "Selectors, overrides and every edit command", "guides/commands.md"},
 	{"machinal://reference/styles", "named-style-reference", "Named editorial profiles and decision rules", "guides/styles.md"},

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 
+	"ffmpeg-go-server/internal/core/editor/compositions"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"gopkg.in/yaml.v3"
 )
@@ -64,8 +65,9 @@ func yamlJobResult(data any) any {
 		}
 		view["recipeYaml"] = recipe
 		view["compositionVersion"] = contentVersion([]byte(recipe))
-		if version := recipeCaptionVersion(recipe); version != "" {
-			view["captionVersion"] = version
+		if parsed, _, err := compositions.ParseProject([]byte(recipe)); err == nil {
+			view["captionVersion"] = captionVersion(&parsed.Document)
+			view["captionContentReview"] = reviewCaptionContent(parsed.Document)
 		}
 		for _, key := range []string{"diagnostics", "requirements", "summary", "cost"} {
 			if value, exists := result[key]; exists {

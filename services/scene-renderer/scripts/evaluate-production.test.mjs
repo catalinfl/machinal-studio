@@ -7,11 +7,11 @@ const manifest = { criteria: ['meaningful_action'], cases: [{ id: 'process', ver
 const version = 'sha256:'+'a'.repeat(64);
 const run = () => ({ version: 1, cases: [{ id: 'process', briefVersion: 1, compositionVersion: version, sourceVersions: [version], technical: 'passed', criteria: { meaningful_action: { status: 'unverified', evidence: '' } }, metrics: { elapsedSeconds: 12, repairCount: 0, sceneRenderCredits: null, renderCredits: null, aiCredits: null } }] });
 
-test('the tracked fixture catalog contains all six production briefs and rubric dimensions', async () => {
+test('the tracked fixture catalog contains all eight production briefs and rubric dimensions', async () => {
   const catalog = JSON.parse(await readFile(new URL('../evaluation/briefs.json', import.meta.url),'utf8'));
   assert.equal(catalog.version,1);
-  assert.equal(catalog.cases.length,6);
-  assert.equal(new Set(catalog.cases.map(item => item.id)).size,6);
+  assert.equal(catalog.cases.length,8);
+  assert.equal(new Set(catalog.cases.map(item => item.id)).size,8);
   assert.equal(catalog.criteria.length,5);
   assert.ok(catalog.cases.every(item => item.version === 1 && item.brief && item.observe.length > 0));
 });

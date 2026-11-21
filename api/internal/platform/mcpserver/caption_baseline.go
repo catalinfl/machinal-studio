@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"ffmpeg-go-server/editengine/document"
 	"ffmpeg-go-server/internal/core/editor/compositions"
 )
 
@@ -27,7 +28,22 @@ func compareCaptionBaseline(yaml, baseline string, edits []captionTextEdit, appr
 	}
 	input, _, err := compositions.ParseProject([]byte(baseline))
 	if err != nil {
-		return nil, errors.New("captionBaseline is not valid resolved YAML; recover the intact recipe without regenerating captions")
+		return nil, fmt.Errorf("Cannot compare captions: captionBaseline is not valid resolved YAML: %w", err)
+	}
+	textIDs := make(map[string]bool, len(input.Document.Texts))
+	for _, text := range input.Document.Texts {
+		textIDs[text.ID] = true
+	}
+	hasResultIDs := false
+	for _, jobs := range [][]document.Job{input.Document.Jobs, input.Document.Before, input.Document.After} {
+		for _, job := range jobs {
+			for _, id := range job.ResultTextIDs {
+				hasResultIDs = true
+				if !textIDs[id] {
+					return nil, errors.New("Caption baseline has unresolved resultTextIds; recover the complete materialized entries before comparing, without regenerating captions")
+				}
+			}
+		}
 	}
 	original := captionVersion(&input.Document)
 	for _, edit := range edits {
@@ -51,9 +67,16 @@ func compareCaptionBaseline(yaml, baseline string, edits []captionTextEdit, appr
 			return nil, errors.New("A captionTextEdits source string does not occur in the baseline captions")
 		}
 	}
-	current := recipeCaptionVersion(yaml)
+	parsed, _, err := compositions.ParseProject([]byte(yaml))
+	if err != nil {
+		return nil, fmt.Errorf("Cannot compare caption preservation: invalid current recipe: %w", err)
+	}
+	current := captionVersion(&parsed.Document)
 	if current == "" || current != captionVersion(&input.Document) {
 		return nil, errors.New("Caption preservation failed: current complete text entries/resultTextIds differ beyond the approved exact replacements. Restore baseline timings, IDs, grouping, words, layout and styling.")
+	}
+	if len(input.Document.Texts) == 0 && !hasResultIDs {
+		return map[string]any{"status": "not_applicable", "completeEntriesCompared": false, "reason": "Neither recipe contains text entries or caption result IDs."}, nil
 	}
 	return map[string]any{"status": "preserved", "baselineVersion": original, "captionVersion": current, "approvedTextEdits": len(edits), "completeEntriesCompared": true}, nil
 }

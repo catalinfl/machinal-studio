@@ -17,6 +17,11 @@ type createProjectInput struct {
 	Name string `json:"name" jsonschema:"Project name, 1–120 characters"`
 }
 
+type getProjectInput struct {
+	ProjectID  string `json:"projectId" jsonschema:"ID of an owned project returned by list_projects or create_project"`
+	FullResult bool   `json:"fullResult,omitempty" jsonschema:"Return complete editor state for editing/saving. Default returns compact saved timeline counts, output and render IDs; never save a summary as editor state."`
+}
+
 type saveProjectInput struct {
 	ProjectID string         `json:"projectId"`
 	Name      string         `json:"name" jsonschema:"Project name, 1–120 characters"`
@@ -37,13 +42,17 @@ func registerProjectTools(server *mcp.Server, call Caller) {
 			}
 			return invoke(ctx, req, call, operation)
 		})
-	mcp.AddTool(server, &mcp.Tool{Name: "get_project", Description: "Read an owned project's saved editable timeline, project media and current version. Successful generation/final rendering retain the complete resolved edit, not just a recipe attachment or Media Bin. Existing manual edits are preserved; a retained prepared/rendered snapshot can be explicitly opened in the editor without generating or rendering again.", Annotations: annotations(true, false, true)},
-		func(ctx context.Context, req *mcp.CallToolRequest, input projectInput) (*mcp.CallToolResult, Output, error) {
+	mcp.AddTool(server, &mcp.Tool{Name: "get_project", Description: "Verify an owned project's saved editable timeline, version and last render with a compact summary. Use fullResult=true before editing/saving complete editor state; summaries are not saveable state. Successful generation/final rendering retain the complete resolved edit, not just a recipe attachment or Media Bin. Existing manual edits are preserved.", Annotations: annotations(true, false, true)},
+		func(ctx context.Context, req *mcp.CallToolRequest, input getProjectInput) (*mcp.CallToolResult, Output, error) {
 			path, err := projectPath(input.ProjectID, "")
 			if err != nil {
 				return nil, Output{}, err
 			}
-			return invoke(ctx, req, call, Request{Method: http.MethodGet, Path: path})
+			result, output, err := invoke(ctx, req, call, Request{Method: http.MethodGet, Path: path})
+			if err == nil && !result.IsError && !input.FullResult {
+				output = summarizeProject(output)
+			}
+			return result, output, err
 		})
 	mcp.AddTool(server, &mcp.Tool{Name: "save_project", Description: "Replace an owned project's saved editor state using optimistic version checking. Read it first, preserve unrelated fields, and ask before discarding edits. Does not render or store arbitrary recipe files.", Annotations: annotations(false, true, false)},
 		func(ctx context.Context, req *mcp.CallToolRequest, input saveProjectInput) (*mcp.CallToolResult, Output, error) {

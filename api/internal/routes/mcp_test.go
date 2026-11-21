@@ -350,6 +350,11 @@ func TestMCPProjectSaveIsOwnedAndVersioned(t *testing.T) {
 		t.Fatal("stale state silently overwrote project", result, output)
 	}
 	_, output = mcpTool(t, fixture, mcpAliceKey, "get_project", args)
+	if output.Data.(map[string]any)["detail"] != "summary" || output.Data.(map[string]any)["state"] != nil {
+		t.Fatal("default project verification returned the entire editor state", output)
+	}
+	args["fullResult"] = true
+	_, output = mcpTool(t, fixture, mcpAliceKey, "get_project", args)
 	state := output.Data.(map[string]any)["state"].(map[string]any)
 	if state["keep"] != "unrelated" {
 		t.Fatal("save dropped unknown editor fields", state)

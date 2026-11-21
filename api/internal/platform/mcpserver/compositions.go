@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"ffmpeg-go-server/editengine/document"
+	"ffmpeg-go-server/internal/core/editor/compositions"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
@@ -25,6 +26,7 @@ type compositionInput struct {
 	CaptionTextEdits       []captionTextEdit   `json:"captionTextEdits,omitempty" jsonschema:"Only explicitly approved exact text replacements; applied to baseline text and word strings, never timings, grouping or styling. Requires captionEditsApproved."`
 	CaptionEditsApproved   bool                `json:"captionEditsApproved,omitempty" jsonschema:"True only after the user authorized these exact caption text replacements; not permission to regroup, retime or restyle captions."`
 	ProductionContract     *productionContract `json:"productionContract,omitempty" jsonschema:"For compile_recipe only: structured beat, asset, choreography, handoff and treatment promises bound to the exact YAML revision; deterministic checks, never aesthetic approval"`
+	ProductionBaseline     *productionContract `json:"productionBaseline,omitempty" jsonschema:"Optional original structured contract for compile_recipe. Keep every original beat ID when reconciling implementation; omitted/collapsed beats produce revision_required findings, not silent approval."`
 }
 
 type renderInput struct {
@@ -65,6 +67,23 @@ func registerCompositionTools(server *mcp.Server, call Caller) {
 	} {
 		mcp.AddTool(server, &mcp.Tool{Name: tool.name, InputSchema: compositionToolSchema(), Description: tool.description + productionContractToolHint + captionPreservationToolHint, Annotations: annotations(true, false, true)},
 			func(ctx context.Context, req *mcp.CallToolRequest, input compositionInput) (*mcp.CallToolResult, Output, error) {
+				composition, err := continuationYAML(ctx, req, call, input.ProjectID, input.SourceJobID, input.Composition)
+				if err != nil {
+					return nil, Output{}, err
+				}
+				parsed, _, err := compositions.ParseProject([]byte(composition))
+				if err != nil {
+					diagnostic := document.Diagnostic{Code: "parse", Severity: "error", Path: "document", Message: err.Error()}
+					var positioned document.Diagnostic
+					if errors.As(err, &positioned) {
+						diagnostic = positioned
+					}
+					output := Output{StatusCode: http.StatusBadRequest, Data: map[string]any{
+						"diagnostics": []document.Diagnostic{diagnostic}, "requirements": []any{},
+						"captionReview": map[string]any{"status": "not_checked", "reason": "Recipe parsing failed; no caption comparison or paid work was performed."},
+					}}
+					return &mcp.CallToolResult{IsError: true}, presentComposition(output, composition, input.FullResult, nil), nil
+				}
 				if input.ProductionContract != nil {
 					if tool.name != "compile_recipe" {
 						return nil, Output{}, errors.New("productionContract applies only to compile_recipe.")
@@ -77,9 +96,13 @@ func registerCompositionTools(server *mcp.Server, call Caller) {
 						return nil, Output{}, err
 					}
 				}
-				composition, err := continuationYAML(ctx, req, call, input.ProjectID, input.SourceJobID, input.Composition)
-				if err != nil {
-					return nil, Output{}, err
+				if input.ProductionBaseline != nil {
+					if tool.name != "compile_recipe" {
+						return nil, Output{}, errors.New("productionBaseline applies only to compile_recipe.")
+					}
+					if err := input.ProductionBaseline.validate(); err != nil {
+						return nil, Output{}, err
+					}
 				}
 				operation, err := compositionRequest(input.ProjectID, composition, tool.suffix, "")
 				if err != nil {
@@ -103,13 +126,14 @@ func registerCompositionTools(server *mcp.Server, call Caller) {
 				if err == nil && tool.name == "compile_recipe" {
 					output = attachEditorialReview(output)
 					output = attachProductionReview(output, composition, input.ProductionContract)
+					output = compareProductionBaseline(output, input.ProductionContract, input.ProductionBaseline)
 				}
 				if err == nil {
 					if fields, ok := output.Data.(map[string]any); ok && captionReview != nil {
 						fields["captionReview"] = captionReview
 					}
 					output = attachCompositionCheckpoint(output)
-					output = presentComposition(output, composition, input.FullResult)
+					output = presentComposition(output, composition, input.FullResult, &parsed.Document)
 				}
 				return result, output, err
 			})

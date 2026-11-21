@@ -106,7 +106,7 @@ func TestCatalogAndInstructions(t *testing.T) {
 	if err := json.Unmarshal(envelope["result"], &catalog); err != nil {
 		t.Fatal(err)
 	}
-	if len(catalog.Tools) != 40 {
+	if len(catalog.Tools) != 43 {
 		t.Fatalf("tool count = %d", len(catalog.Tools))
 	}
 	for _, tool := range catalog.Tools {
@@ -324,7 +324,7 @@ func TestOfficialSDKClientOverHTTP(t *testing.T) {
 	}
 	defer session.Close()
 	tools, err := session.ListTools(ctx, nil)
-	if err != nil || len(tools.Tools) != 40 {
+	if err != nil || len(tools.Tools) != 43 {
 		t.Fatalf("SDK list: %+v %v", tools, err)
 	}
 	result, err := session.CallTool(ctx, &mcp.CallToolParams{Name: "list_projects", Arguments: map[string]any{}})

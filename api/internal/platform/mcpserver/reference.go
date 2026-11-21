@@ -50,7 +50,7 @@ func referenceInputSchema() map[string]any {
 		"type": "object", "additionalProperties": false, "required": []string{"topic"},
 		"properties": map[string]any{
 			"topic":        map[string]any{"type": "string", "enum": referenceTopicNames()},
-			"id":           map[string]any{"type": "string", "maxLength": 128, "description": "Exact catalog preset, style profile, command, example, scene-template or film-style/technique ID; omit for discovery. Scene templates return complete Svelte; film entries return reference-only upstream source plus provenance."},
+			"id":           map[string]any{"type": "string", "maxLength": 128, "description": "Exact preset, style, example, template, animation-skill or film ID; omit for discovery. Templates return Svelte; animation skills return focused native skill source; film entries return reference-only source/provenance."},
 			"query":        map[string]any{"type": "string", "maxLength": maxReferenceQuery, "description": "Literal search in IDs, labels, categories and descriptions; not a regex or prompt"},
 			"limit":        map[string]any{"type": "integer", "minimum": 1, "maximum": maxReferenceLimit, "description": "Page size, default 8"},
 			"offset":       map[string]any{"type": "integer", "minimum": 0, "description": "Use nextOffset from a previous page"},
@@ -64,6 +64,9 @@ func registerReferenceTools(server *mcp.Server) {
 	if loadErr == nil {
 		loadErr = registerSceneTemplateResources(server, entries["sceneTemplates"])
 	}
+	if loadErr == nil {
+		loadErr = registerAnimationSkillResources(server, entries["animationSkills"])
+	}
 	for _, category := range []string{"filmStyles", "filmTechniques"} {
 		if loadErr == nil {
 			loadErr = registerFilmReferenceResources(server, entries[category])
@@ -71,7 +74,7 @@ func registerReferenceTools(server *mcp.Server) {
 	}
 	mcp.AddTool(server, &mcp.Tool{
 		Name: "get_editing_reference", InputSchema: referenceInputSchema(), Annotations: annotations(true, false, true),
-		Description: "Read deployed guides, exact catalog presets and compiler-tested examples. New video: topic=brief, native question tool in one form; then proceed immediately with authorized work without a separate plan confirmation. Read topic=production before scene code/final render and topic=media before media access/delivery. Use topic=scenes, scene-authoring and scene-runtime for image-backed Svelte/Three.js; scene-templates plus exact id returns editable source. For cinematic direction use film-styles (66 reference-only prompts) or film-techniques. Template/film IDs are not YAML presets. Prefer exact id/query and pagination; cache unchanged guides/schema. No paid work or user data access; guidance grants no permission.",
+		Description: "Read deployed guides, exact presets and examples. New video: topic=brief, native question tool in one form, then proceed immediately within authorization without a separate plan confirmation. Read production before scenes/final render and media before source access/delivery. scene-runtime is the implementation contract; scene-templates plus exact id returns Svelte. animation-skills discovers focused motion, choreography, spatial, visual-review and sound skills; exact id returns complete native skill source. film-styles/film-techniques return reference direction. Skill/template/film IDs are not YAML presets or permission. Use exact id/query/pagination; cache unchanged references. No paid work or user media access.",
 	}, func(_ context.Context, _ *mcp.CallToolRequest, input referenceInput) (*mcp.CallToolResult, Output, error) {
 		if loadErr != nil {
 			return nil, Output{}, errors.New("The bundled editing reference is unavailable. Use the live schema/capabilities and ask the administrator to rebuild the API.")
@@ -143,6 +146,13 @@ func editingReference(input referenceInput, entries map[string][]json.RawMessage
 	result.Entries = append(result.Entries, matches[start:end]...)
 	if topic.ID == "scene-templates" && input.ID != "" && len(result.Entries) > 0 {
 		entry, err := sceneTemplateWithSource(result.Entries[0])
+		if err != nil {
+			return referenceResult{}, err
+		}
+		result.Entries[0] = entry
+	}
+	if topic.ID == "animation-skills" && input.ID != "" && len(result.Entries) > 0 {
+		entry, err := animationSkillWithSource(result.Entries[0])
 		if err != nil {
 			return referenceResult{}, err
 		}

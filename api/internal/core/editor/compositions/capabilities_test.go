@@ -3,7 +3,18 @@ package compositions
 import (
 	"slices"
 	"testing"
+
+	"ffmpeg-go-server/internal/core/editor/imagegen"
 )
+
+func TestCapabilitiesDistinguishProviderConcurrencyFromMCPAndRenderWorkers(t *testing.T) {
+	capabilities := generationCapabilities()
+	media := capabilities["mediaConcurrency"].(map[string]any)
+	image := capabilities["image"].(map[string]any)
+	if media["maxIndependentJobs"] != imagegen.ConcurrencyLimit() || image["maxConcurrentRequests"] != imagegen.ConcurrencyLimit() || media["scope"] != "server-process" || media["automaticReplay"] != false {
+		t.Fatal(media, image)
+	}
+}
 
 func TestCaptionCapabilitiesExposeConfiguredModelWithoutProviderSecrets(t *testing.T) {
 	t.Setenv("OPENROUTER_API_KEY", "not-a-real-key")
