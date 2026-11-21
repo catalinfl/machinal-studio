@@ -13,6 +13,7 @@ import { resourceSnapshot, filesystemSnapshot } from './diagnostics.mjs';
 import { rendererExecutable } from './renderer.mjs';
 import { openRenderFile } from './render-file.mjs';
 import { SceneDiagnosticError } from './diagnostics.mjs';
+import { requiresWebGPU } from './chromium-flags.mjs';
 
 const execute = promisify(execFile);
 
@@ -36,7 +37,11 @@ export async function renderComponent(input, signal, { requestId, onProgress = (
   onProgress({ stage: 'compiling', totalFrames: config.durationInFrames });
   signal?.throwIfAborted();
   const resources = sharedRenderResources(await renderResources(), concurrency);
-  const options = renderOptions(config, process.env, resources);
+   const options = renderOptions(config, process.env, resources);
+   if (requiresWebGPU(input.component)) {
+     options.gpu = true;
+     options.workers = 1;
+   }
   if (concurrency > 1) options.workers = Math.min(options.workers, Math.max(1, Math.floor(4 / concurrency)), resources.cpus);
   if (concurrency > 1) options.threads = Math.min(options.threads, resources.cpus);
   console.info('scene_render_started', JSON.stringify({ ...trace, width: config.width, height: config.height, fps: config.fps, frames: config.durationInFrames, ...options }));

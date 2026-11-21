@@ -1,0 +1,785 @@
+Hyperframes upstream reference: https://github.com/heygen-com/hyperframes, revision 8ec98be29a64e88239a0c05f7e5d09f36e181493, Apache-2.0.
+
+Project-authored substitute illustrations, noise, studio lighting, generic models and silent motion sample: CC0-1.0. Original bundled assets keep their upstream licences.
+
+three@0.180.0 — MIT
+The MIT License
+
+Copyright © 2010-2025 three.js authors
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+
+
+d3@7.9.0 — ISC
+Copyright 2010-2023 Mike Bostock
+
+Permission to use, copy, modify, and/or distribute this software for any purpose
+with or without fee is hereby granted, provided that the above copyright notice
+and this permission notice appear in all copies.
+
+THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH
+REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT,
+INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS
+OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
+TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF
+THIS SOFTWARE.
+
+
+d3-delaunay@6.0.4 — ISC
+Copyright 2018-2021 Observable, Inc.
+Copyright 2021 Mapbox
+
+Permission to use, copy, modify, and/or distribute this software for any purpose
+with or without fee is hereby granted, provided that the above copyright notice
+and this permission notice appear in all copies.
+
+THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH
+REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT,
+INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS
+OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
+TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF
+THIS SOFTWARE.
+
+
+topojson-client@3.1.0 — ISC
+Copyright 2012-2019 Michael Bostock
+
+Permission to use, copy, modify, and/or distribute this software for any purpose
+with or without fee is hereby granted, provided that the above copyright notice
+and this permission notice appear in all copies.
+
+THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH
+REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT,
+INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS
+OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
+TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF
+THIS SOFTWARE.
+
+
+us-atlas@3.0.1 — ISC
+Copyright 2013-2019 Michael Bostock
+
+Permission to use, copy, modify, and/or distribute this software for any purpose
+with or without fee is hereby granted, provided that the above copyright notice
+and this permission notice appear in all copies.
+
+THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH
+REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT,
+INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS
+OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
+TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF
+THIS SOFTWARE.
+
+
+world-atlas@2.0.2 — ISC
+Copyright 2013-2019 Michael Bostock
+
+Permission to use, copy, modify, and/or distribute this software for any purpose
+with or without fee is hereby granted, provided that the above copyright notice
+and this permission notice appear in all copies.
+
+THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH
+REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT,
+INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS
+OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
+TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF
+THIS SOFTWARE.
+
+
+es-atlas@0.6.0 — MIT
+MIT License
+
+Copyright (c) 2016-2018 Martín González
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+# Spain Atlas TopoJSON
+
+<img align="right" src="https://cloud.githubusercontent.com/assets/1236790/20868824/69a60934-ba65-11e6-8591-ddcc1e93b157.png" width="300" height="auto">
+
+This repository provides a simple script to generate TopoJSON files from the [Spanish National Geographic Institute’s](http://www.ign.es/ign/main/index.do) [National Reference Geographic Equipment](http://centrodedescargas.cnig.es/CentroDescargas/equipamiento.do?method=mostrarEquipamiento) vector data.
+
+## Getting started
+
+Clone or download the repository, start a terminal and run `npm install` in the folder. This command will download the shapefiles from the IGN, join them and convert them to [TopoJSON](https://github.com/topojson/topojson).
+
+If you need to make further adjustments (simplification, quantization) you can adjust the `package.json` config and run `npm install` again.
+
+## File Reference
+
+<a href="#es/municipalities.json" name="es/municipalities.json">#</a> <b>es/municipalities.json</b> · [Download](https://unpkg.com/es-atlas/es/municipalities.json)
+
+A TopoJSON which contains four objects: _municipalities_, _provinces_, _autonomous regions_ and _border_. Every city, province and region has its corresponding [National Statistics Institute](http://www.ine.es/en/welcome.shtml) identifier and name, so it's easy to get started.
+
+<a href="#es/municipalities.json_municipalities" name="es/municipalities.json_municipalities">#</a> _es_.objects.<b>municipalities</b>
+
+<img src="https://cloud.githubusercontent.com/assets/1236790/20868824/69a60934-ba65-11e6-8591-ddcc1e93b157.png" width="480" height="auto">
+
+<a href="#es/municipalities.json_provinces" name="es/municipalities.json_provinces">#</a> _es_.objects.<b>provinces</b>
+
+<img src="https://cloud.githubusercontent.com/assets/1236790/20868842/012eb12a-ba66-11e6-80f3-f5b0568664ff.png" width="480" height="auto">
+
+<a href="#es/municipalities.json_autonomous_regions" name="es/municipalities.json_autonomous_regions">#</a> _es_.objects.<b>autonomous_regions</b>
+
+<img src="https://cloud.githubusercontent.com/assets/1236790/20868858/72ad886c-ba66-11e6-95eb-e995fa640fc7.png" width="480" height="auto">
+
+<a href="#es/municipalities.json_border" name="es/municipalities.json_border">#</a> _es_.objects.<b>border</b>
+
+<img src="https://cloud.githubusercontent.com/assets/1236790/20868860/871ab75c-ba66-11e6-8517-a7d6e2d5eac8.png" width="480" height="auto">
+
+<a href="#es/provinces.json" name="es/provinces.json">#</a> <b>es/provinces.json</b> · [Download](https://unpkg.com/es-atlas/es/provinces.json)
+
+This file provides provinces and autonomous regions, to keep a smaller footprint on less detailed maps.
+
+<a href="#es/autonomous_regions.json" name="es/autonomous_regions.json">#</a> <b>es/autonomous_regions.json</b> · [Download](https://unpkg.com/es-atlas/es/autonomous_regions.json)
+
+This file only provides autonomous regions, to keep a smaller footprint on less detailed maps.
+
+## Usage
+
+To render the map I recommend using the `geoConicConformalSpain` projection created by Roger Veciana, included in [d3-composite-projections](https://github.com/rveciana/d3-composite-projections). This projection ensures that the Canary Islands are painted closer to the mainland and [include a border](https://bl.ocks.org/rveciana/d635afded8c4eae36ecf61a15bdf0a98) to mark the projection zone.
+
+You can see an interactive example in this [Observable notebook](https://observablehq.com/@martgnz/mapa-de-espana-con-topojson-y-es-atlas).
+
+For the browser with [d3-geo](https://github.com/d3/d3-geo) and SVG:
+
+```html
+<!DOCTYPE html>
+<svg width="960" height="500"></svg>
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<script src="https://d3js.org/topojson.v3.min.js"></script>
+<script src="https://unpkg.com/d3-composite-projections@1.3.0"></script>
+<script>
+
+const svg = d3.select("svg");
+const projection = d3.geoConicConformalSpain();
+const path = d3.geoPath(projection);
+
+d3.json("https://unpkg.com/es-atlas/es/municipalities.json")
+  .catch(err => console.warn(err))
+  .then(es => {
+    svg
+      .append('path')
+      .attr('d', path(topojson.mesh(es)))
+      .attr('fill', 'none')
+      .attr('stroke', 'black');
+
+    svg
+      .append('path')
+      .attr('d', projection.getCompositionBorders())
+      .attr('fill', 'none')
+      .attr('stroke', 'black');
+  })
+</script>
+```
+
+In Node (using [d3-geo](https://github.com/d3/d3-geo) and [node-canvas](https://github.com/Automattic/node-canvas)):
+
+```js
+const fs = require('fs');
+const d3_composite = require('d3-composite-projections');
+const d3 = require('d3-geo');
+const topojson = require('topojson-client');
+const Canvas = require('canvas');
+const es = require('./node_modules/es-atlas/es/municipalities.json');
+
+const canvas = new Canvas(960, 500);
+const context = canvas.getContext('2d');
+const projection = d3_composite.geoConicConformalSpain();
+const path = d3.geoPath(projection, context);
+
+context.beginPath();
+path(topojson.mesh(es));
+context.stroke();
+
+canvas.pngStream().pipe(fs.createWriteStream('preview.png'));
+```
+
+### Reference
+
+<a href="#simplification" name="simplification">#</a> <i>simplification</i>
+
+Removes points to reduce the file size. Set to `1e-4` by default.
+
+<a href="#quantization" name="quantization">#</a> <i>quantization</i>
+
+Removes information by reducing the precision of each coordinate. Set to `1e4` by default.
+
+<a href="#autonomous_regions" name="autonomous_regions">#</a> <i>autonomous_regions</i>
+
+Filters the result by the given [autonomous region](http://www.ine.es/en/daco/daco42/codmun/cod_ccaa_en.htm) `id` separated by comma.
+
+### Data license
+
+The shapefiles have a [CC-BY 4.0](https://creativecommons.org/licenses/by/4.0/) license. You need to accept the [terms](http://www.ign.es/resources/licencia/Condiciones_licenciaUso_IGN.pdf) before using the files.
+
+### Inspiration
+
+The original idea and implementation comes from Mike Bostock’s [us-atlas](https://github.com/topojson/us-atlas) and [world-atlas](https://github.com/topojson/world-atlas).
+
+
+lottie-web@5.12.2 — MIT
+The MIT License (MIT)
+
+Copyright (c) 2015 Bodymovin
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+clipper-lib@6.4.2 — BSL
+/*******************************************************************************
+ *                                                                              *
+ * Author    :  Angus Johnson                                                   *
+ * Version   :  6.4.2                                                           *
+ * Date      :  27 February 2017                                                *
+ * Website   :  http://www.angusj.com                                           *
+ * Copyright :  Angus Johnson 2010-2017                                         *
+ *                                                                              *
+ * License:                                                                     *
+ * Use, modification & distribution is subject to Boost Software License Ver 1. *
+ * http://www.boost.org/LICENSE_1_0.txt                                         *
+ *                                                                              *
+ * Attributions:                                                                *
+ * The code in this library is an extension of Bala Vatti's clipping algorithm: *
+ * "A generic solution to polygon clipping"                                     *
+ * Communications of the ACM, Vol 35, Issue 7 (July 1992) pp 56-63.             *
+ * http://portal.acm.org/citation.cfm?id=129906                                 *
+ *                                                                              *
+ * Computer graphics and geometric modeling: implementation and algorithms      *
+ * By Max K. Agoston                                                            *
+ * Springer; 1 edition (January 4, 2005)                                        *
+ * http://books.google.com/books?q=vatti+clipping+agoston                       *
+ *                                                                              *
+ * See also:                                                                    *
+ * "Polygon Offsetting by Computing Winding Numbers"                            *
+ * Paper no. DETC2005-85513 pp. 565-575                                         *
+ * ASME 2005 International Design Engineering Technical Conferences             *
+ * and Computers and Information in Engineering Conference (IDETC/CIE2005)      *
+ * September 24-28, 2005 , Long Beach, California, USA                          *
+ * http://www.me.berkeley.edu/~mcmains/pubs/DAC05OffsetPolygon.pdf              *
+ *                                                                              *
+ *******************************************************************************/
+/*******************************************************************************
+ *                                                                              *
+ * Author    :  Timo                                                            *
+ * Version   :  6.4.2.2                                                         *
+ * Date      :  8 September 2017                                                 *
+ *                                                                              *
+ * This is a translation of the C# Clipper library to Javascript.               *
+ * Int128 struct of C# is implemented using JSBN of Tom Wu.                     *
+ * Because Javascript lacks support for 64-bit integers, the space              *
+ * is a little more restricted than in C# version.                              *
+ *                                                                              *
+ * C# version has support for coordinate space:                                 *
+ * +-4611686018427387903 ( sqrt(2^127 -1)/2 )                                   *
+ * while Javascript version has support for space:                              *
+ * +-4503599627370495 ( sqrt(2^106 -1)/2 )                                      *
+ *                                                                              *
+ * Tom Wu's JSBN proved to be the fastest big integer library:                  *
+ * http://jsperf.com/big-integer-library-test                                   *
+ *                                                                              *
+ * This class can be made simpler when (if ever) 64-bit integer support comes   *
+ * or floating point Clipper is released.                                       *
+ *                                                                              *
+ *******************************************************************************/
+/*******************************************************************************
+ *                                                                              *
+ * Basic JavaScript BN library - subset useful for RSA encryption.              *
+ * http://www-cs-students.stanford.edu/~tjw/jsbn/                               *
+ * Copyright (c) 2005  Tom Wu                                                   *
+ * All Rights Reserved.                                                         *
+ * See "LICENSE" for details:                                                   *
+ * http://www-cs-students.stanford.edu/~tjw/jsbn/LICENSE                        *
+ *                                                                              *
+ *******************************************************************************/
+(function ()
+{
+	"use strict";
+	var ClipperLib = {};
+	ClipperLib.version = '6.4.2.2';
+
+	//UseLines: Enables open path clipping. Adds a very minor cost to performance.
+	ClipperLib.use_lines = true;
+
+	//ClipperLib.use_xyz: adds a Z member to IntPoint. Adds a minor cost to performance.
+	ClipperLib.use_xyz = false;
+
+	var isNode = false;
+	if (typeof module !== 'undefined' && module.exports)
+	{
+		module.exports = ClipperLib;
+		isNode = true;
+	}
+	else
+	{
+		if (typeof define === 'function' && define.amd) {
+			define(ClipperLib);
+		}
+		if (typeof (document) !== "undefined") window.ClipperLib = ClipperLib;
+		else self['ClipperLib'] = ClipperLib;
+	}
+	var navigator_appName;
+	if (!isNode)
+	{
+		var nav = navigator.userAgent.toString().toLowerCase();
+		navigator_appName = navigator.appName;
+	}
+	else
+	{
+		var nav = "chrome"; // Node.js uses Chrome's V8 engine
+		navigator_appName = "Netscape"; // Firefox, Chrome and Safari returns "Netscape", so Node.js should also
+	}
+	// Browser test to speedup performance critical functions
+	var browser = {};
+
+	if (nav.indexOf("chrome") != -1 && nav.indexOf("chromium") == -1) browser.chrome = 1;
+	else browser.chrome = 0;
+	if (nav.indexOf("chromium") != -1) browser.chromium = 1;
+	else browser.chromium = 0;
+	if (nav.indexOf("safari") != -1 && nav.indexOf("chrome") == -1 && nav.indexOf("chromium") == -1) browser.safari = 1;
+	else browser.safari = 0;
+	if (nav.indexOf("firefox") != -1) browser.firefox = 1;
+	else browser.firefox = 0;
+	if (nav.indexOf("firefox/17") != -1) browser.firefox17 = 1;
+	else browser.firefox17 = 0;
+	if (nav.indexOf("firefox/15") != -1) browser.firefox15 = 1;
+	else browser.firefox15 = 0;
+	if (nav.indexOf("firefox/3") != -1) browser.firefox3 = 1;
+	else browser.firefox3 = 0;
+	if (nav.indexOf("opera") != -1) browser.opera = 1;
+	else browser.opera = 0;
+	if (nav.indexOf("msie 10") != -1) browser.msie10 = 1;
+	else browser.msie10 = 0;
+	if (nav.indexOf("msie 9") != -1) browser.msie9 = 1;
+	else browser.msie9 = 0;
+	if (nav.indexOf("msie 8") != -1) browser.msie8 = 1;
+	else browser.msie8 = 0;
+	if (nav.indexOf("msie 7") != -1) browser.msie7 = 1;
+	else browser.msie7 = 0;
+	if (nav.indexOf("msie ") != -1) browser.msie = 1;
+	else browser.msie = 0;
+	ClipperLib.biginteger_used = null;
+
+	// Copyright (c) 2005  Tom Wu
+	// All Rights Reserved.
+	// See "LICENSE" for details.
+	// Basic JavaScript BN library - subset useful for RSA encryption.
+	// Bits per digit
+	var dbits;
+	// JavaScript engine analysis
+	var canary = 0xdeadbeefcafe;
+	var j_lm = ((canary & 0xffffff) == 0xefcafe);
+	// (public) Constructor
+	/**
+	* @constructor
+	*/
+	function BigInteger(a, b, c)
+	{
+		// This test variable can be removed,
+		// but at least for performance tests it is useful piece of knowledge
+		// This is the only ClipperLib related variable in BigInteger library
+		ClipperLib.biginteger_used = 1;
+		if (a != null)
+			if ("number" == typeof a && "undefined" == typeof (b)) this.fromInt(a); // faster conversion
+			else if ("number" == typeof a) this.fromNumber(a, b, c);
+		else if (b == null && "string" != typeof a) this.fromString(a, 256);
+		else this.fromString(a, b);
+	}
+	// return new, unset BigInteger
+	function nbi()
+	{
+		return new BigInteger(null, undefined, undefined);
+	}
+	// am: Compute w_j += (x*this_i), propagate carries,
+	// c is initial carry, returns final carry.
+	// c < 3*dvalue, x < 2*dvalue, this_i < dvalue
+	// We need to select the fastest one that works in this environment.
+	// am1: use a single mult and divide to get the high bits,
+	// max digit bits should be 26 because
+	// max internal value = 2*dvalue^2-2*dvalue (< 2^53)
+	function am1(i, x, w, j, c, n)
+	{
+		while (--n >= 0)
+		{
+			var v = x * this[i++] + w[j] + c;
+			c = Math.floor(v / 0x4000000);
+			w[j++] = v & 0x3ffffff;
+		}
+		return c;
+	}
+	// am2 avoids a big mult-and-extract completely.
+	// Max digit bits should be <= 30 because we do bitwise ops
+	// on values up to 2*hdvalue^2-hdvalue-1 (< 2^31)
+	function am2(i, x, w, j, c, n)
+	{
+		var xl = x & 0x7fff,
+			xh = x >> 15;
+		while (--n >= 0)
+		{
+			var l = this[i] & 0x7fff;
+			var h = this[i++] >> 15;
+			var m = xh * l + h * xl;
+			l = xl * l + ((m & 0x7fff) << 15) + w[j] + (c & 0x3fffffff);
+			c = (l >>> 30) + (m >>> 15) + xh * h + (c >>> 30);
+			w[j++] = l & 0x3fffffff;
+		}
+		return c;
+	}
+	// Alternately, set max digit bits to 28 since some
+	// browsers slow down when dealing with 32-bit numbers.
+	function am3(i, x, w, j, c, n)
+	{
+		var xl = x & 0x3fff,
+			xh = x >> 14;
+		while (--n >= 0)
+		{
+			var l = this[i] & 0x3fff;
+			var h = this[i++] >> 14;
+			var m = xh * l + h * xl;
+			l = xl * l + ((m & 0x3fff) << 14) + w[j] + c;
+			c = (l >> 28) + (m >> 14) + xh * h;
+			w[j++] = l & 0xfffffff;
+		}
+		return c;
+	}
+	if (j_lm && (navigator_appName == "Microsoft Internet Explorer"))
+	{
+		BigInteger.prototype.am = am2;
+		dbits = 30;
+	}
+	else if (j_lm && (navigator_appName != "Netscape"))
+	{
+		BigInteger.prototype.am = am1;
+		dbits = 26;
+	}
+	else
+	{ // Mozilla/Netscape seems to prefer am3
+		BigInteger.prototype.am = am3;
+		dbits = 28;
+	}
+	BigInteger.prototype.DB = dbits;
+	BigInteger.prototype.DM = ((1 << dbits) - 1);
+	BigInteger.prototype.DV = (1 << dbits);
+	var BI_FP = 52;
+	BigInteger.prototype.FV = Math.pow(2, BI_FP);
+	BigInteger.prototype.F1 = BI_FP - dbits;
+	BigInteger.prototype.F2 = 2 * dbits - BI_FP;
+	// Digit conversions
+	var BI_RM = "0123456789abcdefghijklmnopqrstuvwxyz";
+	var BI_RC = new Array();
+	var rr, vv;
+	rr = "0".charCodeAt(0);
+	for (vv = 0; vv <= 9; ++vv) BI_RC[rr++] = vv;
+	rr = "a".charCodeAt(0);
+	for (vv = 10; vv < 36; ++vv) BI_RC[rr++] = vv;
+	rr = "A".charCodeAt(0);
+	for (vv = 10; vv < 36; ++vv) BI_RC[rr++] = vv;
+
+	function int2char(n)
+	{
+		return BI_RM.charAt(n);
+	}
+
+	function intAt(s, i)
+	{
+		var c = BI_RC[s.charCodeAt(i)];
+		return (c == null) ? -1 : c;
+	}
+	// (protected) copy this to r
+	function bnpCopyTo(r)
+	{
+		for (var i = this.t - 1; i >= 0; --i) r[i] = this[i];
+		r.t = this.t;
+		r.s = this.s;
+	}
+	// (protected) set from integer value x, -DV <= x < DV
+	function bnpFromInt(x)
+	{
+		this.t = 1;
+		this.s = (x < 0) ? -1 : 0;
+		if (x > 0) this[0] = x;
+		else if (x < -1) this[0] = x + this.DV;
+		else this.t = 0;
+	}
+	// return bigint initialized to value
+	function nbv(i)
+	{
+		var r = nbi();
+		r.fromInt(i);
+		return r;
+	}
+	// (protected) set from string and radix
+	function bnpFromString(s, b)
+	{
+		var k;
+		if (b == 16) k = 4;
+		else if (b == 8) k = 3;
+		else if (b == 256) k = 8; // byte array
+		else if (b == 2) k = 1;
+		else if (b == 32) k = 5;
+		else if (b == 4) k = 2;
+		else
+		{
+			this.fromRadix(s, b);
+			return;
+		}
+		this.t = 0;
+		this.s = 0;
+		var i = s.length,
+			mi = false,
+			sh = 0;
+		while (--i >= 0)
+		{
+			var x = (k == 8) ? s[i] & 0xff : intAt(s, i);
+			if (x < 0)
+			{
+				if (s.charAt(i) == "-") mi = true;
+				continue;
+			}
+			mi = false;
+			if (sh == 0)
+				this[this.t++] = x;
+			else if (sh + k > this.DB)
+			{
+				this[this.t - 1] |= (x & ((1 << (this.DB - sh)) - 1)) << sh;
+				this[this.t++] = (x >> (this.DB - sh));
+			}
+			else
+				this[this.t - 1] |= x << sh;
+			sh += k;
+			if (sh >= this.DB) sh -= this.DB;
+		}
+		if (k == 8 && (s[0] & 0x80) != 0)
+		{
+			this.s = -1;
+			if (sh > 0) this[this.t - 1] |= ((1 << (this.DB - sh)) - 1) << sh;
+		}
+		this.clamp();
+		if (mi) BigInteger.ZERO.subTo(this, this);
+	}
+	// (protected) clamp off excess high words
+	function bnpClamp()
+	{
+		var c = this.s & this.DM;
+		while (this.t > 0 && this[this.t - 1] == c) --this.t;
+	}
+	// (public) return string representation in given radix
+	function bnToString(b)
+	{
+		if (this.s < 0) return "-" + this.negate().toString(b);
+		var k;
+		if (b == 16) k = 4;
+		else if (b == 8) k = 3;
+		else if (b == 2) k = 1;
+		else if (b == 32) k = 5;
+		else if (b == 4) k = 2;
+		else return this.toRadix(b);
+		var km = (1 << k) - 1,
+			d, m = false,
+			r = "",
+			i = this.t;
+		var p = this.DB - (i * this.DB) % k;
+		if (i-- > 0)
+		{
+			if (p < this.DB && (d = this[i] >> p) > 0)
+			{
+				m = true;
+				r = int2char(d);
+			}
+			while (i >= 0)
+			{
+				if (p < k)
+				{
+					d = (this[i] & ((1 << p) - 1)) << (k - p);
+					d |= this[--i] >> (p += this.DB - k);
+				}
+				else
+				{
+					d = (this[i] >> (p -= k)) & km;
+					if (p <= 0)
+					{
+						p += this.DB;
+						--i;
+					}
+				}
+				if (d > 0) m = true;
+				if (m) r += int2char(d);
+			}
+		}
+		return m ? r : "0";
+	}
+	// (public) -this
+	function bnNegate()
+	{
+		var r = nbi();
+		BigInteger.ZERO.subTo(this, r);
+		return r;
+	}
+	// (public) |this|
+	function bnAbs()
+	{
+		return (this.s < 0) ? this.negate() : this;
+	}
+	// (public) return + if this > a, - if this < a, 0 if equal
+	function bnCompareTo(a)
+	{
+		var r = this.s - a.s;
+		if (r != 0) return r;
+		var i = this.t;
+		r = i - a.t;
+		if (r != 0) return (this.s < 0) ? -r : r;
+		while (--i >= 0)
+			if ((r = this[i] - a[i]) != 0) return r;
+		return 0;
+	}
+	// returns bit length of the integer x
+	function nbits(x)
+	{
+		var r = 1,
+			t;
+		if ((t = x >>> 16) != 0)
+		{
+			x = t;
+			r += 16;
+		}
+		if ((t = x >> 8) != 0)
+		{
+			x = t;
+			r += 8;
+		}
+		if ((t = x >> 4) != 0)
+		{
+			x = t;
+			r += 4;
+		}
+		if ((t = x >> 2) != 0)
+		{
+			x = t;
+			r += 2;
+		}
+		if ((t = x >> 1) != 0)
+		{
+			x = t;
+			r += 1;
+		}
+		return r;
+	}
+	// (public) return the number of bits in "this"
+	function bnBitLength()
+	{
+		if (this.t <= 0) return 0;
+		return this.DB * (this.t - 1) + nbits(this[this.t - 1] ^ (this.s & this.DM));
+	}
+	// (protected) r = this << n*DB
+	function bnpDLShiftTo(n, r)
+	{
+		var i;
+		for (i = this.t - 1; i >= 0; --i) r[i + n] = this[i];
+		for (i = n - 1; i >= 0; --i) r[i] = 0;
+		r.t = this.t + n;
+		r.s = this.s;
+	}
+	// (protected) r = this >> n*DB
+	function bnpDRShiftTo(n, r)
+	{
+		for (var i = n; i < this.t; ++i) r[i - n] = this[i];
+		r.t = Math.max(this.t - n, 0);
+		r.s = this.s;
+	}
+	// (protected) r = this << n
+	function bnpLShiftTo(n, r)
+	{
+		var bs = n % this.DB;
+		var cbs = this.DB - bs;
+		var bm = (1 << cbs) - 1;
+		var ds = Math.floor(n / this.DB),
+			c = (this.s << bs) & this.DM,
+			i;
+		for (i = this.t - 1; i >= 0; --i)
+		{
+			r[i + ds + 1] = (this[i] >> cbs) | c;
+			c = (this[i] & bm) << bs;
+		}
+		for (i = ds - 1; i >= 0; --i) r[i] = 0;
+		r[ds] = c;
+		r.t = this.t + ds + 1;
+		r.s = this.s;
+		r.clamp();
+	}
+	// (protected) r = this >> n
+	function bnpRShiftTo(n, r)
+	{
+		r.s = this.s;
+		var ds = Math.floor(n / this.DB);
+		if (ds >= this.t)
+		{
+			r.t = 0;
+			return;
+		}
+		var bs = n % this.DB;
+		var cbs = this.DB - bs;
+		var bm = (1 << bs) - 1;
+		r[0] = this[ds] >> bs;
+		for (var i = ds + 1; i < this.t; ++i)
+		{
+			r[i - ds - 1] |= (this[i] & bm) << cbs;
+			r[i - ds] = this[i] >> bs;
+		}
+		if (bs > 0) r[this.t - ds - 1] |= (this.s & bm) << cbs;
+		r.t = this.t - ds;
+		r.clamp();
+	}
+	// (protected) r 

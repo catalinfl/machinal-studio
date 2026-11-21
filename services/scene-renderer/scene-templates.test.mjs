@@ -5,8 +5,11 @@ import { chromium } from '@playwright/test';
 import { compileComponent } from './render.mjs';
 import { imageDataURL } from './image-fixture.mjs';
 
-const reference = new URL('../../api/internal/platform/mcpserver/reference/', import.meta.url);
-const templates = JSON.parse(await readFile(new URL('scene-templates.json', reference), 'utf8'));
+const reference = new URL('../../packages/mcp-installer/library/', import.meta.url);
+// Imported Hyperframes have their own source/runtime tests; unlike authored
+// templates, their copied comments, CSS keyframes and transparent artboards are intentional.
+const templates = JSON.parse(await readFile(new URL('scene-templates.json', reference), 'utf8'))
+  .filter(template => !template.id.startsWith('hyperframes-'));
 
 async function templateInput(template, width = 1920, height = 1080) {
   const component = await readFile(new URL(`scene-templates/${template.id}.svelte`, reference), 'utf8');
@@ -19,7 +22,8 @@ async function templateInput(template, width = 1920, height = 1080) {
 
 test('catalog components cover every source and compile with the real sandbox and runtime imports', async () => {
   const files = await readdir(new URL('scene-templates/', reference));
-  assert.deepEqual(files.sort(), templates.map(template => `${template.id}.svelte`).sort());
+  assert.deepEqual(files.filter(file => !file.startsWith('hyperframes-')).sort(),
+    templates.map(template => `${template.id}.svelte`).sort());
   for (const template of templates) {
     const input = await templateInput(template);
     assert.ok(Buffer.byteLength(input.component) <= 64000);

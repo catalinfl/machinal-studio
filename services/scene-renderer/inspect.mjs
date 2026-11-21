@@ -4,6 +4,7 @@ import { pathToFileURL } from 'node:url';
 import { chromium } from 'playwright-core';
 import { bundleComponent } from './bundle.mjs';
 import { SceneDiagnosticError } from './diagnostics.mjs';
+import { sceneChromiumFlags } from './chromium-flags.mjs';
 
 const browserTimeout = 30000;
 
@@ -28,7 +29,7 @@ async function inspectInBrowser(path, config) {
     executablePath: await browserExecutable(),
     headless: true,
     chromiumSandbox: process.env.SCENE_NO_SANDBOX !== 'true',
-    args: ['--enable-unsafe-swiftshader', '--disable-dev-shm-usage', '--disable-background-networking'],
+    args: sceneChromiumFlags,
     timeout: browserTimeout,
   });
   try {

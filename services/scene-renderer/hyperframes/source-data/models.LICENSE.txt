@@ -1,0 +1,2 @@
+Project-authored generic sample phone and laptop geometry, CC0-1.0. These substitutes are not the original upstream branded models.
+Generated with Three.js (MIT); see the Three.js licence in the upstream reference library.

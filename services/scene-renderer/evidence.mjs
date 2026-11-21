@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { createHash } from 'node:crypto';
 import { chromium } from 'playwright-core';
+import { sceneChromiumFlags } from './chromium-flags.mjs';
 import { bundleComponent, validateInput } from './bundle.mjs';
 import { browserExecutable } from './inspect.mjs';
 import { SceneDiagnosticError } from './diagnostics.mjs';
@@ -40,7 +41,7 @@ export async function inspectEvidence(input, signal) {
   try {
     const { path, bundleVersion } = await evidencePage(input, directory);
     signal?.throwIfAborted();
-    browser = await chromium.launch({ executablePath: await browserExecutable(), headless: true, chromiumSandbox: process.env.SCENE_NO_SANDBOX !== 'true', args: ['--enable-unsafe-swiftshader', '--disable-dev-shm-usage', '--disable-background-networking'], timeout: 30000 });
+    browser = await chromium.launch({ executablePath: await browserExecutable(), headless: true, chromiumSandbox: process.env.SCENE_NO_SANDBOX !== 'true', args: sceneChromiumFlags, timeout: 30000 });
     signal?.addEventListener('abort', abort, { once: true });
     signal?.throwIfAborted();
     const page = await browser.newPage({ viewport: { width: input.config.width, height: input.config.height }, serviceWorkers: 'block' });

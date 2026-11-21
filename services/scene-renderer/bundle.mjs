@@ -11,7 +11,7 @@ import { SceneDiagnosticError } from './diagnostics.mjs';
 import { validateMediaReferences } from './media-references.mjs';
 import { validateSceneParameters, validateSceneModels } from '@machinal/scenes/runtime';
 
-const allowedImports = new Set(['svelte', '@machinal/scenes', '@machinal/scenes/svelte', '@machinal/scenes/runtime', '@direction/scene-svelte', '@direction/scene-runtime', 'three']);
+const allowedImports = new Set(['svelte', '@machinal/scenes', '@machinal/scenes/svelte', '@machinal/scenes/runtime', '@direction/scene-svelte', '@direction/scene-runtime', 'three', 'gsap', 'gsap/dist/CustomEase', 'gsap/dist/MotionPathPlugin', 'gsap/dist/TextPlugin', 'd3', 'd3-delaunay', 'lottie-web/build/player/lottie_light.js', 'clipper-lib', 'topojson-client']);
 const bundles = new BundleCache();
 
 export function validateInput(input) {
@@ -87,6 +87,18 @@ try {
     plugins: [{
       name: 'generated-scene',
       setup(builder) {
+        builder.onResolve({ filter: /^@machinal\/hyperframes\/(?:shaders|assets)$/ }, args => ({
+          path: fileURLToPath(new URL(`./hyperframes/${args.path.split('/').pop()}.mjs`, import.meta.url)),
+        }));
+        builder.onResolve({ filter: /^@machinal\/hyperframes\/(?:media|fonts)\/(?:blocks|components|examples)-[a-z0-9-]+$/ }, args => ({
+          path: fileURLToPath(new URL(`./hyperframes/${args.path.split('/').slice(-2).join('/')}.mjs`, import.meta.url)),
+        }));
+        builder.onResolve({ filter: /^@machinal\/hyperframes\/native\/(?:blocks|components|examples)-[a-z0-9-]+$/ }, args => ({
+          path: fileURLToPath(new URL(`./hyperframes/native/${args.path.split('/').pop()}.mjs`, import.meta.url)),
+        }));
+        builder.onResolve({ filter: /^@machinal\/hyperframes\/vendor\/(?:cuboid-motion|orbit-scene|code-slice|caveat-pen|liquid-glass|frost|glass-shard|pathtracer)$/ }, args => ({
+          path: fileURLToPath(new URL(`./hyperframes/vendor/${args.path.split('/').pop()}.mjs`, import.meta.url)),
+        }));
         builder.onResolve({ filter: /^scene-font-css$/ }, () => ({ path: 'fonts', namespace: 'scene-fonts' }));
         builder.onLoad({ filter: /.*/, namespace: 'scene-fonts' }, () => ({ contents: `export default ${JSON.stringify(fonts)};`, loader: 'js' }));
         builder.onLoad({ filter: /\.svelte\.js$/ }, async args => {
@@ -100,7 +112,7 @@ try {
         builder.onResolve({ filter: /^generated-scene$/ }, () => ({ path: 'scene', namespace: 'generated' }));
         builder.onLoad({ filter: /.*/, namespace: 'generated' }, () => ({ contents: compiled.js.code, loader: 'js', resolveDir: import.meta.dirname }));
         builder.onResolve({ filter: /.*/, namespace: 'generated' }, args => {
-          if (allowedImports.has(args.path) || args.path.startsWith('svelte/')) return undefined;
+          if (allowedImports.has(args.path) || args.path.startsWith('svelte/') || args.path.startsWith('three/')) return undefined;
           return { errors: [{ text: `Unsupported scene import: ${args.path}` }] };
         });
       },
@@ -110,6 +122,6 @@ try {
 }
 
 export const sceneHTML = `<!doctype html><html><head><meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'unsafe-inline'; img-src data: blob:; font-src data:; connect-src blob:; media-src data: blob:; frame-src 'none'; worker-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'unsafe-inline'; img-src data: blob:; font-src data:; connect-src blob: data:; media-src data: blob:; frame-src 'none'; worker-src 'none'; base-uri 'none'; form-action 'none'">
 <style>html,body,#scene{margin:0;width:100%;height:100%;overflow:hidden}*{box-sizing:border-box}</style>
 </head><body><div id="scene"></div><script type="module" src="/scene.js"></script></body></html>`;

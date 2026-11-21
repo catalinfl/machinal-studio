@@ -50,7 +50,7 @@ async function buildFontCSS(selected) {
         const data = (await readFile(join(directory, file))).toString('base64');
         rules.push(rule.replace(/font-family:[^;]+;/, `font-family:'${family}';`)
           .replace(/font-display:[^;]+;/, 'font-display:block;')
-          .replace(/url\([^)]+\)/, `url(data:font/woff2;base64,${data})`));
+          .replace(/src:[^;]+;/, `src:url(data:font/woff2;base64,${data}) format('woff2');`));
       }
     }
   }

@@ -7,7 +7,7 @@ import { compileComponent } from '../render.mjs';
 import { inspectEvidence } from '../evidence.mjs';
 import { imageDataURL } from '../image-fixture.mjs';
 
-const reference = new URL('../../../api/internal/platform/mcpserver/reference/', import.meta.url);
+const reference = new URL('../../../packages/mcp-installer/library/', import.meta.url);
 
 export function reviewFrames(duration, fps) {
   const last = Math.round(duration * fps) - 1;

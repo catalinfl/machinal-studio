@@ -48,6 +48,7 @@ export async function settleSceneFonts(target) {
   const elements = [target, ...target.querySelectorAll('*')].filter(element => element.style);
   const families = elements.map(element => sceneFontFamily(getComputedStyle(element).fontFamily));
   for (let index = 0; index < elements.length; index++) {
+    if (elements[index].closest('[data-hf-embedded-fonts]')) continue;
     const family = `'${families[index]}'`;
     if (elements[index].style.fontFamily.replace(/["']/g, '') !== families[index]) elements[index].style.fontFamily = family;
   }
