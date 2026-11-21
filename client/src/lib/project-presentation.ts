@@ -1,0 +1,72 @@
+import type { Composition, EditDocument } from './composition-types'
+import type { ProjectState } from './project-state'
+import { cloneJSON, compositionTimeline, revisionFingerprint } from './composition-adapter'
+
+export interface PreparedComposition {
+  jobId?: string
+  updatedAt: string
+  filename?: string
+  compositionId?: string
+  document?: EditDocument
+  bindings?: Record<string, string[]>
+  composition?: Composition
+}
+
+export interface ProjectPresentation {
+  prepared?: PreparedComposition
+  lastRender?: PreparedComposition
+}
+
+export function projectStateFingerprint(state: ProjectState): string {
+  return revisionFingerprint(JSON.stringify({ schemaVersion: state.schemaVersion, timeline: state.timeline, media: state.media }))
+}
+
+export function preparedProjectState(prepared: PreparedComposition): ProjectState | null {
+  if (!prepared.document || !prepared.composition) return null
+  const composition = cloneJSON(prepared.composition)
+  const timeline = compositionTimeline(composition, () => null)
+  const state: ProjectState = {
+    schemaVersion: 1,
+    preparedCompositionId: composition.id,
+    timeline: {
+      channels: timeline.channels, effectBlocks: timeline.effectBlocks, transitions: timeline.transitions,
+      textItems: timeline.textItems, fps: timeline.fps, resolution: timeline.resolution,
+      projectAspect: timeline.aspect, videoFit: timeline.fit ?? 'contain',
+      documentSession: {
+        kind: 'ready', document: cloneJSON(prepared.document), bindings: cloneJSON(prepared.bindings ?? {}),
+        assets: composition.assets, composition, preparedText: composition.preparedText,
+      },
+      currentTime: 0, selectedClipIds: [], selectedEffectBlockIds: [], selectedTextItemIds: [],
+    },
+    media: composition.assets.map(asset => ({
+      id: asset.id, sourceId: asset.id, sourceRevision: asset.version, name: asset.file, kind: asset.kind,
+      duration: asset.duration, width: asset.width, height: asset.height, sourceMode: asset.local ? 'wasm' : 'proxy',
+    })),
+  }
+  state.preparedStateFingerprint = projectStateFingerprint(state)
+  return state
+}
+
+export function projectStateForOpen(state: ProjectState | null, presentation?: ProjectPresentation): ProjectState | null {
+  if (state && (state.schemaVersion !== 1 || !Array.isArray(state.timeline?.channels) || !Array.isArray(state.media))) return state
+  const prepared = presentation?.prepared ?? presentation?.lastRender
+  if (state?.preparedCompositionId) {
+    const session = state.timeline.documentSession
+    if (state.preparedStateFingerprint === projectStateFingerprint(state)
+      && session?.kind === 'ready' && session.composition.id === state.preparedCompositionId
+      && prepared?.composition && prepared.composition.id !== state.preparedCompositionId) return preparedProjectState(prepared) ?? state
+    return state
+  }
+  // An existing document session also represents an intentionally cleared timeline.
+  if (state && (state.timeline?.documentSession || state.media?.length || state.timeline?.channels?.some(channel => channel.clips.length)
+    || state.timeline?.textItems?.length || state.timeline?.effectBlocks?.length)) return state
+  return prepared ? preparedProjectState(prepared) ?? state : state
+}
+
+export function preparedCompositionJSON(prepared: PreparedComposition): string {
+  if (!prepared.document || !prepared.composition) throw new Error('This older render has no retained editable snapshot.')
+  return JSON.stringify({
+    document: prepared.document, bindings: prepared.bindings ?? {}, assets: prepared.composition.assets,
+    preparedText: prepared.composition.preparedText,
+  }, null, 2)
+}

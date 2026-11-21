@@ -1,0 +1,394 @@
+{
+  "copyright": "Copyright (c) 2026 LemoLab",
+  "revision": "bebbbe1aa92a3cb4bb6f83500e61b23a17d1aa00",
+  "license": "MIT",
+  "adapted": true,
+  "notice": "Code and docs: MIT, copyright 2026 LemoLab. References are adapted for machinal. Demo films/stills and third-party assets are not included.",
+  "files": [
+    {
+      "path": "DIRECTOR.md",
+      "bytes": 12958,
+      "sha256": "70202d7fc201ee7ef8ab9eced7968926c37057b741412ebc8eca6a29f329db26"
+    },
+    {
+      "path": "LICENSE",
+      "bytes": 1064,
+      "sha256": "14c9ff6f14bfb2391e74fedb01c256891d2a3bba1c2acf5789901bdf77e54e33"
+    },
+    {
+      "path": "MY-STYLES.md",
+      "bytes": 16181,
+      "sha256": "f8edaac025dc2e96d63580a32c1f8182ab4a071f19ae677db681546204633736"
+    },
+    {
+      "path": "README.md",
+      "bytes": 795,
+      "sha256": "1edf08720424806969c769190548e838baf4237404d94032872124be50577935"
+    },
+    {
+      "path": "TECHNIQUE.md",
+      "bytes": 13422,
+      "sha256": "4b1fe08763922df34c2537cf0edd4b0276476d2f916a723be431a938efe80784"
+    },
+    {
+      "path": "core/lib.js",
+      "bytes": 2782,
+      "sha256": "f6aafa10a156d52b066a39b9445b4d23f3261b326042a92b95bdea4ba71bac24"
+    },
+    {
+      "path": "core/post/crt.js",
+      "bytes": 10958,
+      "sha256": "19d5385b5df36026dd13075a7a0fef2bc7c8763e8f3d719316dbf62ad4872a5c"
+    },
+    {
+      "path": "core/three/post.js",
+      "bytes": 6482,
+      "sha256": "531c3eca482dadeac5dc5255449aaaf52d69fc755b1c27f1ad3207590a546750"
+    },
+    {
+      "path": "styleboard/catalog.json",
+      "bytes": 33288,
+      "sha256": "217ae7ac4c78932c9de2f9dcf9d5542f23135eb7a4d5c8d31e7283664d7954d7"
+    },
+    {
+      "path": "styles/README.md",
+      "bytes": 8407,
+      "sha256": "a09e996a575150590d3e29163bf29651f55300050d007c2af715ae3f3bb253a8"
+    },
+    {
+      "path": "styles/archive-lighttable/STYLE.md",
+      "bytes": 13338,
+      "sha256": "2f18ac9a42822b7a9941866c42b0642e5417dea5431d61f141f6e11b29c1ec14"
+    },
+    {
+      "path": "styles/art-deco/STYLE.md",
+      "bytes": 12196,
+      "sha256": "d73b30c0fa6d153487549d32d8c6c599733cf5e7576badec862a12da6d284761"
+    },
+    {
+      "path": "styles/ascii-crt/STYLE.md",
+      "bytes": 12202,
+      "sha256": "cbe0b8957c785a165f85ccb3b8eba61c30c0462b32983db6a16c76046a2bb333"
+    },
+    {
+      "path": "styles/backrooms/STYLE.md",
+      "bytes": 12620,
+      "sha256": "2a3697a1ce37d0fbae3281220ae6154eeb9789233f1fae472d55ac169ba26fb4"
+    },
+    {
+      "path": "styles/blueprint/STYLE.md",
+      "bytes": 12323,
+      "sha256": "de01fc7fcb38b17b58eb017c9cdbcb36b9242b029435a33587614c93088e1717"
+    },
+    {
+      "path": "styles/brick-toy/STYLE.md",
+      "bytes": 12556,
+      "sha256": "29b23e846951856b722a698a03c9458cfc17b4fc71d044f45d773acf2a742768"
+    },
+    {
+      "path": "styles/briefing-board/STYLE.md",
+      "bytes": 13328,
+      "sha256": "44669da808da4ed37e2a4a0f6e5d2b23008775a3c4870add04641d714e9f323d"
+    },
+    {
+      "path": "styles/caption-news/STYLE.md",
+      "bytes": 17248,
+      "sha256": "71d67fb2f47eac1489bc96d302f9b206700cb0533c332e3650b498e3e2014603"
+    },
+    {
+      "path": "styles/cel-anime-80s/STYLE.md",
+      "bytes": 12647,
+      "sha256": "1e16f5c6f90ebf09556ec94d37434400d309c978e00ee89e9d38dec476664eaf"
+    },
+    {
+      "path": "styles/chalkboard/STYLE.md",
+      "bytes": 18516,
+      "sha256": "7f89f1a4694805e6bc767050007a6b44f2b7ab2474b0e3244032d3a0269b3e1c"
+    },
+    {
+      "path": "styles/circuit-board/STYLE.md",
+      "bytes": 22762,
+      "sha256": "3f5244726e732a8407355bebdec309942410104af32c956372ff4f1477a0cd9b"
+    },
+    {
+      "path": "styles/city-symphony/STYLE.md",
+      "bytes": 18474,
+      "sha256": "8b78d2b08cadb045ac1649cade1e5274fba935b1177c64c176e7567c6e8b31e1"
+    },
+    {
+      "path": "styles/countdown/STYLE.md",
+      "bytes": 17032,
+      "sha256": "867cca6e0c9bb0d6fb914cc4e9a2e295623ecd345fda9bd00bc362ff233f220f"
+    },
+    {
+      "path": "styles/crayon-book/STYLE.md",
+      "bytes": 11339,
+      "sha256": "ba558478fe519fa6777fe28fa7d1980117297c7beb6fe2e366ef6f00688aa175"
+    },
+    {
+      "path": "styles/dark-keynote/STYLE.md",
+      "bytes": 12164,
+      "sha256": "b0791b5e95f56bf46c621e6064d426ebbee810c7515fb87e951b73668a2a0d24"
+    },
+    {
+      "path": "styles/data-physical/STYLE.md",
+      "bytes": 13475,
+      "sha256": "2d2e6685b0dcf8a1e2ba2ff904ab02d51aede1f5dbb246fd2f6e81c8d146f208"
+    },
+    {
+      "path": "styles/dataviz/STYLE.md",
+      "bytes": 11415,
+      "sha256": "e94013d5a7c548c8844598a671ff0b49bc78770696cbca0d8d00846336f3c67f"
+    },
+    {
+      "path": "styles/desktop-flythrough/STYLE.md",
+      "bytes": 22470,
+      "sha256": "d8c9113e10d7b3a5f65bbee86643305a5dc29739d0338091e1d0974ecf6d5eb7"
+    },
+    {
+      "path": "styles/engraving/STYLE.md",
+      "bytes": 12338,
+      "sha256": "0c6816b8b47163d158ae0ea668feecf53dcbef9d1310e27b9e797d9b9e7aac0d"
+    },
+    {
+      "path": "styles/game-show/STYLE.md",
+      "bytes": 12485,
+      "sha256": "cadee8f0ff8cfc206b49d852e5a0b15d7da432ad497fa8b19ac568ce386ff8e3"
+    },
+    {
+      "path": "styles/glass-product/STYLE.md",
+      "bytes": 12199,
+      "sha256": "630fa80cde0930154ba64f15bce5c8ee0c8dcf48d921253f8c7e3194712c8fb5"
+    },
+    {
+      "path": "styles/halftone-dossier/STYLE.md",
+      "bytes": 12415,
+      "sha256": "71b4b8f089836d95f6bd8fc3719ae184cbf2be4a04ecd935c6d55d89a5bb558d"
+    },
+    {
+      "path": "styles/hd-2d/STYLE.md",
+      "bytes": 12356,
+      "sha256": "bdc5ef4f60d8ba9ff6e5151391a6a62d8da4685d393c242699fd5c6188f0551a"
+    },
+    {
+      "path": "styles/hologram-hud/STYLE.md",
+      "bytes": 11833,
+      "sha256": "81e2c6b0ede2cc211a8dd676417a1ce5efda278514f273c5249165e38ff34573"
+    },
+    {
+      "path": "styles/impasto/STYLE.md",
+      "bytes": 12013,
+      "sha256": "38a0dcb2808c2ff03ef721c1319b9145438b4074ed37ab7a09dcf20b7268e062"
+    },
+    {
+      "path": "styles/ink-wash/STYLE.md",
+      "bytes": 11277,
+      "sha256": "5d71598f0b9cf4034c6461956b0d8bd63bd33750b4045376044f0d956b01d645"
+    },
+    {
+      "path": "styles/iso-infographic/STYLE.md",
+      "bytes": 11989,
+      "sha256": "a3bf89913255043ff2c8616bff9be9f9536efe1eb7a3b98c755cb4189bd7dff1"
+    },
+    {
+      "path": "styles/isometric-picture-book/STYLE.md",
+      "bytes": 20859,
+      "sha256": "9e838ed305b5fec5002b9aa452cb28730d13ec84dd529a801fb3b174e81cec83"
+    },
+    {
+      "path": "styles/kino-montage/STYLE.md",
+      "bytes": 20124,
+      "sha256": "8c63deefda22d4677d286ddfffb243ce6385dfa7ab56fbc493705fe13908f204"
+    },
+    {
+      "path": "styles/lidar-survey/STYLE.md",
+      "bytes": 13154,
+      "sha256": "d1b60fda2793932286372e7cf68d62af5723bba14c37e9a437639ea57b1a310d"
+    },
+    {
+      "path": "styles/living-screencast/STYLE.md",
+      "bytes": 11503,
+      "sha256": "02e8e5521fe1f553b0e58dacc2a556aea361dd5823e2ca0996963839d3c7d5c7"
+    },
+    {
+      "path": "styles/lowpoly-island/STYLE.md",
+      "bytes": 12310,
+      "sha256": "1ae7bcd6aa3d521f563d8905f8109842fd7252ff8b70c1bd18265105a8a450f9"
+    },
+    {
+      "path": "styles/memphis-diorama/STYLE.md",
+      "bytes": 19589,
+      "sha256": "7f1748f2741d069e074172800d501ec00527db8a018e1e5ab4ecfa630ed6763b"
+    },
+    {
+      "path": "styles/microgame/STYLE.md",
+      "bytes": 12563,
+      "sha256": "ad13d34bd06a65bef81b04f531c4f256bcc0bff4f229f976d52e07d5beef9dd5"
+    },
+    {
+      "path": "styles/microscope/STYLE.md",
+      "bytes": 13153,
+      "sha256": "63040631bdc28a3c7f8cf05e2e8523969becd0267741e00dd3e171c22be16e92"
+    },
+    {
+      "path": "styles/midcentury-toon/STYLE.md",
+      "bytes": 12620,
+      "sha256": "e73614b6f9e2f2e8ee279f4909da8429235b96f6d13a12345b6e57d5823c30b8"
+    },
+    {
+      "path": "styles/news-package/STYLE.md",
+      "bytes": 20620,
+      "sha256": "f6249a97d12ad6a71d11741f625a6b7d9cc6fb25006385b23f394ea56fb6610d"
+    },
+    {
+      "path": "styles/newsreel/STYLE.md",
+      "bytes": 17809,
+      "sha256": "ec7cf8cef4efdc557c70f7743c5eb431d20e219e43a0a3dc2cbea1cfeea41e8d"
+    },
+    {
+      "path": "styles/one-line/STYLE.md",
+      "bytes": 11372,
+      "sha256": "69d26cb06f48ab6b03c12a76c2390d0945cdaddc38bc109b7d5e292b9af1399b"
+    },
+    {
+      "path": "styles/paper-lantern/STYLE.md",
+      "bytes": 14162,
+      "sha256": "e8be26d64f33229859e284a33d77969f9a4468b7bf1b478ca8fa924c7dd9f27d"
+    },
+    {
+      "path": "styles/paper-popup/STYLE.md",
+      "bytes": 12095,
+      "sha256": "8e5c0ca430fd96b75c4d9c2af92a87c84d4d1af8cda64280a189c51279e1ee9b"
+    },
+    {
+      "path": "styles/papercut-red/STYLE.md",
+      "bytes": 12450,
+      "sha256": "65e317d83335e0cb34696b643e31ad9e46fb0bb93fd748c2e21d74358aea61ec"
+    },
+    {
+      "path": "styles/pictogram-motion/STYLE.md",
+      "bytes": 13325,
+      "sha256": "52f0119e13e2d98ee9d2dbf5ea8b9dc84ffb309746fd93afc01eb07d1e2c2689"
+    },
+    {
+      "path": "styles/pixel-rpg/STYLE.md",
+      "bytes": 11284,
+      "sha256": "f79fac0d9aed03d2a69f17a50b37adca2da84156b3fa525537761c507bcaea8e"
+    },
+    {
+      "path": "styles/printed-long-take/STYLE.md",
+      "bytes": 21023,
+      "sha256": "fafef88a98f73d73b578ef8591222d2287ac1b921f594fc08e5588a97d077b2d"
+    },
+    {
+      "path": "styles/risograph/STYLE.md",
+      "bytes": 12030,
+      "sha256": "c3d85c91a81b0afde091d964482749482adc66c12730afe124708f7b18b331a6"
+    },
+    {
+      "path": "styles/rubber-hose/STYLE.md",
+      "bytes": 12791,
+      "sha256": "bf850f9cd22e68b2125fed00d1b9804e91479620b44420ba7ec50e570e472a94"
+    },
+    {
+      "path": "styles/satellite-briefing/STYLE.md",
+      "bytes": 13232,
+      "sha256": "d8d4856407fba8394c2cd9102a4aa23525db0171275a85b1aeeab2f0597e26a8"
+    },
+    {
+      "path": "styles/scifi-toon/STYLE.md",
+      "bytes": 12755,
+      "sha256": "9a720a57ce50dc554e9237e698a979cdf7311527e6e6a0dad803278dfe8ad2ce"
+    },
+    {
+      "path": "styles/shadow-puppet/STYLE.md",
+      "bytes": 12787,
+      "sha256": "8be075a8262d5a3deea9b05684d8a9abdc1e54c0d90649bf14609ecb4106c3af"
+    },
+    {
+      "path": "styles/silent-film/STYLE.md",
+      "bytes": 11585,
+      "sha256": "44633a4edd4ec6b84be809bd48b38503a75a71531112b3d28a52f27135012b20"
+    },
+    {
+      "path": "styles/silkscreen-poster/STYLE.md",
+      "bytes": 13426,
+      "sha256": "f1c86a9f0cbe735de9fb1421d33ab44465122158e6c45a4786c98852ea9952b1"
+    },
+    {
+      "path": "styles/spy-titles/STYLE.md",
+      "bytes": 11411,
+      "sha256": "ea6e9e9073af43ef0bb860e368f60b16ec32a91668386115a142907d92cb1f75"
+    },
+    {
+      "path": "styles/stained-glass/STYLE.md",
+      "bytes": 11945,
+      "sha256": "0f6551bd109a4127404068aa1e75f18f16b58c80b486c23480b3d193e597b060"
+    },
+    {
+      "path": "styles/swiss-motion/STYLE.md",
+      "bytes": 10696,
+      "sha256": "14ddeb6dc495e691a220497069a2ee4827d820f9ee7a3173de5846489ef41f57"
+    },
+    {
+      "path": "styles/teardown/STYLE.md",
+      "bytes": 13572,
+      "sha256": "90df05a02a3d33add58e0dd99bef19ca20ea16b10390b3c2350d8483106922ee"
+    },
+    {
+      "path": "styles/telestrator/STYLE.md",
+      "bytes": 16954,
+      "sha256": "7289027728dc5e1b6d095b7c7bc7806790bb579934c81682265c0c1b4897a3d0"
+    },
+    {
+      "path": "styles/tilt-shift/STYLE.md",
+      "bytes": 12077,
+      "sha256": "131ae50c6bddd30922638cbd5f2fae5c047223360a3f6924b074b0db525a5c63"
+    },
+    {
+      "path": "styles/transit-map/STYLE.md",
+      "bytes": 30614,
+      "sha256": "e6c62bc75071c86b67c30def595e919910d86245504c8c09882d151a3c719d1c"
+    },
+    {
+      "path": "styles/ukiyoe/STYLE.md",
+      "bytes": 12441,
+      "sha256": "218c48a204f9034d1c2fb7f11698b4834f1faee1ca68c9e336f3d6ab992ff2e4"
+    },
+    {
+      "path": "styles/urban-sketch/STYLE.md",
+      "bytes": 11766,
+      "sha256": "2baf1a19f31b06e55d66d62e4c3449c7a2686c689190976f3e3d0cbdce2faa9a"
+    },
+    {
+      "path": "styles/visual-investigation/STYLE.md",
+      "bytes": 18977,
+      "sha256": "9b39ebaa00c3d77ae544d7453e99b79caf4dfaae1d37798b1f995a5578aac30b"
+    },
+    {
+      "path": "styles/watercolor/STYLE.md",
+      "bytes": 11099,
+      "sha256": "662d57568408a7c82ef8f64980ca85798b8bb239df3dc3a6715283d7f4555ef0"
+    },
+    {
+      "path": "styles/white-model/STYLE.md",
+      "bytes": 13581,
+      "sha256": "02b6423a69ac5a30322997ec9523bd6b6f776b7c8cf14f249eeb996b9d21e2c2"
+    },
+    {
+      "path": "styles/whiteboard/STYLE.md",
+      "bytes": 11676,
+      "sha256": "19f66326257bcafb8aca18af3e209d1fee31d9e23902ce1708bbb606cbf4b718"
+    },
+    {
+      "path": "styles/woodcut/STYLE.md",
+      "bytes": 12194,
+      "sha256": "b96fda6eeac038137310cc0766d979c8d8a5f3ff6acd87bada5aa50d5136a6a0"
+    },
+    {
+      "path": "upstream-skill.md",
+      "bytes": 981,
+      "sha256": "3f517dbd7f3addc0d4a7bf7417b00c6069574879820f91f321c50472eb8efc70"
+    }
+  ]
+}

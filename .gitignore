@@ -1,0 +1,26 @@
+# Generated VS Code counter output
+.VSCodeCounter/
+
+# Local browser-session downloads
+.opencode/chatgpt-downloads/
+
+# Local examples, documentaries, and reports
+/examples/
+/documentaries/
+/docs/reports/
+
+# Local Machinal installer backups
+*.machinal-backup-*
+*.directional-backup-*
+
+# A standalone fork must never ship local credentials or user data.
+.env
+.env.*
+!.env.example
+**/.openrouter-key*
+**/*.db
+**/*.db-lock
+**/node_modules/
+**/dist/
+/data/
+/.local-verification/

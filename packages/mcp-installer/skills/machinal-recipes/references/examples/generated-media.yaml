@@ -1,0 +1,25 @@
+# Pending paid requirements only. Inspect actual speech duration after generation.
+document:
+  version: 2
+  mode: assemble
+  before:
+    - id: illustration
+      type: image.generate
+      prompt: 'A clean editorial illustration of a seed becoming a small plant, no text.'
+      imageStyle: 'Restrained flat illustration, cobalt and warm cream, clear negative space.'
+      aspect: '9:16'
+    - id: narration
+      type: speech.generate
+      text: 'Every process starts with one small step.'
+  placements:
+    - {job: illustration, track: {type: video, role: illustration}, start: 0s, duration: 8s}
+    - {job: narration, track: {type: audio, role: narration}, start: 0s}
+  after:
+    - id: captions
+      type: captions.generate
+      language: en
+      maxWords: 4
+      style: {fontFamily: montserrat, fontSize: 58, highlightMode: word}
+  output: {aspect: portrait, resolution: 1080p, fps: 30, format: mp4}
+bindings: {}
+assets: []

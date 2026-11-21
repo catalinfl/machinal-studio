@@ -1,0 +1,11 @@
+.env
+.env.*
+*.md
+*_test.go
+**/*_test.go
+.git
+.gitignore
+docker-compose.yml
+compose.*.yaml
+.VSCodeCounter/
+client/

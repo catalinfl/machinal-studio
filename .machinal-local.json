@@ -1,0 +1,7 @@
+{
+  "edition": "local",
+  "upstreamCommit": "09220544d8bbc190ffaff1adb83e9fac50995d87",
+  "snapshot": "Includes the current working-tree source, not only the upstream commit.",
+  "applicationKeyRequired": false,
+  "cloudStorage": false
+}

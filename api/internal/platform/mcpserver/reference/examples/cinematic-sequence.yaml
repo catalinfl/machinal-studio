@@ -1,0 +1,21 @@
+# Synthetic metadata: replace with get_asset_metadata results before real use.
+document:
+  version: 2
+  mode: assemble
+  instanceId: film
+  inputs:
+    shots: {kind: video, multiple: true}
+  sequence:
+    use: shots
+    each:
+      take: {from: 0s, duration: 4s}
+      source_audio: remove
+      look: fine-film
+      motion: none
+    between: {preset: cross-dissolve, duration: 600ms, policy: error}
+  output: {aspect: landscape, resolution: 1080p, fps: 30, format: mp4}
+bindings:
+  shots: [shot-a, shot-b]
+assets:
+  - {id: shot-a, file: shot-a.mp4, version: example-only, kind: video, duration: 8s, width: 1920, height: 1080}
+  - {id: shot-b, file: shot-b.mp4, version: example-only, kind: video, duration: 8s, width: 1920, height: 1080}

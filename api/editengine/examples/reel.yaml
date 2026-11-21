@@ -1,0 +1,40 @@
+version: 1
+catalogVersion: '1'
+compilerVersion: '1'
+mode: assemble
+instanceId: product-reel
+inputs:
+  shots: {kind: video, multiple: true}
+  music: {kind: audio}
+sequence:
+  use: shots
+  order: input
+  each:
+    take: {from: 0s, duration: 5s}
+    source_audio: remove
+    look: raw-story
+  between:
+    preset: cross-dissolve
+    duration: 1s
+    policy: error
+audio:
+  - id: music-track
+    use: music
+    start: 0s
+    from: 0s
+    fit: sequence
+    volume: 35
+texts:
+  - id: title
+    text: MAKE EVERY SECOND COUNT
+    start: 0s
+    duration: 2s
+    preset: title
+    fontFamily: montserrat
+    fontSize: 96
+output:
+  aspect: '16:9'
+  resolution: 1080p
+  fps: 30
+  format: mp4
+  quality: normal

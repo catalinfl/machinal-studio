@@ -1,0 +1,4 @@
+# Preserve vendored checksums on Windows as well as Linux checkouts.
+/api/internal/platform/mcpserver/reference/film-library/** text eol=lf
+/packages/mcp-installer/skills/machinal-cinema/references/film-library/** text eol=lf
+/.opencode/skills/machinal-cinema/references/film-library/** text eol=lf

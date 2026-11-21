@@ -1,0 +1,44 @@
+{
+  "name": "@machinal/mcp",
+  "version": "0.3.1",
+  "description": "Connect OpenCode, Claude Code and Codex to machinal Server or user-owned Local Docker",
+  "type": "module",
+  "exports": {
+    ".": "./src/opencode-plugin/index.mjs"
+  },
+  "license": "UNLICENSED",
+  "engines": {
+    "node": "^22.13.0 || >=24.0.0"
+  },
+  "bin": {
+    "machinal-mcp": "bin/machinal-mcp.mjs"
+  },
+  "files": [
+    "bin/",
+    "src/",
+    "skills/",
+    "README.md"
+  ],
+  "scripts": {
+    "sync:reference": "node scripts/sync-reference.mjs",
+    "import:film-library": "node scripts/import-film-library.mjs",
+    "check:reference": "node scripts/sync-reference.mjs --check",
+    "prepack": "npm run check:reference",
+    "test:package": "node --test test/package.smoke.mjs",
+    "test": "node --test test/*.test.mjs",
+    "prepublishOnly": "npm test"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "@inquirer/prompts": "^8.7.4",
+    "@opencode/plugin": "2.0.27",
+    "cross-spawn": "^7.0.6",
+    "jsonc-parser": "^3.3.1",
+    "toml-eslint-parser": "^1.0.3"
+  },
+  "optionalDependencies": {
+    "@napi-rs/keyring": "2.1.2"
+  }
+}

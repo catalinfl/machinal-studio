@@ -1,0 +1,68 @@
+name: Browser and native media integration
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '23 4 * * 1'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: media-integration-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  editor-browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: client
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.9.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: client/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: npm --prefix ../services/scene-renderer ci
+      - run: npm --prefix ../services/scene-renderer exec -- playwright install --with-deps chromium
+      - run: node ../services/scene-renderer/scripts/prepare-browser-fixtures.mjs
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm exec playwright test e2e/projects.spec.ts e2e/media-library.spec.ts
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: editor-browser-failure
+          path: |
+            client/playwright-report/
+            client/test-results/
+          retention-days: 7
+
+  native-render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    defaults:
+      run:
+        working-directory: services/scene-renderer
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: services/scene-renderer/package-lock.json
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: api/go.mod
+          cache-dependency-path: api/go.sum
+      - run: npm ci
+      - run: npx --no-install playwright install --with-deps chromium
+      - name: Enable native browser checks
+        run: node --input-type=module -e "import { appendFileSync } from 'node:fs'; import { chromium } from '@playwright/test'; appendFileSync(process.env.GITHUB_ENV, 'SCENE_BROWSER=' + chromium.executablePath() + '\n')"
+      - run: node scripts/verify-render.mjs

@@ -1,0 +1,30 @@
+# Opt-in only: requires NVIDIA Container Toolkit on Linux, or Docker's WSL2
+# backend plus a compatible NVIDIA Windows driver. Hyper-V is not supported.
+services:
+  api:
+    build:
+      target: gpu
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    environment:
+      NVIDIA_DRIVER_CAPABILITIES: video,compute,utility
+      RENDER_VIDEO_ENCODER: h264_nvenc
+  scene-renderer:
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    environment:
+      NVIDIA_DRIVER_CAPABILITIES: graphics,video,compute,utility
+      SCENE_ENABLE_GPU: "true"
+      # Keep hardware-dependent scenes uncached until the operator supplies
+      # a device + driver identity. Software rendering still caches by default.
+      SCENE_GPU_FINGERPRINT: ${SCENE_GPU_FINGERPRINT:-}

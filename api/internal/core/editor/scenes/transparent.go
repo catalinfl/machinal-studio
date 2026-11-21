@@ -1,0 +1,5 @@
+package scenes
+
+const transparentComponentPrompt = `
+
+TRANSPARENT OVERLAY: config.transparent=true overrides the ordinary opaque-background instruction. Generate ONLY the requested foreground effect, drawing, animation or object as one transparent component to overlay existing footage. Use <SceneCanvas background="transparent"> or a transparent root filling config dimensions. Leave unused pixels truly transparent. Never add a full-frame background, backdrop, solid panel, photograph, painted checkerboard or fake transparency pattern. Alpha is not black or white. SVG has no backdrop rect; canvas clears unused pixels; Three.js keeps world.background=null and renderer.setClearColor(0x000000,0). Preserve partial alpha for glows, particles and soft edges. Attached media may appear only in the requested foreground roles, never as a replacement background. Keep the isolated subject readable over light and dark footage. Preserve this transparent-output contract during edits and compiler repairs.`

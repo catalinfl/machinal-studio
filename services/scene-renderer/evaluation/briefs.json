@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "criteria": ["subject_specificity", "meaningful_action", "composition_readability", "pacing", "continuity"],
+  "cases": [
+    {
+      "id": "mechanism", "version": 1, "duration": 12, "width": 1280, "height": 720,
+      "brief": "Explain a schematic shaft coupling: separated input/output, collar engagement, linked rotation, then a readable hold. Use genuine Three.js; label it as a schematic, not a reconstruction of a real product. No narration, captions or external assets.",
+      "observe": ["Input, collar and output have independent motion", "Engagement precedes linked rotation", "Camera ends on the coupling relationship, not a generic spinning primitive"]
+    },
+    {
+      "id": "documentary", "version": 1, "duration": 18, "width": 1080, "height": 1920,
+      "brief": "From separately approved supplied photograph and two supplied documents, explain their supplied chronological relationship. Preserve existing captions exactly, reserve their band, introduce the documents separately and carry a document edge into the next shot. Do not invent facts or generate replacement assets.",
+      "observe": ["Supplied content drives the scene rather than generic decoration", "Dates match supplied copy", "Caption baseline is unchanged", "Adjacent shots have an intentional handoff"]
+    },
+    {
+      "id": "comparison", "version": 1, "duration": 10, "width": 1280, "height": 720,
+      "brief": "Compare a fictional filter input [2,8,3,9,4] with supplied output [2,5,4,6,5]. Match graph scales, reveal the two series sequentially, move an anchored comparison marker, then hold both. Label the values as example data. No provider actions.",
+      "observe": ["Both scales match", "Values are exact", "The marker stays attached to the compared samples", "The final state is readable"]
+    },
+    {
+      "id": "product", "version": 1, "duration": 12, "width": 1080, "height": 1920,
+      "brief": "Present a separately approved transparent product image with a supplied detail crop and two supplied feature labels. Move product, crop and labels independently; anchor connectors to the relevant detail. Do not invent product internals, claims or missing imagery.",
+      "observe": ["Image alpha and proportions survive", "Callouts track the moving product", "Staging differs between reveal and detail", "Reading hold survives the exit"]
+    },
+    {
+      "id": "process", "version": 1, "duration": 12, "width": 1280, "height": 720,
+      "brief": "Explain a queue with three jobs and one worker: arrival, waiting, processing, completion. Each job keeps its identity and moves only when its state changes. Use measured or explicitly supplied timing, not invented narration cues. No external assets.",
+      "observe": ["Only one job is processed at a time", "Waiting is visible", "Object identities persist", "Motion explains state rather than decorating a title"]
+    },
+    {
+      "id": "minimal-typography", "version": 1, "duration": 8, "width": 1080, "height": 1920,
+      "brief": "Display the exact Romanian text «Mișcarea are sens când explică.» with a restrained staggered reveal, a long reading hold and a motivated cut. Preserve diacritics. No images, particles, 3D, narration or captions.",
+      "observe": ["Exact UTF-8 copy", "Readable hierarchy and margins", "Most of the duration remains available for reading", "No unnecessary treatments"]
+    }
+  ]
+}

@@ -1,0 +1,131 @@
+.video-conveyor {
+  --conveyor-duration: 10s;
+  border-block: 1px solid var(--home-rule);
+  background: var(--home-surface);
+  overflow: hidden;
+}
+
+.conveyor-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 17px 23px 0; }
+.conveyor-heading h2 { margin: 0; font-size: 17px; line-height: 1.4; font-weight: 500; letter-spacing: -.02em; }
+.motion-note { color: var(--home-muted); font-size: 11px; }
+.conveyor-scene { display: block; width: 100%; height: auto; color: var(--home-ink); font-family: var(--font-sans); }
+.conveyor-floor { stroke: var(--home-rule); stroke-width: 1; }
+.belt-leg { stroke: #675879; stroke-width: 1; }
+.belt-brace { stroke: #8f7ca9; stroke-width: 2; fill: none; }
+.belt-leg-highlight { stroke: #f2ebff; stroke-width: 1; fill: none; }
+.belt-bracket { fill: #675879; stroke: #b9a8cc; stroke-width: .7; }
+.belt-foot { stroke: #675879; stroke-width: 1; fill: #b9a8cc; }
+.belt-outline { stroke: #675879; stroke-width: 32; stroke-linecap: round; fill: none; }
+.belt-chassis { stroke: #b9a8cc; stroke-width: 29; stroke-linecap: round; fill: none; }
+.belt-bottom-rail { stroke: #8f7ca9; stroke-width: 3; stroke-linecap: round; fill: none; }
+.belt-surface { stroke: #33273f; stroke-width: 21; stroke-linecap: round; fill: none; transform: translateY(-3px); }
+.belt-rail { stroke: #dfcefa; stroke-width: 1.2; stroke-linecap: round; fill: none; }
+.belt-track-edge { stroke: #675879; stroke-width: 1; fill: none; }
+.belt-treads { stroke: #8f7ca9; stroke-width: 16; stroke-dasharray: 1.5 14.5; stroke-opacity: .8; fill: none; animation: belt-travel 1.4s linear infinite; }
+.belt-fastener { fill: #59446f; }
+.belt-roller { stroke: #59446f; stroke-width: 1; }
+.belt-bearing { fill: #43344f; stroke: #8f7ca9; stroke-width: 1; }
+.belt-wheel { stroke: #8f7ca9; stroke-width: 2; animation: mechanical-turn 2.8s linear infinite; }
+.belt-hub { fill: #dfcefa; stroke: #675879; stroke-width: 1; }
+.flow-label { fill: var(--home-ink); font-size: 20px; font-weight: 500; letter-spacing: -.3px; }
+.flow-label path { fill: none; stroke: var(--home-accent); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.feed-guide { stroke: var(--home-rule); stroke-width: 1.5; fill: none; }
+.scene-note { fill: var(--home-muted); font-size: 15px; }
+.media-sheet { fill: var(--home-bg); stroke: var(--home-muted); stroke-width: 1; }
+.file-name { fill: var(--home-ink); font-size: 10px; font-family: var(--font-mono); }
+.recipe-filename { fill: #33273f; font-family: var(--font-mono); font-size: 11px; }
+.recipe-rule { stroke: #b9a8cc; }
+.recipe-code { fill: #593495; font-family: var(--font-mono); }
+.recipe-value { fill: #33273f; }
+.recipe-symbol { stroke: #7047c7; stroke-width: 1.3; stroke-linecap: round; stroke-linejoin: round; fill: none; }
+.finished-picture { filter: sepia(.18) saturate(.9); }
+.flow-arrow { stroke: var(--home-accent); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; fill: none; }
+.render-spark { stroke: var(--home-accent); stroke-width: 2; stroke-linecap: round; animation: render-spark var(--conveyor-duration) ease-in-out infinite; }
+.media-phase { animation: media-phase var(--conveyor-duration) ease-in-out infinite; }
+.recipe-phase { animation: recipe-phase var(--conveyor-duration) ease-in-out infinite; }
+.result-phase { animation: result-phase var(--conveyor-duration) ease-in-out infinite; }
+.source-video { transform: translateX(48px); animation: source-video-travel var(--conveyor-duration) linear infinite; }
+.source-image { transform: translateX(249px); animation: source-image-travel var(--conveyor-duration) linear infinite; }
+.compact .source-video { transform: translateX(10px); }
+.compact .source-image { transform: translateX(174px); }
+.intake-video, .intake-image { transform-box: fill-box; transform-origin: left bottom; }
+.intake-video { animation: intake-video-fit var(--conveyor-duration) ease-in-out infinite; }
+.intake-image { animation: intake-image-fit var(--conveyor-duration) ease-in-out infinite; }
+.incoming-recipe { animation: recipe-feed var(--conveyor-duration) cubic-bezier(.4, 0, .2, 1) infinite; }
+.outgoing-film { --film-entry: translate(-372px, 0); --film-turn: translate(-284px, 0); --film-reveal: translate(-131px, 0); --film-exit: 678px; opacity: 0; animation: film-out var(--conveyor-duration) linear infinite; }
+.compact .outgoing-film { --film-entry: translate(266px, -207px); --film-turn: translate(280px, -114px); --film-reveal: translate(145px, 0); --film-exit: 600px; }
+.film-size { transform-box: fill-box; transform-origin: left bottom; animation: film-grow var(--conveyor-duration) ease-in-out infinite; }
+.machine-rotor { animation: mechanical-turn var(--conveyor-duration) linear infinite; }
+.machine-rotor-reverse { animation-direction: reverse; animation-duration: calc(var(--conveyor-duration) * .68); }
+.machine-meter { transform-origin: 32px 153px; animation: machine-progress var(--conveyor-duration) ease-in-out infinite; }
+.machine-light { animation: machine-light 1.2s ease-in-out infinite; }
+.light-two { animation-delay: .2s; }
+.light-three { animation-delay: .4s; }
+.film-second-scene { opacity: 0; animation: film-scenes var(--conveyor-duration) ease-in-out infinite; }
+.film-playhead { transform: scaleX(.2); transform-origin: 1px 95px; animation: film-progress var(--conveyor-duration) linear infinite; }
+.video-conveyor .motion { animation-play-state: paused; }
+.video-conveyor[data-running='true'] .motion { animation-play-state: running; }
+.video-conveyor[data-reduced-motion='true'] .motion { animation: none; }
+.video-conveyor[data-reduced-motion='true'] .outgoing-film { opacity: 1; }
+.conveyor-caption { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 0 23px 20px; }
+.conveyor-caption p { display: flex; align-items: center; gap: 13px; margin: 0; color: var(--home-muted); font-size: 12px; }
+.conveyor-caption svg { color: var(--home-accent); }
+.conveyor-caption strong { color: var(--home-ink); font-weight: 500; }
+
+@keyframes belt-travel { to { stroke-dashoffset: -32; } }
+@keyframes media-phase { 0%, 42%, 100% { opacity: 0; } 3%, 32% { opacity: 1; } }
+@keyframes recipe-phase { 0%, 17%, 52%, 100% { opacity: 0; } 20%, 46% { opacity: 1; } }
+@keyframes result-phase { 0%, 52%, 90%, 100% { opacity: 0; } 56%, 84% { opacity: 1; } }
+@keyframes source-video-travel {
+  0% { transform: translateX(-190px); }
+  42%, 100% { transform: translateX(720px); }
+}
+@keyframes source-image-travel {
+  0%, 10% { transform: translateX(-190px); }
+  52%, 100% { transform: translateX(720px); }
+}
+@keyframes intake-video-fit {
+  0%, 11% { transform: scale(1); }
+  25%, 100% { transform: scale(.74); }
+}
+@keyframes intake-image-fit {
+  0%, 21% { transform: scale(1); }
+  35%, 100% { transform: scale(.74); }
+}
+@keyframes recipe-feed {
+  0%, 17% { transform: translateY(0); opacity: 1; }
+  42%, 72% { transform: translateY(195px); opacity: 1; }
+  72.01% { transform: translateY(195px); opacity: 0; }
+  73% { transform: translateY(-15px); opacity: 0; }
+  88%, 100% { transform: translateY(0); opacity: 1; }
+}
+@keyframes film-out {
+  0%, 51.99% { transform: var(--film-entry); opacity: 0; }
+  52% { transform: var(--film-entry); opacity: 1; }
+  56% { transform: var(--film-turn); opacity: 1; }
+  63% { transform: var(--film-reveal); opacity: 1; }
+  69% { transform: translate(0, 0); opacity: 1; }
+  100% { transform: translateX(var(--film-exit)); opacity: 1; }
+}
+@keyframes film-grow {
+  0%, 64% { transform: scale(.74); }
+  78%, 100% { transform: scale(1); }
+}
+@keyframes mechanical-turn { to { transform: rotate(360deg); } }
+@keyframes machine-progress { 0%, 25% { transform: scaleX(.12); } 58%, 70% { transform: scaleX(1); } 85%, 100% { transform: scaleX(.12); } }
+@keyframes machine-light { 0%, 100% { opacity: .35; } 50% { opacity: 1; } }
+@keyframes render-spark { 0%, 52%, 67%, 100% { opacity: 0; } 56%, 60% { opacity: 1; } }
+@keyframes film-scenes { 0%, 63%, 100% { opacity: 0; } 69%, 85% { opacity: 1; } }
+@keyframes film-progress { 0%, 52% { transform: scaleX(.05); } 61% { transform: scaleX(.3); } 85%, 100% { transform: scaleX(1); } }
+
+@media (max-width: 640px) {
+  .conveyor-heading { padding: 14px 15px 0; gap: 12px; }
+  .conveyor-heading h2 { max-width: 24ch; font-size: 15px; }
+  .conveyor-caption { align-items: start; flex-direction: column; gap: 9px; padding: 4px 15px 17px; }
+  .conveyor-caption p { gap: 9px; font-size: 11px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .video-conveyor .motion { animation: none; }
+  .video-conveyor .outgoing-film { opacity: 1; }
+}

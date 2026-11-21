@@ -1,0 +1,36 @@
+document:
+  version: 2
+  mode: assemble
+  before:
+    - id: fox-art
+      type: image.generate
+      prompt: 'An original detailed editorial fox cutout, isolated on transparent background, no text.'
+      aspect: '1:1'
+      background: transparent
+    - id: fox-scene
+      type: scene.generate
+      visualMode: 3d
+      duration: 8s
+      width: 1080
+      height: 1920
+      fps: 30
+      images:
+        - id: image_1
+          job: fox-art
+          name: Fox illustration
+          description: Keep the real attached fox visible in an independently moving image layer; preserve its alpha.
+      prompt: >-
+        Create a portrait literary illustration using the attached fox image,
+        not a CSS/SVG redraw. Keep it visible in a moving foreground card.
+        Behind it use genuine SceneThree geometry: a small low-poly planet,
+        soft lighting and an orbiting gold point, with deterministic frame-derived
+        transforms. Keep the text Friendship readable as a DOM overlay and
+        reserve the lower safe area for separate captions. No narration.
+  placements:
+    - job: fox-scene
+      track: {type: video, role: illustration}
+      start: 0s
+      duration: 8s
+  output: {aspect: portrait, resolution: 1080p, fps: 30, format: mp4}
+bindings: {}
+assets: []

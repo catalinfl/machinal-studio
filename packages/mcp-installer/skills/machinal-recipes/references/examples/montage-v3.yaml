@@ -1,0 +1,28 @@
+document:
+  version: 3
+  mode: assemble
+  tracks:
+    - id: main
+      type: video
+      clips:
+        - {id: source-a, assetId: a, start: 0s, inPoint: 0s, outPoint: 4s}
+        - {id: source-b, assetId: b, start: 4s, inPoint: 0s, outPoint: 4s}
+  montage:
+    target: {kind: video, trackId: main}
+    ranges:
+      - {clipId: source-a, from: 0s, to: 2s}
+      - {clipId: source-b, from: 1s, to: 3s}
+    targetDuration: 3.7s
+    tolerance: 100ms
+    seed: editorial-example
+    between: {preset: film-dissolve-fast, duration: 300ms, policy: error}
+    motion: {preset: zoom-in}
+  rules:
+    - id: natural-documentary
+      target: {kind: video, trackId: main}
+      apply: {look: documentary-16mm}
+  output: {aspect: landscape, resolution: 1080p, fps: 30, format: mp4}
+bindings: {}
+assets:
+  - {id: a, file: source-a.mp4, version: example-only, kind: video, duration: 8s, width: 1920, height: 1080}
+  - {id: b, file: source-b.mp4, version: example-only, kind: video, duration: 8s, width: 1920, height: 1080}

@@ -1,0 +1,80 @@
+name: machinal-local
+
+services:
+  api:
+    stop_grace_period: 45s
+    build:
+      context: api
+      target: ${API_IMAGE_TARGET:-runtime}
+    ports:
+      - "127.0.0.1:${API_PORT:-8080}:8080"
+    environment:
+      HOST: 0.0.0.0
+      DATA_DIR: /data
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      OPENROUTER_MODEL: ${OPENROUTER_MODEL:-}
+      OPENROUTER_SCENE_MODEL: ${OPENROUTER_SCENE_MODEL:-}
+      OPENROUTER_IMAGE_MODEL: ${OPENROUTER_IMAGE_MODEL:-}
+      OPENROUTER_SPEECH_MODEL: ${OPENROUTER_SPEECH_MODEL:-}
+      OPENROUTER_STT_MODEL: ${OPENROUTER_STT_MODEL:-}
+      OPENROUTER_STT_PROVIDER: ${OPENROUTER_STT_PROVIDER:-}
+      CORS_ALLOW_ORIGINS: http://localhost:${CLIENT_PORT:-5173},http://127.0.0.1:${CLIENT_PORT:-5173}
+      SCENE_SERVICE_URL: http://scene-renderer:8091
+      SCENE_SERVICE_TOKEN: local-container-scene-service
+      RENDER_VIDEO_ENCODER: ${RENDER_VIDEO_ENCODER:-libx264}
+      RENDER_X264_PRESET: ${RENDER_X264_PRESET:-medium}
+      SESSION_MAX_BYTES: ${WORKSPACE_MAX_BYTES:-10737418240}
+    depends_on:
+      scene-renderer:
+        condition: service_healthy
+    volumes:
+      - composition-data:/data
+  scene-renderer:
+    init: true
+    build:
+      context: services/scene-renderer
+      target: service
+      additional_contexts:
+        client-source: ./client
+    environment:
+      SCENE_SERVICE_TOKEN: local-container-scene-service
+      SCENE_WORKERS: ${SCENE_WORKERS:-auto}
+      SCENE_ENCODER_THREADS: ${SCENE_ENCODER_THREADS:-auto}
+      SCENE_X264_PRESET: ${SCENE_X264_PRESET:-ultrafast}
+      SCENE_ENABLE_GPU: ${SCENE_ENABLE_GPU:-false}
+      SCENE_CACHE_DIR: /var/cache/scene
+      SCENE_CACHE_MAX_BYTES: ${SCENE_CACHE_MAX_BYTES:-2147483648}
+      SCENE_CACHE_VERSION: 1
+    volumes:
+      - scene-render-cache:/var/cache/scene
+      - scene-render-work:/tmp
+    shm_size: 1gb
+    mem_limit: ${SCENE_MEMORY_LIMIT:-3g}
+    cpus: ${SCENE_CPU_LIMIT:-4}
+    pids_limit: 256
+    read_only: true
+    tmpfs:
+      - /home/scene:rw,nosuid,size=64m,uid=10001,gid=10001
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    healthcheck:
+      test: [CMD, node, --input-type=module, -e, "const r=await fetch('http://127.0.0.1:8091/health',{headers:{Authorization:'Bearer '+process.env.SCENE_SERVICE_TOKEN}});process.exit(r.ok?0:1)"]
+      interval: 15s
+      timeout: 10s
+      start_period: 30s
+      retries: 5
+  client:
+    build:
+      context: client
+      args:
+        VITE_API_BASE: http://127.0.0.1:${API_PORT:-8080}
+    ports:
+      - "127.0.0.1:${CLIENT_PORT:-5173}:8080"
+    depends_on:
+      api:
+        condition: service_healthy
+
+volumes:
+  composition-data:
+  scene-render-cache:
+  scene-render-work:

@@ -1,0 +1,26 @@
+:root { font: 14px/1.5 "Segoe UI", system-ui, sans-serif; color: #171b22; background: #e9ebe8; accent-color: #7047c7; }
+* { box-sizing: border-box; }
+body { margin: 0; }
+main { max-width: 1400px; margin: auto; padding: 28px; }
+h1 { font-size: 28px; line-height: 1.2; margin: 0 0 16px; }
+p { max-width: 90ch; }
+form { display: flex; align-items: end; gap: 16px; flex-wrap: wrap; margin: 24px 0; }
+label { display: grid; gap: 4px; }
+.check { display: flex; align-items: center; min-height: 40px; }
+button, select { min-height: 40px; max-width: 100%; padding: 8px 12px; font: inherit; border: 1px solid #919b9e; border-radius: 4px; background: #fff; color: inherit; }
+button { cursor: pointer; }
+button:hover:not(:disabled) { background: #e8ddff; }
+#run { background: #7047c7; color: white; border-color: #7047c7; }
+#run:hover:not(:disabled) { background: #5d35b1; }
+button:disabled { opacity: .5; cursor: default; }
+:focus-visible { outline: 3px solid #7047c7; outline-offset: 3px; }
+::selection { background: #e8ddff; }
+details { border-top: 1px solid #bdc4c4; padding: 14px 0; }
+summary { cursor: pointer; font-size: 16px; font-weight: 600; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.frames { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin: 20px 0; }
+figure { margin: 0; }
+img { width: 100%; height: auto; display: block; image-rendering: pixelated; background: #171b22; }
+figcaption { padding: 6px 0; color: #5b646d; }
+pre { overflow: auto; background: #f4f5f2; padding: 16px; font-size: 12px; }
+.error { color: #a22f36; }
+@media (max-width: 650px) { main { padding: 16px; } .frames { grid-template-columns: repeat(2, minmax(0, 1fr)); } form > label:first-child { width: 100%; } }

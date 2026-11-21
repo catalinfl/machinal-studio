@@ -1,0 +1,19 @@
+# Replace the synthetic existing scene with an owned uploaded/live scene asset.
+document:
+  version: 2
+  mode: assemble
+  before:
+    - id: revised-scene
+      type: scene.edit
+      assetId: existing-scene
+      duration: 6s
+      prompt: >-
+        Keep the existing copy, layout, attached media, narration and timing.
+        Change only the accent color to cobalt and make the ending settle
+        more gently. Preserve everything else.
+  placements:
+    - {job: revised-scene, track: {type: video, role: revised}, start: 0s, duration: 6s}
+  output: {aspect: landscape, resolution: 1080p, fps: 30, format: mp4}
+bindings: {}
+assets:
+  - {id: existing-scene, file: existing.scene.json, version: example-only, kind: video, duration: 6s, width: 1920, height: 1080}

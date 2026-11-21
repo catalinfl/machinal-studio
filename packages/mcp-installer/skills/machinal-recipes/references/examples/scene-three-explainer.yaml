@@ -1,0 +1,38 @@
+# Pending paid procedural 3D scene. Reading/compiling this example executes nothing.
+document:
+  version: 2
+  mode: assemble
+  before:
+    - id: spatial-mechanism
+      type: scene.generate
+      duration: 8s
+      width: 1920
+      height: 1080
+      fps: 30
+      visualMode: 3d
+      prompt: >-
+        An eight-second genuine Three.js editorial explanation of a simple
+        mechanical linkage, not a generic spinning cube or CSS perspective.
+        Build three connected procedural joints, connecting rods and a small
+        base plate with visible spacing and rounded metallic edges. This is a
+        schematic mechanism, not a claim of engineering precision. Use a dark
+        navy environment, brushed warm metal, a cobalt active joint and one
+        amber motion cue. Separate foreground mechanism, midground base and
+        quiet background; use an ambient fill plus soft key and rim lights.
+        Aim a perspective camera at the assembly center and frame the whole
+        object inside the central 75% with no near-plane clipping.
+        Local 0-1s: the mechanism assembles from a short readable exploded view.
+        1-3.5s: the active joint turns and connected rods respond independently;
+        keep the base still. 3.5-6.5s: hold the working mechanism in clear view
+        while the camera makes a restrained quarter-orbit showing its depth.
+        6.5-8s: settle into a stable three-quarter view, never fade to an empty
+        screen. Derive mesh transforms and camera positions directly from
+        frame.time; backward seeking must reconstruct the same state.
+        Use SceneThree setup/update, real geometry and lights, no external
+        models, loaders, textures or extra render loops. No on-screen text,
+        production badges, AI notices, disclaimers or watermarks.
+  placements:
+    - {job: spatial-mechanism, track: {type: video, role: explanation}, start: 0s, duration: 8s}
+  output: {aspect: landscape, resolution: 1080p, fps: 30, format: mp4}
+bindings: {}
+assets: []

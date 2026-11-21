@@ -1,0 +1,71 @@
+# Synthetic resolved captions: non-default grouping, spacing, layout and effects.
+document:
+  version: 2
+  mode: assemble
+  inputs:
+    shot: {kind: image}
+  sequence:
+    use: shot
+    each:
+      take: {from: 0s, duration: 4s}
+      source_audio: remove
+  jobs:
+    - id: captions-ro
+      type: captions.generate
+      language: ro
+      maxWords: 6
+      resultTextIds: [captions-ro/0, captions-ro/1]
+  texts:
+    - id: captions-ro/0
+      text: |-
+        Știință,  artă
+        și sens în lume.
+      start: 0.25s
+      duration: 2s
+      isCaption: true
+      x: 540
+      y: 1560
+      anchor: center
+      align: center
+      fontFamily: montserrat
+      fontSize: 48
+      fontWeight: 700
+      color: '#F9F4E8'
+      strokeColor: '#192232'
+      strokeWidth: 3
+      backgroundColor: '#101824'
+      backgroundOpacity: 0.7
+      backgroundPadding: 14
+      backgroundRadius: 12
+      animation: rise
+      animationDuration: 0.18s
+      highlightMode: word
+      highlightColor: '#FFD970'
+      highlightAnimation: bounce
+      highlightBackgroundColor: '#203040'
+      highlightBackgroundOpacity: 0.4
+      words:
+        - {text: 'Știință,', start: 0s, end: 0.2s}
+        - {text: artă, start: 0.3s, end: 0.5s}
+        - {text: și, start: 0.6s, end: 0.7s}
+        - {text: sens, start: 0.8s, end: 1s}
+        - {text: în, start: 1.1s, end: 1.2s}
+        - {text: lume., start: 1.4s, end: 1.75s}
+    - id: captions-ro/1
+      text: '  Păstrează spațiile!  '
+      start: 2.5s
+      duration: 1s
+      isCaption: true
+      x: 180
+      y: 1510
+      anchor: left
+      align: left
+      fontFamily: montserrat
+      fontSize: 44
+      animation: pop
+      animationDuration: 0.12s
+  output: {aspect: portrait, resolution: 1080p, fps: 30, format: mp4}
+bindings:
+  shot: [still]
+assets:
+  - {id: still, file: synthetic-still.png, version: synthetic, kind: image, width: 1080, height: 1920}

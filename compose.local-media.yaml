@@ -1,0 +1,10 @@
+# Opt-in: mount only a specifically approved folder, read-only.
+services:
+  api:
+    environment:
+      LOCAL_MEDIA_ROOTS_JSON: '[{"id":"local","owner":"local","path":"/media-input"}]'
+    volumes:
+      - type: bind
+        source: ${MACHINAL_LOCAL_MEDIA_DIR:?Set the approved source folder first}
+        target: /media-input
+        read_only: true

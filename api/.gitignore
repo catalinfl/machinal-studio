@@ -1,0 +1,3 @@
+*.exe
+docker-compose.yml
+.env

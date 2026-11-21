@@ -1,0 +1,26 @@
+# Example only: replace clip.mp4 with an uploaded project filename.
+# The source must contain at least four seconds. Read the live schema first.
+# Include assets returned by get_asset_metadata for validation/compilation;
+# request id=clip.mp4, file=clip.mp4 so the metadata matches this binding.
+document:
+  version: 1
+  mode: assemble
+  inputs:
+    shots:
+      kind: video
+      multiple: true
+  sequence:
+    use: shots
+    each:
+      take:
+        from: 0s
+        duration: 4s
+      source_audio: remove
+  output:
+    aspect: landscape
+    resolution: 720p
+    fps: 30
+    format: mp4
+bindings:
+  shots:
+    - clip.mp4

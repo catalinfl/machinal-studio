@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Effect parity · machinal</title>
+  <link rel="stylesheet" href="./parity.css">
+</head>
+<body>
+  <main>
+    <h1>Preview / render comparison</h1>
+    <p>Real Pixi WebGL frames against bundled FFmpeg WASM. Identical synthetic input, parameters, size and timestamps. This isolates effect kernels; it does not certify native export or the editor’s temporal overlays.</p>
+    <form id="controls">
+      <label>Effect <select id="effect"><option value="">Entire catalog + stacks</option></select></label>
+      <label class="check"><input type="checkbox" id="ramps" checked> Include intensity ramps</label>
+      <button id="run">Run comparison</button>
+      <button id="stop" type="button" disabled>Stop after current effect</button>
+      <button id="download" type="button" disabled>Download JSON</button>
+    </form>
+    <p id="status" role="status">Ready. Results include the source filtergraph and four synchronized frame comparisons per case.</p>
+    <p>MAE is mean RGB error (0–255). Changed pixels have at least one channel differing by more than 8. Difference images are amplified ×4. Low error on this fixture is not proof of parity on all media.</p>
+    <section id="results" aria-label="Comparison results"></section>
+  </main>
+  <script type="module" src="./page.ts"></script>
+</body>
+</html>
