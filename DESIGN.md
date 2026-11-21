@@ -88,6 +88,16 @@ The Projects popover retains last-render playback and confirmed **Open rendered 
 
 Narrow verification: `.impeccable/review/ui-sync-verdict.md`; the four hosted `project-previews-{1440,390}-{light,dark}.png` captures show the combined actions. This does not supersede unrelated editor reviews.
 
+### Project recovery and guided editing
+
+- Missing browser-local originals open as offline media rather than blocking the editor. `MissingMediaPanel.svelte` is a non-modal, labeled status region above the workspace, with one Relink action per missing source and inline validation feedback. It inherits existing theme tokens and does not retime clips or captions.
+- `ProjectsMenu.svelte` retains its native popover. `ProjectVersions.svelte` progressively discloses named checkpoints, with explicit restore/removal confirmation, current-edit backup before restore, bounded scrolling and inline errors. Duplicate project with originals is a separate action; original-media ownership and copies remain explicit.
+- `EditorEmptyState.svelte` offers three guided starts through a native top-layer popover, so choices cannot expand/crop the composition's empty state. `EditorWorkflowGuide.svelte` supplies a dismissible task row for reel, montage or narrated work. Selecting a workflow configures framing and opens existing tools; it does not generate content. Existing captions open for review rather than being regenerated.
+- Render keeps its format/quality grammar and adds a project-settings summary, offline-media warnings, explicit local-upload consent and live account/rate feedback. Estimates are approximate and exclude provider generation; missing originals block export until relinked.
+- Jobs & downloads defaults to exports. The labeled category selector separates AI operations and All activity without deleting recovery records or changing paid-job cancellation/download behavior.
+
+These are scoped functional extensions of the incumbent editor/account surfaces, not a replacement visual world or whole-product aesthetic certification. No new shipping imagery, production media or paid generation is involved.
+
 ### Tool sheets
 
 - **Media:** Import header, full-width Local/Server source control, persistent search, quiet filters and count/Select/reload above an unboxed thumbnail grid. The local full layout rewrite and its verified behavior are recorded below.
