@@ -74,9 +74,9 @@
 </div>
 </div>
 
-<div class="editor" bind:this={page.editorEl}>
+<div class="editor" class:preview-expanded={page.workspaceFocus === 'preview'} class:timeline-expanded={page.workspaceFocus === 'timeline'} bind:this={page.editorEl}>
   <div id="editor-workspace" class="top">
-    <ToolDeck active={page.activePanel} mobileOpen={page.mobilePanelOpen} onClose={page.closeMobilePanel}>
+    <ToolDeck active={page.activePanel} mobileOpen={page.mobilePanelOpen} overlay={page.overlayTools} onClose={page.closeMobilePanel}>
       {#snippet assistant()}
         <AIPanel
           bind:instruction={page.aiInstruction}
@@ -87,7 +87,7 @@
           onDock={page.dockAIPanel}
         />
       {/snippet}
-      {#if !page.isMobile || page.mobilePanelOpen}
+       {#if !page.overlayTools || page.mobilePanelOpen}
       {#if page.activePanel === 'media'}<MediaBin />
       {:else if page.activePanel === 'effects'}<EffectsPanel />
       {:else if page.activePanel === 'presets'}<PresetsPanel />
@@ -98,14 +98,14 @@
       {/if}
       {/if}
     </ToolDeck>
-    <Preview onOpenClipInspector={page.openClipInspector} onAddMedia={() => page.selectPanel('media')} onGenerateScenes={() => page.requestFeatureGrant('scenes')} />
+    <Preview inactive={page.overlayTools && page.mobilePanelOpen} expanded={page.workspaceFocus === 'preview'} onToggleExpand={() => page.toggleWorkspaceFocus('preview')} onOpenClipInspector={page.openClipInspector} onAddMedia={() => page.selectPanel('media')} onGenerateScenes={() => page.requestFeatureGrant('scenes')} />
   </div>
   <div
     id="editor-timeline"
     class="bottom"
     class:resizing={page.resizingTimeline}
     bind:this={page.bottomEl}
-    style:flex-basis={page.timelineHeight === null ? undefined : `${page.timelineHeight}px`}
+    style:flex-basis={page.timelineHeight === null || page.workspaceFocus === 'timeline' ? undefined : `${page.timelineHeight}px`}
   >
     <div
       class="timeline-resizer"
@@ -114,14 +114,16 @@
       aria-label="Resize timeline"
       aria-orientation="vertical"
       aria-controls="editor-workspace editor-timeline"
-      aria-valuemin="140"
-      aria-valuemax="800"
-      aria-valuenow={Math.round(page.timelineHeight ?? 340)}
+      aria-valuemin={Math.round(page.timelineBounds.minimum)}
+      aria-valuemax={Math.round(page.timelineBounds.maximum)}
+      aria-valuenow={Math.round(page.timelineBounds.current)}
       onpointerdown={page.startTimelineResize}
       onkeydown={page.resizeTimelineWithKeyboard}
     ><span aria-hidden="true"></span></div>
     <Timeline
       hideExport
+      expanded={page.workspaceFocus === 'timeline'}
+      onToggleExpand={() => page.toggleWorkspaceFocus('timeline')}
       inspectorOpen={page.inspectorOpen}
       onOpenClipInspector={page.openClipInspector}
       onOpenEffectInspector={page.openEffectInspector}

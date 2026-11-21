@@ -73,10 +73,10 @@
   ondragleave={row.onDragLeave}
   role="application"
   aria-label="Drop zone: {row.channel.name}"
-  style="height:{row.trackHeight}px"
+  style:height="calc(var(--timeline-clip-height, {row.clipAreaHeight}px) + {row.trackHeight - row.clipAreaHeight}px)"
 >
   {#if !row.channel.hidden}
-    <div class="clips-area" style="height:{row.clipAreaHeight}px">
+    <div class="clips-area" style:height="var(--timeline-clip-height, {row.clipAreaHeight}px)">
       {#each row.visibleClips as clip (clip.id)}
         <Clip
           {clip}

@@ -1,4 +1,4 @@
-import { onMount } from 'svelte'
+import { onMount, tick } from 'svelte'
 import { editor } from '../stores/editor.svelte'
 import { render } from '../stores/render.svelte'
 import { mediaProcessing } from '../stores/media-processing.svelte'
@@ -20,9 +20,13 @@ export function useEditorPage() {
   let aiPanelFloating = $state(false)
   let aiPanelPosition = $state({ x: 0, y: 0 })
   let isMobile = $state(false)
+  let overlayTools = $state(false)
+  let workspaceFocus = $state<'balanced' | 'preview' | 'timeline'>('balanced')
+  let panelTrigger: HTMLElement | null = null
   let editorEl = $state<HTMLDivElement | undefined>()
   let bottomEl = $state<HTMLDivElement | undefined>()
   let timelineHeight = $state<number | null>(null)
+  let timelineBounds = $state({ minimum: 220, maximum: 800, current: 340 })
   let resizingTimeline = $state(false)
   let clipInspectorOpen = $state(false)
   let effectInspectorOpen = $state(false)
@@ -42,7 +46,7 @@ export function useEditorPage() {
     selectedPanel !== null && (selectedPanel !== 'ai' || !aiPanelFloating),
   )
 
-  const activePanel = $derived(selectedPanel === 'ai' && aiPanelFloating ? 'media' : selectedPanel ?? 'media')
+  const activePanel = $derived(selectedPanel === 'ai' && aiPanelFloating ? 'media' : selectedPanel)
 
   const clipInspectorVisible = $derived(
     clipInspectorOpen && !showText && editor.selectedClipIds.length > 0,
@@ -87,13 +91,32 @@ export function useEditorPage() {
     textInspectorOpen = true
   }
 
-  function clampTimelineHeight(height: number): number {
+  function measureTimeline(): void {
     const editorHeight = editorEl?.getBoundingClientRect().height ?? window.innerHeight
     const compact = isMobile && window.innerHeight <= 500
-    const minHeight = compact ? 140 : 220
+    const style = bottomEl ? window.getComputedStyle(bottomEl) : null
+    const minHeight = parseFloat(style?.minHeight ?? '') || (compact ? 140 : 220)
+    const maxHeight = parseFloat(style?.maxHeight ?? '') || Number.POSITIVE_INFINITY
     const previewHeight = compact ? 100 : 160
-    return Math.max(minHeight, Math.min(height, Math.max(minHeight, editorHeight - previewHeight)))
+    timelineBounds = {
+      minimum: minHeight,
+      maximum: Math.max(minHeight, Math.min(maxHeight, editorHeight - previewHeight)),
+      current: bottomEl?.getBoundingClientRect().height ?? 340,
+    }
   }
+
+  function clampTimelineHeight(height: number): number {
+    measureTimeline()
+    return Math.max(timelineBounds.minimum, Math.min(height, timelineBounds.maximum))
+  }
+
+  $effect(() => {
+    if (!editorEl || !bottomEl || typeof ResizeObserver === 'undefined') return
+    const observer = new ResizeObserver(measureTimeline)
+    observer.observe(editorEl)
+    observer.observe(bottomEl)
+    return () => observer.disconnect()
+  })
 
   function resizeTimeline(event: PointerEvent): void {
     if (!resizingTimeline) return
@@ -138,6 +161,8 @@ export function useEditorPage() {
   }
 
   function openPanel(panel: EditorPanel): void {
+    if (overlayTools && selectedPanel === null) panelTrigger = document.activeElement as HTMLElement
+    workspaceFocus = 'balanced'
     selectedPanel = panel
     if (panel === 'ai') aiPanelVisible = true
     else if (!aiPanelFloating) aiPanelVisible = false
@@ -148,7 +173,7 @@ export function useEditorPage() {
       requestFeatureGrant(panel === 'speech' ? 'tts' : panel)
       return
     }
-    const shouldClose = isMobile && isPanelOpen(panel)
+    const shouldClose = overlayTools && isPanelOpen(panel)
     closePanels()
     if (shouldClose) return
     openPanel(panel)
@@ -200,7 +225,10 @@ export function useEditorPage() {
       requestFeatureGrant(panel === 'speech' ? 'tts' : panel)
       return
     }
-    if (panel === activePanel && !isMobile) return
+    if (panel === activePanel && !overlayTools) {
+      workspaceFocus = 'balanced'
+      return
+    }
     togglePanel(panel)
   }
 
@@ -208,14 +236,35 @@ export function useEditorPage() {
     openPanel('ai')
   }
 
+  async function closeToolPanel(): Promise<void> {
+    closePanels()
+    await tick()
+    if (panelTrigger?.isConnected && panelTrigger.getClientRects().length) {
+      panelTrigger.focus()
+      return
+    }
+    const navigation = isMobile ? '.mobile-panels' : '.editor-taskbar'
+    document.querySelector<HTMLButtonElement>(`${navigation} button[aria-label="Media Bin"]`)?.focus()
+  }
+
+  function toggleWorkspaceFocus(target: 'preview' | 'timeline'): void {
+    workspaceFocus = workspaceFocus === target ? 'balanced' : target
+    if (overlayTools && workspaceFocus !== 'balanced') closePanels()
+  }
+
+  function onWorkspaceKeydown(event: KeyboardEvent): void {
+    if (event.key !== 'Escape' || event.defaultPrevented || workspaceFocus === 'balanced') return
+    workspaceFocus = 'balanced'
+  }
+
   function closeSpeechPanel(): void {
     if (selectedPanel === 'speech') closePanels()
-    if (!isMobile) openPanel('media')
+    if (!overlayTools) openPanel('media')
   }
 
   function closeImagePanel(): void {
     if (selectedPanel === 'image') closePanels()
-    if (!isMobile) openPanel('media')
+    if (!overlayTools) openPanel('media')
   }
 
   function retryWasm(): void {
@@ -232,19 +281,25 @@ export function useEditorPage() {
     const stopDocumentSync = startDocumentSync()
     if (typeof window.matchMedia !== 'function') return stopDocumentSync
     const mediaQuery = window.matchMedia('(max-width: 1024px)')
+    const overlayQuery = window.matchMedia('(max-width: 1279px)')
     const syncLayout = () => {
-      const enteringMobile = mediaQuery.matches && !isMobile
+      const enteringOverlay = overlayQuery.matches && !overlayTools
+      const leavingOverlay = !overlayQuery.matches && overlayTools
       isMobile = mediaQuery.matches
-      if (enteringMobile) {
+      overlayTools = overlayQuery.matches
+      if (enteringOverlay) {
         aiPanelFloating = false
         closePanels()
       }
+      if (leavingOverlay && selectedPanel === null) openPanel('media')
       if (timelineHeight !== null) timelineHeight = clampTimelineHeight(timelineHeight)
     }
     syncLayout()
-    mediaQuery.addEventListener('change', syncLayout)
+    window.addEventListener('resize', syncLayout)
+    window.addEventListener('keydown', onWorkspaceKeydown)
     return () => {
-      mediaQuery.removeEventListener('change', syncLayout)
+      window.removeEventListener('resize', syncLayout)
+      window.removeEventListener('keydown', onWorkspaceKeydown)
       stopTimelineResize()
       stopDocumentSync()
     }
@@ -265,6 +320,9 @@ export function useEditorPage() {
     get activePanel() { return activePanel },
     get mobilePanelOpen() { return mobilePanelOpen },
     get isMobile() { return isMobile },
+    get overlayTools() { return overlayTools },
+    get workspaceFocus() { return workspaceFocus },
+    toggleWorkspaceFocus,
     get aiInstruction() { return aiInstruction },
     set aiInstruction(value: string) { aiInstruction = value },
     get aiPanelFloating() { return aiPanelFloating },
@@ -281,6 +339,7 @@ export function useEditorPage() {
     get bottomEl() { return bottomEl },
     set bottomEl(value: HTMLDivElement | undefined) { bottomEl = value },
     get timelineHeight() { return timelineHeight },
+    get timelineBounds() { return timelineBounds },
     get resizingTimeline() { return resizingTimeline },
     get clipInspectorVisible() { return clipInspectorVisible },
     get effectInspectorVisible() { return effectInspectorVisible },
@@ -303,7 +362,7 @@ export function useEditorPage() {
     toggleAI: () => togglePanel('ai'),
     requestFeatureGrant,
     closeSpeechPanel,
-    closeMobilePanel: closePanels,
+    closeMobilePanel: closeToolPanel,
     closeImagePanel,
     dockAIPanel,
     selectPanel,

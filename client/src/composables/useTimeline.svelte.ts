@@ -22,6 +22,8 @@ import type { AIFeature } from '../lib/ai-access'
 
 export interface TimelineProps {
   hideExport?: boolean
+  expanded?: boolean
+  onToggleExpand?: () => void
   inspectorOpen?: boolean
   onOpenClipInspector?: () => void
   onOpenEffectInspector?: () => void

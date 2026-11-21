@@ -8,6 +8,9 @@ for (const theme of ['light', 'dark']) {
     await page.addInitScript(theme => localStorage.setItem('scrub-theme', theme), theme)
     await page.route(url => url.pathname === '/list', route => route.fulfill({ json: [] }))
     await page.route('**/sessions**', route => route.fulfill({ json: {} }))
+    const project = { id: 'default', name: 'Test project', version: 2, createdAt: '', updatedAt: '' }
+    await page.route('**/projects', route => route.fulfill({ json: [project] }))
+    await page.route('**/projects/default', route => route.fulfill({ json: { ...project, state: null } }))
     await page.goto('/editor')
 
     const workspace = page.locator('.editor-suite')

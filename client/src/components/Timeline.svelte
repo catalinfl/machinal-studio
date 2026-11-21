@@ -3,7 +3,9 @@
   import ContextMenu from './ContextMenu.svelte'
   import RenderMenu from './RenderMenu.svelte'
   import TextTrack from './TextTrack.svelte'
+  import WorkspaceExpandButton from './WorkspaceExpandButton.svelte'
   import { useTimeline, type TimelineProps } from '../composables/useTimeline.svelte'
+  import { CLIP_AREA_HEIGHT } from '../stores/editor.svelte'
 
   let props: TimelineProps = $props()
   // The composable reads this reactive props proxy from its own rune scope.
@@ -38,6 +40,9 @@
     </div>
     <div class="spacer"></div>
     <div class="toolbar-tools">
+      {#if props.onToggleExpand}
+        <WorkspaceExpandButton target="timeline" expanded={props.expanded} onToggle={props.onToggleExpand} />
+      {/if}
       <div class="zoom">
         <svg class="zoom-icon" viewBox="0 0 20 20" aria-hidden="true"><circle cx="8.5" cy="8.5" r="4.5"/><path d="m12 12 4 4M6.5 8.5h4"/></svg>
         <input
@@ -99,7 +104,7 @@
           {#each timeline.editor.channels as ch (ch.id)}
             <div
               class="thead {ch.type}"
-              style="height:{timeline.rowHeight(ch)}px"
+              style:height="calc(var(--timeline-clip-height, {CLIP_AREA_HEIGHT}px) + {timeline.rowHeight(ch) - CLIP_AREA_HEIGHT}px)"
               class:muted={ch.muted}
               class:hidden={ch.hidden}
                class:locked={ch.locked}
@@ -295,6 +300,7 @@
 <style>
   .mobile-history { display:none; }
   .tl {
+    --timeline-header-width: 260px;
     display: flex; flex-direction: column;
     height: 100%; min-height: 220px;
     background: var(--background);
@@ -449,8 +455,8 @@
 
   /* Left column: stays outside the horizontal track scroller */
   .tl-left {
-    width: 260px; flex-shrink: 0;
-    box-sizing: border-box; /* total must stay exactly 260px: the ruler viewport, track scroller and sticky scrollbar all offset by 260px */
+    width: var(--timeline-header-width); flex-shrink: 0;
+    box-sizing: border-box;
     position: relative; z-index: 40;
     background: var(--surface);
     border-right: 1px solid var(--border-strong);
@@ -468,8 +474,8 @@
     font-size: 9px; letter-spacing: var(--tracking-label); font-weight: var(--weight-semibold);
   }
   .thead {
-    min-height: 64px;
-    box-sizing: border-box; /* height:64px must include the border-bottom, otherwise each header is 1px taller than its track and the drift accumulates per channel */
+    min-height: var(--timeline-clip-height, 64px);
+    box-sizing: border-box;
     position: relative;
     display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center;
     gap: var(--space-5); padding: 0 var(--space-6);
@@ -557,9 +563,9 @@
     position: sticky;
     bottom: 0;
     z-index: 50;
-    width: calc(100% - 260px);
+    width: calc(100% - var(--timeline-header-width));
     height: 14px;
-    margin: -14px 0 0 260px;
+    margin: -14px 0 0 var(--timeline-header-width);
     overflow-x: auto;
     overflow-y: hidden;
     border-top: 1px solid var(--border);
@@ -726,7 +732,7 @@
   .playhead:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
 
   @media (max-width: 1024px) {
-    .tl { min-height: 0; }
+    .tl { min-height: 0; --timeline-header-width: 120px; }
     .tl-toolbar {
       display: grid;
       grid-template-columns: minmax(0, 1fr) auto;
@@ -760,7 +766,6 @@
     .zoom { flex: 1 1 auto; min-width: 0; justify-content: center; padding: 0 var(--space-3); }
     .zoom input[type=range] { width: min(120px, 100%); }
     .track-toggle { display: inline-flex; flex: 0 0 auto; height: 34px; }
-    .tl-left { width: 120px; }
     .tl-corner { justify-content: center; padding: 0 var(--space-3); }
     .thead { grid-template-columns: minmax(0, 1fr); align-content: center; gap: 3px; padding: 0 6px; }
     .track-identity { gap: var(--space-3); }
@@ -773,24 +778,21 @@
     .zone-hint { max-width: 180px; font-size: 10px; }
     .headers-collapsed .tl-left { display: none; }
     .tl-content.inspector-open .tl-right-canvas { padding-right: 0; }
-    .tl-scrollbar { width: calc(100% - 120px); margin-left: 120px; }
     .tl-scrollbar-content.inspector-open { padding-right: 0; }
     .tl-content.inspector-open .tl-ruler { padding-right: 0; }
   }
 
   @media (max-width: 380px) {
-    .tl-left { width: 106px; }
+    .tl { --timeline-header-width: 106px; }
     .mini { width: 25px; height: 25px; }
     .tc-wrap { font-size: 11px; }
-    .tl-scrollbar { width: calc(100% - 106px); margin-left: 106px; }
   }
 
   @media (min-width: 761px) and (max-width: 1024px) {
-    .tl-left { width: 180px; }
+    .tl { --timeline-header-width: 180px; }
     .thead { grid-template-columns: minmax(0, 1fr) auto; gap: var(--space-5); padding: 0 var(--space-6); }
     .track-note { display: block; }
     .tn { font-size: var(--text-xs); }
-    .tl-scrollbar { width: calc(100% - 180px); margin-left: 180px; }
   }
 
   .headers-collapsed .tl-scrollbar { width: 100%; margin-left: 0; }

@@ -3,7 +3,7 @@
   import EditorToolIcon from './EditorToolIcon.svelte'
 
   let { active, busy, onSelect }: {
-    active: EditorPanel
+    active: EditorPanel | null
     busy: boolean
     onSelect: (panel: EditorPanel) => void
   } = $props()

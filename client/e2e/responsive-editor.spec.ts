@@ -27,6 +27,7 @@ async function expectEditorInsideViewport(page: import('@playwright/test').Page)
 test('keeps the editor usable in portrait and landscape mobile layouts', async ({ page }) => {
   await page.route('**/list', (route) => route.fulfill({ status: 200, body: '' }))
   await page.goto('/editor')
+  await page.getByRole('button', { name: 'Got it', exact: true }).click()
 
   await expect(page.locator('#media-bin-panel')).toHaveCount(0)
   await expect(page.locator('#transitions-panel')).toHaveCount(0)

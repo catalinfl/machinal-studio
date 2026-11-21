@@ -1,6 +1,7 @@
 import { expect, test } from './helpers/fixtures'
 
 test('opens the media library wide and reflows catalogs as the deck is resized', async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 900 })
   await page.route('**/list', (route) => route.fulfill({ status: 200, body: '' }))
   await page.goto('/editor')
 

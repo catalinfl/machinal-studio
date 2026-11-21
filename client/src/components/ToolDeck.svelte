@@ -1,26 +1,29 @@
 <script lang="ts">
-  import type { Snippet } from 'svelte'
+  import { onMount, tick, type Snippet } from 'svelte'
   import type { EditorPanel } from '../composables/useEditorPage.svelte'
 
-  let { active, mobileOpen, onClose, children, assistant }: {
-    active: EditorPanel
+  let { active, mobileOpen, overlay = false, onClose, children, assistant }: {
+    active: EditorPanel | null
     mobileOpen: boolean
+    overlay?: boolean
     onClose?: () => void
     children: Snippet
     assistant?: Snippet
   } = $props()
 
-  let width = $state(560)
+  let preferredWidth: number | null = null
+  let width = $state(320)
   let resizing = $state(false)
+  let closeButton = $state<HTMLButtonElement>()
   let startX = 0
   let startWidth = 0
 
   function clampWidth(value: number): number {
-    return Math.max(272, Math.min(value, Math.min(560, window.innerWidth - 420)))
+    return Math.max(272, Math.min(value, Math.min(560, window.innerWidth - 600)))
   }
 
   function move(event: PointerEvent): void {
-    if (resizing) width = clampWidth(startWidth + event.clientX - startX)
+    if (resizing) preferredWidth = width = clampWidth(startWidth + event.clientX - startX)
   }
 
   function stop(): void {
@@ -43,16 +46,38 @@
   function resizeWithKeyboard(event: KeyboardEvent): void {
     if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return
     event.preventDefault()
-    width = clampWidth(width + (event.key === 'ArrowRight' ? 24 : -24))
+    preferredWidth = width = clampWidth(width + (event.key === 'ArrowRight' ? 24 : -24))
   }
 
-  $effect(() => stop)
+  onMount(() => {
+    const syncWidth = () => {
+      const defaultWidth = window.innerWidth >= 1440 && window.innerHeight > 800 ? 560 : Math.max(320, window.innerWidth - 1040)
+      width = clampWidth(preferredWidth ?? defaultWidth)
+    }
+    syncWidth()
+    window.addEventListener('resize', syncWidth)
+    return () => { stop(); window.removeEventListener('resize', syncWidth) }
+  })
+
+  $effect(() => {
+    if (overlay && mobileOpen && active) void tick().then(() => closeButton?.focus())
+  })
+
+  function onPanelKeydown(event: KeyboardEvent): void {
+    if (overlay && event.key === 'Escape' && !event.defaultPrevented && (event.target as Element)?.closest('.tool-deck')) {
+      event.stopPropagation()
+      onClose?.()
+    }
+  }
+
 </script>
 
-<div class="tool-deck" class:mobile-open={mobileOpen} class:resizing style:--deck-width={`${width}px`}>
+<svelte:window onkeydown={onPanelKeydown} />
+
+<div class="tool-deck" class:overlay class:closed={!active || (overlay && !mobileOpen)} class:mobile-open={mobileOpen} class:resizing style:--deck-width={`${width}px`} role="region" aria-label="Editing tools">
   {#key active}
     <div class="sheet">
-      {#if mobileOpen}<button class="sheet-close" type="button" onclick={onClose} aria-label="Close tool panel"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m5 5 10 10M15 5 5 15" /></svg><span>Back to edit</span></button>{/if}
+      {#if overlay && mobileOpen}<button bind:this={closeButton} class="sheet-close" type="button" onclick={onClose} aria-label="Close tool panel"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m12 4-6 6 6 6M6 10h11" /></svg><span>Back to composition</span></button>{/if}
       {@render children()}
     </div>
   {/key}
@@ -72,14 +97,12 @@
   .resize-handle span { position: absolute; width: 2px; height: 42px; top: 50%; left: 4px; transform: translateY(-50%); background: var(--border-strong); opacity: 0; }
   .resize-handle:hover span, .resize-handle:focus-visible span, .resizing .resize-handle span { background: var(--primary); opacity: 1; }
   .resize-handle:focus-visible { outline: 2px solid var(--primary); outline-offset: -3px; }
-  @media (max-width: 1024px) {
-    .tool-deck { display: none; position: absolute; inset: 0; width: 100%; height: 100%; border: 0; z-index: 40; }
-    .tool-deck.mobile-open { display: flex; }
-    .resize-handle { display: none; }
-    .sheet-close { display: flex; }
-    .sheet { width: 100%; flex-direction: column; }
-    .assistant-slot { inset: 38px 0 0; }
-    .assistant-slot :global(.ai-panel-shell.floating) { width: 100%; }
-  }
+  .tool-deck.closed { display: none; }
+  .tool-deck.overlay { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; z-index: 40; }
+  .overlay .resize-handle { display: none; }
+  .overlay .sheet-close { display: flex; }
+  .overlay .sheet { width: 100%; flex-direction: column; }
+  .overlay .assistant-slot { inset: 38px 0 0; }
+  .overlay .assistant-slot :global(.ai-panel-shell.floating) { width: 100%; }
   @media (max-height: 500px) and (orientation: landscape) { .assistant-slot { top: 32px; } }
 </style>

@@ -82,6 +82,12 @@ The preview transport includes a native **Fit / Fill (crop)** selector beside Fr
 
 The same control, field, selection, header and dialog grammar applies across Media, Text, Effects, Styles, Transitions, Speech, Image, AI Edit, Recipe, export and inspectors. Catalog actions preserve click/drag alternatives, search, counts and the actual catalog data.
 
+### Projects — portable snapshots
+
+The Projects popover retains last-render playback and confirmed **Open rendered timeline** / **Open prepared timeline** actions. **Download render JSON** and **Download timeline JSON**, brought across from the local fork, are additional portable snapshot actions, never replacements for opening the editable project. Each downloads its retained document, bindings, pinned assets and prepared text without compiling, generating, rendering or replacing the current edit. A short **Recipe → Code DSL** hint identifies the existing YAML editor. Actions wrap inside the current popover and inherit its theme, focus and touch rules; hosted account and billing behavior is unchanged.
+
+Narrow verification: `.impeccable/review/ui-sync-verdict.md`; the four hosted `project-previews-{1440,390}-{light,dark}.png` captures show the combined actions. This does not supersede unrelated editor reviews.
+
 ### Tool sheets
 
 - **Media:** Import header, full-width Local/Server source control, persistent search, quiet filters and count/Select/reload above an unboxed thumbnail grid. The local full layout rewrite and its verified behavior are recorded below.
@@ -116,6 +122,18 @@ The owner's clutter-reduction refinement supersedes the persistent search, split
 - **Disclosure mechanics:** `MediaBinPopover.svelte` shares top-layer placement, viewport bounds, outside-click dismissal, Escape, arrow/Home/End navigation and focus return. Options align to the panel's trailing edge; categories align to the leading edge. Touch targets retain 40px sizing and short landscape menus remain viewport-bounded.
 
 Narrow review: `.impeccable/review/media-bin-compact-verdict.md`. Evidence uses `media-bin-compact-{1440,390}-{dark,light}-*.png` plus compact landscape captures. Verification completed in this refinement: 59 MediaBin unit tests, nine Chromium browser tests, Svelte check with zero errors/warnings and production build. The mechanical detector returned `[]` during the batched review. No new shipping raster assets.
+
+### Laptop workspace density
+
+At widths up to 1279px, separate libraries from Composition instead of squeezing a permanent 560px library beside the monitor. The initial view shows Composition and the timeline. A tool opens over the upper workspace, keeps the timeline available and provides **Back to composition**. Escape closes the tool; focus returns after the preview stops being inert, falling back to the persistent Media button if its original opener disappeared. This workspace breakpoint is independent of the 1024px phone-control breakpoint.
+
+At widths from 1280px, the dock starts between 320px and 560px according to available space, preserving the wide 560px default at 1440px and above when height exceeds 800px. Pointer/keyboard resizing remains 272–560px and retains a user-selected width across viewport changes. On laptops with height up to 800px, use a 48px command header, 40px ribbon, 8px/12px preview padding, 36px composition status and 44px preview transport. The timeline defaults to `clamp(232px, 34dvh, 280px)`, with a 220px minimum and 56px video/audio lanes. Effect lanes retain 22px; track headers and horizontal-scroll offset share the 208px width.
+
+**Expand** independently gives Composition or the timeline the remaining workspace; **Restore** or Escape returns to the previous layout and timeline size. Keep components mounted, maintain project aspect/Fit/Fill and preserve all clips, captions, selections and audio. Selecting a library from an expanded view restores the workspace before opening it. `WorkspaceExpandButton.svelte` shares the two controls; resize-slider values follow measured bounds rather than fixed desktop guesses.
+
+The media library uses 84px of ordinary header/filter chrome, omits the redundant footer hint, and displays 64px list rows with 72px thumbnails. Rename and Add remain visible and independently operable. Grid/list choice, search, selection, source ownership and generation/render behavior are unchanged.
+
+Current narrow verification: `.impeccable/review/editor-focus-verdict.md`, superseding the earlier density-only `.impeccable/review/editor-laptop-verdict.md`. Captures `editor-focus-*` cover 1034×620 dark, 1100×700 light and 390×844 dark with 22 sources, portrait media, a caption lane and audio, including separate media and both expanded states. Chromium tests also cover 1280×720, 1366×650, 1366×768 in both themes, large desktop restoration, resizing, insertion, stacked-effect alignment and both focus-return paths. This is emulated viewport evidence, not physical-device, cross-browser or deployed-site certification. No new shipping images.
 
 ### Editor ribbon — creation actions
 

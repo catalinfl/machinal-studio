@@ -139,6 +139,10 @@
 .editor-suite .preview .signal.playing { border-color: var(--primary); background: var(--primary); }
 .editor-suite .preview .timecode-label { color: var(--muted-foreground); letter-spacing: 0; }
 .editor-suite .preview .timecode-value { color: var(--foreground); font-size: 11px; }
+.editor-suite .workspace-expand { display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: center; gap: 6px; min-height: 30px; padding: 4px 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: transparent; color: var(--foreground); font: 500 12px / 1.3 var(--font-sans); cursor: pointer; white-space: nowrap; }
+.editor-suite .workspace-expand:hover { background: var(--primary-subtle); color: var(--primary); border-color: var(--primary-border); }
+.editor-suite .workspace-expand[aria-pressed='true'] { background: var(--primary-subtle); color: var(--primary); }
+.editor-suite .workspace-expand svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
 .editor-suite .controls-live { min-height: 46px; gap: 14px; border-top: 1px solid var(--border); background: var(--surface); }
 .editor-suite .controls-live :is(.level-label, .aspect-label) { font-family: var(--font-sans); letter-spacing: 0; text-transform: none; }
 .editor-suite .preview-onboarding { position: absolute; inset: 0; z-index: 2; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; padding: 24px; text-align: center; background: var(--primary-subtle); color: var(--foreground); }
@@ -239,6 +243,29 @@
   .editor-suite .editor-taskbar nav button { padding-inline: 10px; }
   .editor-suite .editor .top .preview { padding: 16px; }
 }
+@media (min-width: 1025px) and (max-height: 800px) {
+  .editor-suite > header.topbar.command { min-height: 48px; height: 48px; padding-inline: 16px; gap: 12px; }
+  .editor-suite .editor-taskbar { min-height: 40px; padding: 3px 12px; }
+  .editor-suite .editor-taskbar nav button,
+  .editor-suite .editor-creation-actions :is(.scene-action, .document-button) { min-height: 32px; padding-block: 4px; }
+  .editor-suite .editor .bottom { --timeline-min-height: 220px; flex-basis: clamp(232px, 34dvh, 280px); min-height: var(--timeline-min-height); }
+  .editor-suite .editor .top .preview { padding: 8px 12px; }
+  .editor-suite .preview .status-rail { min-height: 36px; padding-inline: 10px; }
+  .editor-suite .preview .controls-live { min-height: 44px; padding: 4px 8px; gap: 10px; }
+  .editor-suite .preview-onboarding { gap: 12px; padding: 16px; }
+  .editor-suite .preview-onboarding h2 { font-size: 22px; }
+  .editor-suite .preview-onboarding .empty-composition { width: 32px; height: 32px; }
+  .editor-suite .editor .tl { --timeline-header-width: 208px; --timeline-clip-height: 56px; min-height: 0; }
+  .editor-suite .tl .tl-toolbar { min-height: 42px; padding: 4px 12px; gap: 10px; }
+  .editor-suite .tl .tc-wrap { min-width: 184px; }
+  .editor-suite .tl .thead { padding-inline: 8px; gap: 8px; }
+  .editor-suite .tl .new-track-zone { min-height: 48px; }
+}
+@media (max-width: 1279px) {
+  .editor-suite .tool-deck .sheet-close { display: flex; align-items: center; justify-content: flex-start; flex-shrink: 0; gap: 8px; min-height: 38px; padding: 8px 16px; border: 0; border-bottom: 1px solid var(--border); background: var(--surface-muted); color: var(--primary); font-size: 12px; cursor: pointer; }
+  .editor-suite .sheet-close svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.5; }
+  .editor-suite .tool-deck .sheet > aside { height: auto; min-height: 0; flex: 1; }
+}
 @media (max-width: 1024px) {
   .editor-suite .editor-tool-ribbon { overflow-x: auto; scrollbar-width: none; }
   .editor-suite .editor-tool-ribbon::-webkit-scrollbar { display: none; }
@@ -314,4 +341,15 @@
   .editor-suite .start-actions { margin: 0; }
 }
 @media (pointer: coarse) { .editor-suite :is(.tl .tbtn, .tl .track-toggle, .sheet-close, dialog .close-button) { min-height: 40px; } }
+.editor-suite .editor.preview-expanded .bottom,
+.editor-suite .editor.preview-expanded .tool-deck,
+.editor-suite .editor.timeline-expanded .top { display: none; }
+.editor-suite .editor.timeline-expanded .bottom { flex: 1 1 0; min-height: 0; max-height: none; }
+.editor-suite .editor.timeline-expanded .timeline-resizer { display: none; }
+.editor-suite .editor.preview-expanded .top .preview .monitor { width: 100%; height: 100%; }
+@media (max-width: 600px) {
+  .editor-suite .workspace-expand { padding-inline: 6px; }
+  .editor-suite .workspace-expand span { display: none; }
+}
+@media (pointer: coarse) { .editor-suite .workspace-expand { min-width: 40px; min-height: 40px; } }
 @media (prefers-reduced-motion: reduce) { .editor-suite *, .editor-suite *::before, .editor-suite *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }

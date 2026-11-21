@@ -4,13 +4,14 @@
   import ImageSelectionOverlay from './ImageSelectionOverlay.svelte'
   import { editor } from '../stores/editor.svelte'
   import EditorEmptyState from './EditorEmptyState.svelte'
+  import WorkspaceExpandButton from './WorkspaceExpandButton.svelte'
 
-  let { onOpenClipInspector, onAddMedia, onGenerateScenes }: { onOpenClipInspector?: () => void; onAddMedia?: () => void; onGenerateScenes?: () => void } = $props()
+  let { onOpenClipInspector, onAddMedia, onGenerateScenes, inactive = false, expanded = false, onToggleExpand }: { onOpenClipInspector?: () => void; onAddMedia?: () => void; onGenerateScenes?: () => void; inactive?: boolean; expanded?: boolean; onToggleExpand?: () => void } = $props()
   const preview = usePreview({ get onOpenClipInspector() { return onOpenClipInspector } })
 
 </script>
 
-<div class="preview">
+<div class="preview" inert={inactive}>
   <div class="monitor">
     <div class="status-rail">
       <div class="channel-status">
@@ -21,6 +22,9 @@
       <div class="timecode">
         <span class="timecode-label">TC</span>
         <span class="timecode-value">{preview.currentTime.toFixed(2)}s</span>
+        {#if onToggleExpand}
+          <WorkspaceExpandButton target="preview" {expanded} onToggle={onToggleExpand} />
+        {/if}
       </div>
     </div>
     <div class="stage" class:image-selected={preview.selectedImageActive} class:dragging-image={preview.draggingImage} class:resizing-image={preview.resizingImage} bind:this={preview.stageEl} onpointerdown={preview.onStagePointerDown} role="application" aria-label="Video preview canvas">
