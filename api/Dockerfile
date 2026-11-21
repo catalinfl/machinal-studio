@@ -19,7 +19,7 @@ WORKDIR /app
 COPY --from=builder /app/server .
 COPY --from=builder /app/edit /usr/local/bin/edit
 COPY entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh && mkdir -p /data && chown appuser:appuser /app /app/server /data
+RUN sed -i 's/\r$//' /entrypoint.sh && chmod +x /entrypoint.sh && mkdir -p /data && chown appuser:appuser /app /app/server /data
 
 ENTRYPOINT ["/entrypoint.sh"]
 
