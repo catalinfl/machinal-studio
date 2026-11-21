@@ -51,11 +51,15 @@ machinal setup
 
 During `machinal setup` (or directly via `machinal setup --client <opencode|claude|codex>`):
 - Choose your coding agent: **OpenCode**, **Claude Code**, or **Codex**.
-- Choose **Local** mode to connect to this Docker installation (`http://127.0.0.1:8080/mcp`) using your own OpenRouter key and an automatically generated device token (no Machinal account or credits required).
+- Choose how you want to connect:
+  - **Local** — connects to this Docker installation (`http://127.0.0.1:8080/mcp`) using your own OpenRouter key and an automatically generated device token (no Machinal account or credits required).
+  - **Machinal Server** — connects to the hosted service (`https://api.machinal.app/mcp`). If you prefer hosted rendering and AI without running Docker or managing an OpenRouter key, create an account on **[machinal.app](https://machinal.app)**, generate an application API key from your account, and enter it when prompted during `machinal setup` (your input is hidden and stored securely in your OS credential store).
 - Optionally install the bundled editing, recipe, scene, media, and animation/sound skills into your client's native skills directory (pass `--no-skills` to skip).
 
 Useful CLI commands:
 - `machinal local status` / `machinal local install` — inspect or configure the local Docker MCP connection
+- `machinal set-key` — set or replace your Machinal Server API key (hidden terminal input)
+- `machinal getcredit` / `machinal credits` — check live Machinal Server credits
 - `machinal place` / `machinal place --uploads PATH --downloads PATH` — configure host-side upload/download folder preferences
 - `machinal uninstall` — cleanly remove client registrations, bundled skills, and local adapter settings before running `npm uninstall -g @machinal/mcp`
 
