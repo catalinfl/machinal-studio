@@ -151,6 +151,9 @@ func (keys *APIKeys) Require(c *fiber.Ctx) error {
 	if _, err := hex.DecodeString(token[len(prefix):]); err != nil {
 		return fiber.ErrUnauthorized
 	}
+	if keys.reuseVerifiedRequest(c, token) {
+		return c.Next()
+	}
 	hash := tokenHash(token)
 	record, err := keys.store().Find(c.UserContext(), hash)
 	if errors.Is(err, errInvalidAPIKey) {
@@ -169,9 +172,7 @@ func (keys *APIKeys) Require(c *fiber.Ctx) error {
 	if !paid {
 		return fiber.NewError(fiber.StatusPaymentRequired, PaidPlanRequiredMessage)
 	}
-	c.Locals("pbUserId", record.Owner)
-	c.Locals("pbUserRecord", user)
-	c.Locals("machinalAPIKey", record.ID)
+	keys.verifyRequest(c, record, user)
 	return c.Next()
 }
 

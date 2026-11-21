@@ -10,15 +10,7 @@ import (
 
 func TestTikTokCaptionFontReachesMCPEntryPoints(t *testing.T) {
 	handler := briefHandler(t)
-	_, envelope := rpc(t, handler, "initialize", map[string]any{
-		"protocolVersion": "2025-11-25", "capabilities": map[string]any{},
-		"clientInfo": map[string]any{"name": "test", "version": "1"},
-	})
-	var initialized mcp.InitializeResult
-	if err := json.Unmarshal(envelope["result"], &initialized); err != nil {
-		t.Fatal(err)
-	}
-	assertTikTokCaptionFontGuidance(t, initialized.Instructions)
+	assertTikTokCaptionFontGuidance(t, workflowPolicy(t, handler))
 	for _, uri := range []string{"machinal://recipes/guide", "machinal://skills/editing"} {
 		t.Run(uri, func(t *testing.T) {
 			_, envelope := rpc(t, handler, "resources/read", map[string]any{"uri": uri})

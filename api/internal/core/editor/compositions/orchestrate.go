@@ -125,13 +125,10 @@ func CompileGenerated(ctx context.Context, input compiler.Input, root, session s
 		}
 		doc = materialized
 	}
-	for _, job := range mediaPending {
-		materializedDoc, materializedAssets, err := materializeMediaJob(ctx, root, session, doc, assets, job)
-		if err != nil {
-			input.Document, input.Assets = doc, assets
-			return generationFailure(input, job.ID, "generation_failed", err)
-		}
-		doc, assets = materializedDoc, materializedAssets
+	doc, assets, failedID, err := materializeMediaJobs(ctx, root, session, doc, assets, mediaPending)
+	if err != nil {
+		input.Document, input.Assets = doc, assets
+		return generationFailure(input, failedID, "generation_failed", err)
 	}
 	input.Document, input.Assets = doc, assets
 	return engine.Compile(input), nil

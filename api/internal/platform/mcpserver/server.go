@@ -78,6 +78,10 @@ func newHandler(call Caller, local bool) http.Handler {
 	}
 	registerRoutingTool(server, call)
 	registerGuideResources(server)
+	server.AddResource(&mcp.Resource{URI: "machinal://reference/workflow", Name: "full-workflow-policy", Title: "Detailed workflow policies (read only when needed)", MIMEType: "text/markdown"},
+		func(context.Context, *mcp.ReadResourceRequest) (*mcp.ReadResourceResult, error) {
+			return &mcp.ReadResourceResult{Contents: []*mcp.ResourceContents{{URI: "machinal://reference/workflow", MIMEType: "text/markdown", Text: serverInstructions}}}, nil
+		})
 	registerReferenceTools(server)
 	registerSpeechTools(server)
 	recipeInstructions := recipeGuide

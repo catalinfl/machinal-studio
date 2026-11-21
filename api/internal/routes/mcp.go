@@ -27,7 +27,7 @@ const mcpClientIPHeader = "X-Direction-MCP-Client-IP"
 const mcpOriginHeader = "X-Direction-MCP-Origin"
 
 func registerMCPRoutes(app *fiber.App, keys *auth.APIKeys) {
-	handler := adaptor.HTTPHandler(mcpserver.NewHandler(internalAPICaller(app)))
+	transport := mcpserver.NewHandler(internalAPICaller(app))
 	origins := strings.Split(os.Getenv("MCP_ALLOWED_ORIGINS"), ",")
 	app.All("/mcp", protectMCPRequest(origins),
 		requestLimiter(300, rateWindow, "MCP authentication rate limit exceeded"),
@@ -36,7 +36,10 @@ func registerMCPRoutes(app *fiber.App, keys *auth.APIKeys) {
 			// Reuse REST's resolved client IP, not a caller-supplied bridge header.
 			c.Request().Header.Set(mcpClientIPHeader, c.IP())
 			c.Request().Header.Set(mcpOriginHeader, c.BaseURL())
-			return handler(c)
+			ctx := c.UserContext()
+			return adaptor.HTTPHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				transport.ServeHTTP(w, r.WithContext(ctx))
+			}))(c)
 		})
 }
 

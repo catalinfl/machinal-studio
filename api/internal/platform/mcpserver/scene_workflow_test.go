@@ -14,21 +14,15 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
-func TestInitializationExplainsAnimatedScenesWithoutInstalledSkills(t *testing.T) {
+func TestWorkflowPolicyExplainsAnimatedScenesWithoutInstalledSkills(t *testing.T) {
 	handler := NewHandler(func(context.Context, http.Header, Request) (Response, error) {
 		t.Fatal("scene discovery must not call providers or access customer data")
 		return Response{}, nil
 	})
-	_, envelope := rpc(t, handler, "initialize", map[string]any{
-		"protocolVersion": "2025-11-25", "capabilities": map[string]any{}, "clientInfo": map[string]any{"name": "test", "version": "1"},
-	})
-	var initialized mcp.InitializeResult
-	if err := json.Unmarshal(envelope["result"], &initialized); err != nil {
-		t.Fatal(err)
-	}
+	policy := workflowPolicy(t, handler)
 	for _, content := range []string{"beat sheet", "Svelte", "scene.generate", "independently moving objects", "scene-image-insert", "metadata alone is not visual inspection", "no-generation"} {
-		if !strings.Contains(initialized.Instructions, content) {
-			t.Fatalf("initialization lacks scene-planning guidance: %s", content)
+		if !strings.Contains(policy, content) {
+			t.Fatalf("workflow policy lacks scene-planning guidance: %s", content)
 		}
 	}
 }

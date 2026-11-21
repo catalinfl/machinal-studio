@@ -2,7 +2,6 @@ package mcpserver
 
 import (
 	"context"
-	"encoding/json"
 	"net/http"
 	"strings"
 	"testing"
@@ -10,7 +9,6 @@ import (
 	"ffmpeg-go-server/editengine/compiler"
 	"ffmpeg-go-server/internal/core/editor/compositions"
 
-	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"gopkg.in/yaml.v3"
 )
 
@@ -19,14 +17,7 @@ func TestSceneImageDefaultsReachInitializationAndReferences(t *testing.T) {
 		t.Fatal("image guidance must not access customer data or call providers")
 		return Response{}, nil
 	})
-	_, envelope := rpc(t, handler, "initialize", map[string]any{
-		"protocolVersion": "2025-11-25", "capabilities": map[string]any{}, "clientInfo": map[string]any{"name": "test", "version": "1"},
-	})
-	var initialized mcp.InitializeResult
-	if err := json.Unmarshal(envelope["result"], &initialized); err != nil {
-		t.Fatal(err)
-	}
-	guides := map[string]string{"initialization": initialized.Instructions, "recipe-guide": recipeGuide}
+	guides := map[string]string{"workflow-policy": workflowPolicy(t, handler), "recipe-guide": recipeGuide}
 	for _, topic := range []string{"jobs", "scenes", "scene-authoring"} {
 		result, output := callTool(t, handler, "get_editing_reference", map[string]any{"topic": topic})
 		if result.IsError || output.StatusCode != http.StatusOK {

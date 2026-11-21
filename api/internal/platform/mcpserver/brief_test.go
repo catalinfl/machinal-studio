@@ -20,15 +20,9 @@ func briefHandler(t *testing.T) http.Handler {
 	})
 }
 
-func TestInitializationStartsWithCollaborativeVideoBrief(t *testing.T) {
-	_, envelope := rpc(t, briefHandler(t), "initialize", map[string]any{
-		"protocolVersion": "2025-11-25", "capabilities": map[string]any{},
-		"clientInfo": map[string]any{"name": "test", "version": "1"},
-	})
-	var initialized mcp.InitializeResult
-	if err := json.Unmarshal(envelope["result"], &initialized); err != nil {
-		t.Fatal(err)
-	}
+func TestWorkflowPolicyStartsWithCollaborativeVideoBrief(t *testing.T) {
+	handler := briefHandler(t)
+	policy := workflowPolicy(t, handler)
 	for _, content := range []string{
 		"get_editing_reference(topic=brief)", "3–5 short questions", "output resolution",
 		"wait for the user's reply", "do not re-ask answered questions", "'you decide'",
@@ -39,8 +33,8 @@ func TestInitializationStartsWithCollaborativeVideoBrief(t *testing.T) {
 		"proceed immediately", "same turn", "Do not ask for a separate plan confirmation",
 		"same form", "cancelled form is not consent", "tool-approval controls enabled",
 	} {
-		if !strings.Contains(initialized.Instructions, content) {
-			t.Errorf("initialization lacks brief guidance: %s", content)
+		if !strings.Contains(policy, content) {
+			t.Errorf("workflow policy lacks brief guidance: %s", content)
 		}
 	}
 }

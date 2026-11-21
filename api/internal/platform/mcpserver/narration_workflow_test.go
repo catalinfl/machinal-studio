@@ -2,7 +2,6 @@ package mcpserver
 
 import (
 	"context"
-	"encoding/json"
 	"net/http"
 	"slices"
 	"strings"
@@ -11,8 +10,6 @@ import (
 	"ffmpeg-go-server/editengine/compiler"
 	"ffmpeg-go-server/editengine/document"
 	"ffmpeg-go-server/internal/core/editor/compositions"
-
-	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
 func TestNarrationWorkflowExposesTimingCheckpointBeforeVisualGeneration(t *testing.T) {
@@ -20,20 +17,14 @@ func TestNarrationWorkflowExposesTimingCheckpointBeforeVisualGeneration(t *testi
 		t.Fatal("timing guidance must not call providers or customer APIs")
 		return Response{}, nil
 	})
-	_, envelope := rpc(t, handler, "initialize", map[string]any{
-		"protocolVersion": "2025-11-25", "capabilities": map[string]any{}, "clientInfo": map[string]any{"name": "test", "version": "1"},
-	})
-	var initialized mcp.InitializeResult
-	if err := json.Unmarshal(envelope["result"], &initialized); err != nil {
-		t.Fatal(err)
-	}
+	policy := workflowPolicy(t, handler)
 	for _, content := range []string{
 		"timing-first", "separate submissions", "requested captions.generate only", "do not include image.generate",
 		"get_job_result", "resultTextIds", "Three.js", "sourceJobId", "before jobs all run before after captions",
 		"If captions were not requested", "If TTS was not requested", "failed timing pass stops dependent visual generation",
 	} {
-		if !strings.Contains(initialized.Instructions, content) {
-			t.Errorf("initialization is missing timing instruction %q", content)
+		if !strings.Contains(policy, content) {
+			t.Errorf("workflow policy is missing timing instruction %q", content)
 		}
 	}
 	for _, topic := range []string{"overview", "yaml", "jobs", "scenes", "audio", "text"} {

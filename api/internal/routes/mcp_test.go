@@ -90,13 +90,15 @@ func (s *mcpJobStore) Cancel(ctx context.Context, owner, session, id string) (jo
 }
 
 type mcpFixture struct {
-	app     *fiber.App
-	store   *projects.Store
-	project projects.Project
-	jobs    *mcpJobStore
-	billing *billing.Handler
-	revoked atomic.Bool
-	unpaid  atomic.Bool
+	app         *fiber.App
+	store       *projects.Store
+	project     projects.Project
+	jobs        *mcpJobStore
+	billing     *billing.Handler
+	revoked     atomic.Bool
+	unpaid      atomic.Bool
+	keyReads    atomic.Int32
+	accessReads atomic.Int32
 }
 
 func newMCPFixture(t *testing.T) *mcpFixture {
@@ -117,6 +119,7 @@ func newMCPFixture(t *testing.T) *mcpFixture {
 		w.Header().Set("Content-Type", "application/json")
 		switch {
 		case r.URL.Path == "/api/collections/direction_api_keys/records":
+			fixture.keyReads.Add(1)
 			items := []map[string]any{}
 			for key, owner := range map[string]string{mcpAliceKey: "mcpalice", mcpBobKey: "mcpbob"} {
 				digest := sha256.Sum256([]byte(key))
@@ -128,6 +131,7 @@ func newMCPFixture(t *testing.T) *mcpFixture {
 			}
 			json.NewEncoder(w).Encode(map[string]any{"items": items})
 		case strings.HasPrefix(r.URL.Path, "/api/collections/users/records/"):
+			fixture.accessReads.Add(1)
 			owner := strings.TrimPrefix(r.URL.Path, "/api/collections/users/records/")
 			json.NewEncoder(w).Encode(map[string]any{"id": owner, "paid": !fixture.unpaid.Load()})
 		case r.URL.Path == "/api/collections/subscriptions/records":

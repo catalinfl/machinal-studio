@@ -40,6 +40,22 @@ func rpc(t *testing.T, handler http.Handler, method string, params any) (int, ma
 	return response.Code, envelope
 }
 
+func workflowPolicy(t *testing.T, handler http.Handler) string {
+	t.Helper()
+	status, envelope := rpc(t, handler, "resources/read", map[string]any{"uri": "machinal://reference/workflow"})
+	if status != http.StatusOK || envelope["error"] != nil {
+		t.Fatalf("workflow policy resource: status %d, %s", status, envelope["error"])
+	}
+	var resource mcp.ReadResourceResult
+	if err := json.Unmarshal(envelope["result"], &resource); err != nil {
+		t.Fatal(err)
+	}
+	if len(resource.Contents) != 1 {
+		t.Fatalf("workflow policy resource has %d contents", len(resource.Contents))
+	}
+	return resource.Contents[0].Text
+}
+
 func callTool(t *testing.T, handler http.Handler, name string, arguments any) (mcp.CallToolResult, Output) {
 	t.Helper()
 	status, envelope := rpc(t, handler, "tools/call", map[string]any{"name": name, "arguments": arguments})
@@ -75,8 +91,15 @@ func TestCatalogAndInstructions(t *testing.T) {
 	if err := json.Unmarshal(envelope["result"], &initialized); err != nil {
 		t.Fatal(err)
 	}
-	if status != 200 || initialized.ServerInfo.Name != "machinal" || !strings.Contains(initialized.Instructions, "API credits") {
+	if status != 200 || initialized.ServerInfo.Name != "machinal" || !strings.Contains(initialized.Instructions, "get_editing_reference(topic=brief)") {
 		t.Fatalf("initialize: %d %+v", status, initialized)
+	}
+	if len(initialized.Instructions) > 7000 || len(initialized.Instructions)*3 >= len(instructions) {
+		t.Fatal("handshake eagerly loaded detailed production policy", len(initialized.Instructions), len(instructions))
+	}
+	_, detailed := rpc(t, handler, "resources/read", map[string]any{"uri": "machinal://reference/workflow"})
+	if !strings.Contains(string(detailed["result"]), "CAPTION PRESERVATION") {
+		t.Fatal("detailed workflow policy is no longer available on demand")
 	}
 	_, envelope = rpc(t, handler, "tools/list", map[string]any{})
 	var catalog mcp.ListToolsResult

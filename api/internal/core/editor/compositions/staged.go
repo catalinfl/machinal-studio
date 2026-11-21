@@ -25,16 +25,10 @@ func compileStaged(ctx context.Context, input compiler.Input, root, session stri
 	}
 
 	doc, assets := input.Document, input.Assets
-	for _, job := range doc.Before {
-		if job.ResultAssetID != "" {
-			continue
-		}
-		var err error
-		doc, assets, err = materializeMediaJob(ctx, root, session, doc, assets, job)
-		if err != nil {
-			input.Document, input.Assets = doc, assets
-			return generationFailure(input, job.ID, "generation_failed", err)
-		}
+	doc, assets, failedID, err := materializeMediaJobs(ctx, root, session, doc, assets, doc.Before)
+	if err != nil {
+		input.Document, input.Assets = doc, assets
+		return generationFailure(input, failedID, "generation_failed", err)
 	}
 
 	input.Document, input.Assets = doc, assets
