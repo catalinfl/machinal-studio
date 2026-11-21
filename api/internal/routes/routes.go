@@ -55,6 +55,8 @@ func registerProjectRoutes(app *fiber.App) *projects.Store {
 	group.Post("/", store.CreateHandler)
 	group.Get("/:projectID", store.GetHandler)
 	group.Post("/:projectID", store.SaveHandler)
+	group.Get("/:projectID/text-assets/:assetID", requestLimiter(120, rateWindow, "caption image limit exceeded"), store.GetTextAssetHandler)
+	group.Post("/:projectID/text-assets/:assetID", requestLimiter(30, rateWindow, "caption image limit exceeded"), store.SaveTextAssetHandler)
 	return store
 }
 

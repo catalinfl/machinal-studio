@@ -232,6 +232,9 @@ func (s *Store) update(owner, id, name string, version int, state json.RawMessag
 		if !validEditorState(state) {
 			return Project{}, ErrInvalid
 		}
+		if err := s.validateTextReferences(owner, id, state); err != nil {
+			return Project{}, err
+		}
 		project.State = state
 	}
 	project.Version++

@@ -22,6 +22,9 @@ func TestProcessQueueHonorsCancellation(t *testing.T) {
 	if _, err := Run(ctx, "ffmpeg"); !errors.Is(err, context.Canceled) {
 		t.Fatalf("queued job did not cancel: %v", err)
 	}
+	if err := Stream(ctx, "ffmpeg", nil, func(io.Reader) error { t.Error("cancelled stream ran its consumer"); return nil }); !errors.Is(err, context.Canceled) {
+		t.Fatalf("queued stream did not cancel: %v", err)
+	}
 }
 
 func TestProcessOutputIsBounded(t *testing.T) {

@@ -1,16 +1,15 @@
 package media
 
 import (
-	"bytes"
 	"context"
 	"encoding/binary"
 	"fmt"
 	"io"
 	"math"
 	"os"
-	"os/exec"
 	"strconv"
 
+	"ffmpeg-go-server/internal/platform/mediacache"
 	"ffmpeg-go-server/internal/platform/storage"
 
 	"github.com/gofiber/fiber/v2"
@@ -26,16 +25,15 @@ const (
 	// multiples of it so partial samples carry over to the next read.
 	waveformFloatSize = 4
 	// waveformReadSize balances pipe throughput against stack pressure.
-	waveformReadSize = 64 * 1024
+	waveformReadSize      = 64 * 1024
+	waveformDecodeThreads = 1
+	waveformFilterThreads = 1
+	// Bound derived peak arrays even for recordings longer than a decode timeout.
+	maxWaveformBins = 1 << 20
 	// waveformCarrySize holds one partial float32 sample (at most 3 bytes)
 	// across reads.
 	waveformCarrySize = waveformFloatSize - 1
 )
-
-// waveformCommand starts the ffmpeg decode pipe. It is a var so tests can stub
-// the subprocess; the cache-based paths in this package take a
-// mediacache.Runner instead, which this legacy streaming decode predates.
-var waveformCommand = exec.CommandContext
 
 type waveformResponse struct {
 	SampleRate int       `json:"sampleRate"`
@@ -51,11 +49,11 @@ func Waveform(c *fiber.Ctx) error {
 	if err != nil {
 		return AssetError(c, err)
 	}
-	waveform, err := decodeWaveform(c.UserContext(), inputPath)
+	source, err := mediacache.ReadSource(inputPath)
 	if err != nil {
-		return AssetError(c, fiber.NewError(fiber.StatusUnprocessableEntity, "cannot decode media"))
+		return AssetError(c, err)
 	}
-	return c.JSON(waveform)
+	return serveWaveform(c, source, &mediacache.Default, decodeWaveform)
 }
 
 func parseWaveformRequest(c *fiber.Ctx) (string, error) {
@@ -80,38 +78,26 @@ func parseWaveformRequest(c *fiber.Ctx) (string, error) {
 }
 
 func decodeWaveform(ctx context.Context, inputPath string) (waveformResponse, error) {
-	cmd := waveformCommand(
-		ctx,
-		"ffmpeg",
+	args := []string{
 		"-nostdin",
 		"-v", "error",
 		"-protocol_whitelist", "file,pipe",
+		"-threads", strconv.Itoa(waveformDecodeThreads),
+		"-filter_threads", strconv.Itoa(waveformFilterThreads),
 		"-i", inputPath,
 		"-vn",
 		"-ac", strconv.Itoa(waveformChannels),
 		"-ar", strconv.Itoa(waveformSampleRate),
 		"-f", "f32le",
 		"pipe:1",
-	)
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		return waveformResponse{}, fmt.Errorf("waveform output: %w", err)
 	}
-	var stderr bytes.Buffer
-	cmd.Stderr = &stderr
-	if err := cmd.Start(); err != nil {
-		return waveformResponse{}, fmt.Errorf("waveform start: %w", err)
-	}
-
-	waveform, readErr := aggregateWaveform(stdout)
-	waitErr := cmd.Wait()
-	if readErr != nil {
-		return waveformResponse{}, fmt.Errorf("waveform decode: %w", readErr)
-	}
-	if waitErr != nil {
-		return waveformResponse{}, fmt.Errorf("waveform ffmpeg: %w: %s", waitErr, stderr.String())
-	}
-	return waveform, nil
+	var waveform waveformResponse
+	err := mediacache.Stream(ctx, "ffmpeg", args, func(reader io.Reader) error {
+		var err error
+		waveform, err = aggregateWaveform(reader)
+		return err
+	})
+	return waveform, err
 }
 
 func aggregateWaveform(reader io.Reader) (waveformResponse, error) {
@@ -125,6 +111,9 @@ func aggregateWaveform(reader io.Reader) (waveformResponse, error) {
 		available := carried + read
 		complete := available - available%waveformFloatSize
 		accumulator.addSamples(buffer[:complete], &response)
+		if len(response.Min) > maxWaveformBins {
+			return waveformResponse{}, fiber.NewError(fiber.StatusUnprocessableEntity, "audio is too long for waveform preview")
+		}
 		carried = carryWaveformRemainder(buffer, complete, available)
 		if err == io.EOF {
 			break
@@ -138,6 +127,9 @@ func aggregateWaveform(reader io.Reader) (waveformResponse, error) {
 		return waveformResponse{}, io.ErrUnexpectedEOF
 	}
 	accumulator.flush(&response)
+	if len(response.Min) > maxWaveformBins {
+		return waveformResponse{}, fiber.NewError(fiber.StatusUnprocessableEntity, "audio is too long for waveform preview")
+	}
 	return response, nil
 }
 

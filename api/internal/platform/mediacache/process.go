@@ -62,16 +62,11 @@ func withFileWhitelist(args []string) []string {
 // Run executes program with encoding-slot concurrency limits.
 func Run(ctx context.Context, program string, args ...string) ([]byte, error) {
 	args = withFileWhitelist(args)
-	slots := encodingSlots
-	if program == "ffprobe" {
-		slots = probeSlots
+	release, err := acquireProcessSlot(ctx, program)
+	if err != nil {
+		return nil, err
 	}
-	select {
-	case slots <- struct{}{}:
-		defer func() { <-slots }()
-	case <-ctx.Done():
-		return nil, ctx.Err()
-	}
+	defer release()
 	cmd := exec.CommandContext(ctx, program, args...)
 	cmd.WaitDelay = time.Second
 	stdout := limitedBuffer{limit: stdoutLimit}
@@ -88,6 +83,22 @@ func Run(ctx context.Context, program string, args ...string) ([]byte, error) {
 		return nil, fmt.Errorf("%s output exceeds %d byte limit", program, stdoutLimit)
 	}
 	return stdout.buffer.Bytes(), nil
+}
+
+func acquireProcessSlot(ctx context.Context, program string) (func(), error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	slots := encodingSlots
+	if program == "ffprobe" {
+		slots = probeSlots
+	}
+	select {
+	case slots <- struct{}{}:
+		return func() { <-slots }, nil
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
 }
 
 type limitedBuffer struct {
