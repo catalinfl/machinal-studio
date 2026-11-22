@@ -106,4 +106,4 @@ From `api`, run `go test ./...` and `go vet ./...`.
 
 ## License
 
-This project is licensed under the [PolyForm Noncommercial License 1.0.0](LICENSE) (`PolyForm-Noncommercial-1.0.0`). Noncommercial use, modification, and distribution are permitted; commercial use and selling the software or offering it as a commercial service are not permitted without a separate license.
+This project is licensed under the [PolyForm Noncommercial License 1.0.0](LICENSE.md) (`PolyForm-Noncommercial-1.0.0`). Noncommercial use, modification, and distribution are permitted; commercial use and selling the software or offering it as a commercial service are not permitted without a separate license.
