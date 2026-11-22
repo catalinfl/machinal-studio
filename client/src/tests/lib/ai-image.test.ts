@@ -58,7 +58,7 @@ describe('AI image workflow', () => {
     })
 
     expect(api.requestImage).toHaveBeenCalledWith(expect.objectContaining({
-      model: 'openai/gpt-image-2.6-sunburst', background: 'transparent', aspect: '16:9',
+      model: 'openai/gpt-image-2.5-sunburst', background: 'transparent', aspect: '16:9',
     }), undefined)
     expect(api.requestImage.mock.calls[0][0]).not.toHaveProperty('quality')
     expect(api.requestImage.mock.calls[0][0].prompt).toContain('genuinely transparent alpha channel')
@@ -74,7 +74,7 @@ describe('AI image workflow', () => {
     const result = await executeAIImageJob({ prompt: 'A mountain establishing shot', placement: 'overlay', background: 'opaque', start: 1, duration: 5 })
 
     expect(api.requestImage).toHaveBeenCalledWith(expect.objectContaining({
-      model: 'openai/gpt-image-2.6-sunburst', background: 'opaque',
+      model: 'openai/gpt-image-2.5-sunburst', background: 'opaque',
     }), undefined)
     expect(api.requestImage.mock.calls[0][0].prompt).toContain('include a complete, natural background')
     expect(result.clip?.motionPreset).toBe('none')

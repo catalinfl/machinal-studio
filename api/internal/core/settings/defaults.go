@@ -12,7 +12,7 @@ var localModelDefaults = map[string]string{
 	"OPENROUTER_MODEL":        "deepseek/deepseek-v4.1-flash",
 	"OPENROUTER_VISION_MODEL": "qwen/qwen3.7-flash",
 	"OPENROUTER_STT_MODEL":    defaultTranscriptionModel,
-	"OPENROUTER_IMAGE_MODEL":  "openai/gpt-image-2.6-sunburst",
+	"OPENROUTER_IMAGE_MODEL":  "openai/gpt-image-2.5-sunburst",
 	"OPENROUTER_SPEECH_MODEL": "fish-audio/s2.1-pro",
 	"OPENROUTER_JEV_MODEL":    "typesafe/jev-1.13",
 }

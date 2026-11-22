@@ -443,8 +443,8 @@ export async function getWaveform(fileName: string): Promise<WaveformData> {
 
 export const AI_IMAGE_MODELS = [
   {
-    id: 'openai/gpt-image-2.6-sunburst',
-    label: 'GPT Image 2.6 Sunburst',
+    id: 'openai/gpt-image-2.5-sunburst',
+    label: 'GPT Image 2.5 Sunburst',
     price: 'Usage-based pricing',
     output: 'PNG; transparent or opaque',
     aspects: ['1:1', '3:2', '2:3', '4:3', '3:4', '16:9', '9:16', '21:9', 'auto'],

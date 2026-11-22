@@ -476,14 +476,14 @@ describe('api', () => {
 
     await expect(requestAIImage({
       prompt: 'A clean calendar cutout',
-      model: 'openai/gpt-image-2.6-sunburst',
+      model: 'openai/gpt-image-2.5-sunburst',
       aspect: '16:9',
       background: 'transparent',
     })).resolves.toEqual(image)
     expect(fetchMock).toHaveBeenCalledWith(`${API_BASE}/ai/images`, expect.objectContaining({ method: 'POST' }))
     expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({
       prompt: 'A clean calendar cutout',
-      model: 'openai/gpt-image-2.6-sunburst',
+      model: 'openai/gpt-image-2.5-sunburst',
       aspect: '16:9',
       background: 'transparent',
     })

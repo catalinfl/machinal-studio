@@ -35,7 +35,7 @@ describe('ImagePanel', () => {
     const panel = render(ImagePanel)
     expect(panel.queryByRole('button', { name: 'B-roll' })).toBeNull()
     expect(panel.getByLabelText('Transparent background')).toBeChecked()
-    expect(panel.getByLabelText('Model')).toHaveAttribute('data-value', 'openai/gpt-image-2.6-sunburst')
+    expect(panel.getByLabelText('Model')).toHaveAttribute('data-value', 'openai/gpt-image-2.5-sunburst')
     await fireEvent.click(panel.getByLabelText('Model'))
     expect(panel.getAllByRole('option', { name: /GPT Image/i })).toHaveLength(2)
     expect(panel.getAllByRole('option')).toHaveLength(2)
@@ -50,7 +50,7 @@ describe('ImagePanel', () => {
       position: 'center',
       start: 3,
       duration: 5,
-      model: 'openai/gpt-image-2.6-sunburst',
+      model: 'openai/gpt-image-2.5-sunburst',
       aspect: '16:9',
       background: 'transparent',
       motionPreset: 'none',

@@ -11,7 +11,7 @@ async function mockImageAPI(page: import('@playwright/test').Page) {
   await page.route('**/ai/images', async (route) => {
     const request = route.request().postDataJSON()
     expect(request).toMatchObject({
-      model: 'openai/gpt-image-2.6-sunburst',
+      model: 'openai/gpt-image-2.5-sunburst',
       background: 'transparent',
       aspect: '16:9',
     })

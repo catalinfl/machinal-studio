@@ -35,7 +35,7 @@ export function useImagePanel() {
     placement: 'overlay',
     position: 'center',
     motion: 'auto',
-    model: 'openai/gpt-image-2.6-sunburst',
+    model: 'openai/gpt-image-2.5-sunburst',
     aspect: editor.effectiveProjectAspect === 'portrait' ? '9:16' : editor.effectiveProjectAspect === 'classic' ? '4:3' : '16:9',
     transparentBackground: true,
     duration: 5,

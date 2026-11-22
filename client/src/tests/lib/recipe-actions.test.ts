@@ -40,7 +40,7 @@ describe('visual recipe actions', () => {
   it('edits imported actions with time units and preserves custom generation fields and placement roles', () => {
     const source = `mode: modify
 before:
-  - {id: cover, type: image.generate, prompt: Old, aspect: '16:9', model: 'openai/gpt-image-2.6-sunburst', resultAssetId: old-result}
+  - {id: cover, type: image.generate, prompt: Old, aspect: '16:9', model: 'openai/gpt-image-2.5-sunburst', resultAssetId: old-result}
 placements:
   - {job: cover, track: {type: video, role: custom-layer}, start: 2500ms, duration: 3s, transform: {rotation: 8}}
 after:

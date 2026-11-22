@@ -29,7 +29,7 @@ func TestSceneImageDefaultsReachInitializationAndReferences(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			for _, instruction := range []string{
 				"default", "SVG/CSS", "image.generate", "without waiting",
-				"background: transparent", "openai/gpt-image-2.6-sunburst", "openai/gpt-image-2.5-flare",
+				"background: transparent", "openai/gpt-image-2.5-sunburst", "openai/gpt-image-2.5-flare",
 				"background: opaque", "compile_scene.transparent", "PNG/WebP alpha",
 				"no-generation", "procedural-only", "generation/spending scope", "automatic",
 			} {
@@ -65,7 +65,7 @@ func TestSceneImageGuideUsesSupportedTransparentJobFields(t *testing.T) {
 		t.Fatalf("expected one image job: %+v", fragment)
 	}
 	job := fragment.Before[0]
-	if job["type"] != "image.generate" || job["background"] != "transparent" || job["model"] != "openai/gpt-image-2.6-sunburst" {
+	if job["type"] != "image.generate" || job["background"] != "transparent" || job["model"] != "openai/gpt-image-2.5-sunburst" {
 		t.Fatalf("example lost transparent image settings: %+v", job)
 	}
 	if _, exists := job["transparent"]; exists {
@@ -80,7 +80,7 @@ func TestMCPForwardsTransparentImageRecipeOnlyAfterApproval(t *testing.T) {
   before:
     - id: foreground
       type: image.generate
-      model: openai/gpt-image-2.6-sunburst
+      model: openai/gpt-image-2.5-sunburst
       background: transparent
       prompt: A complete oak sapling, isolated with real alpha and clean edges.
   placements:
