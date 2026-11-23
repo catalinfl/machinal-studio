@@ -25,6 +25,9 @@ test('automatic workers honor CPU, memory and frame count without changing quali
   assert.equal(options.preset, 'ultrafast');
   assert.equal(renderOptions(config, {}, { cpus: 2, memory: 3 * GiB }).workers, 2);
   assert.equal(renderOptions(config, {}, { cpus: 16, memory: GiB }).workers, 1);
+  assert.equal(renderOptions(config, {}, { cpus: 4, memory: 3 * GiB, pidsAvailable: 224 }).workers, 2);
+  assert.equal(renderOptions(config, {}, { cpus: 4, memory: 3 * GiB, pidsAvailable: 120 }).workers, 1);
+  assert.deepEqual(sharedRenderResources({ cpus: 4, memory: 3 * GiB, pidsAvailable: 448 }, 2), { cpus: 2, memory: 1.5 * GiB, pidsAvailable: 224 });
   assert.equal(renderOptions({ ...config, durationInFrames: 1 }, {}, { cpus: 4, memory: 3 * GiB }).workers, 1);
 });
 

@@ -38,7 +38,7 @@ func (s *compilation) verify(allowEmpty bool) {
 		for clipIndex, clip := range track.Clips {
 			clipPath := fmt.Sprintf("%s.clips[%d]", path, clipIndex)
 			identity(clip.ID, clipPath+".id")
-			s.verifyClip(clip, track.Type, clipPath)
+			s.verifyClip(*track, clip, track.Type, clipPath)
 			clips++
 		}
 		s.verifyOverlaps(*track, path)
@@ -70,7 +70,7 @@ func (s *compilation) verify(allowEmpty bool) {
 	s.verifyLockedTracks()
 }
 
-func (s *compilation) verifyClip(clip document.Clip, trackType, path string) {
+func (s *compilation) verifyClip(track document.Track, clip document.Clip, trackType, path string) {
 	asset, exists := s.assets[clip.AssetID]
 	if !exists {
 		s.fail(path+".assetId", "unknown_asset", "clip asset is missing")
@@ -95,6 +95,16 @@ func (s *compilation) verifyClip(clip document.Clip, trackType, path string) {
 	if asset.Kind != "image" && clip.OutPoint > asset.Duration {
 		s.fail(path+".outPoint", "source_bounds", "source interval exceeds asset duration")
 	}
+	if trackType == "audio" && asset.Kind == "audio" && asset.Duration > 0 && clip.Volume > 0 && s.isNarrationClip(track, clip, asset) {
+		if missing := asset.Duration - clip.OutPoint; missing > document.Seconds(0.15) {
+			s.result.Diagnostics = append(s.result.Diagnostics, document.Diagnostic{
+				Path:     path + ".outPoint",
+				Code:     "narration_truncated",
+				Severity: "warning",
+				Message:  fmt.Sprintf("narration clip %q ends at %.2fs, truncating %.2fs of %s (%.2fs); extend outPoint and video timeline to cover full speech", clip.ID, clip.OutPoint.Seconds(), missing.Seconds(), asset.File, asset.Duration.Seconds()),
+			})
+		}
+	}
 	if !catalog.FiniteRange(clip.Opacity, 0, 1) || clip.FadeIn < 0 || clip.FadeOut < 0 || clip.FadeIn > clip.Duration() || clip.FadeOut > clip.Duration() {
 		s.fail(path, "invalid_compositing", "opacity must be 0–1 and fades must fit the clip")
 	}
@@ -106,6 +116,14 @@ func (s *compilation) verifyClip(clip document.Clip, trackType, path string) {
 		}
 	}
 	s.verifyTransform(clip.Transform, path+".transform")
+	if trackType == "video" && clip.Opacity >= 1 && transformExposesBlackBars(clip.Transform) {
+		s.result.Diagnostics = append(s.result.Diagnostics, document.Diagnostic{
+			Path:     path + ".transform",
+			Code:     "transform_exposes_black_bars",
+			Severity: "warning",
+			Message:  "transform pan exceeds the edge-safe margin of its zoom (positionX/positionY are percentages -100..100, not pixels; keep |pos| <= 50*(zoom-1) or use a motion preset)",
+		})
+	}
 	last := document.Time(-1)
 	for index, frame := range clip.TransformKeyframes {
 		framePath := fmt.Sprintf("%s.transformKeyframes[%d]", path, index)
@@ -113,8 +131,47 @@ func (s *compilation) verifyClip(clip document.Clip, trackType, path string) {
 			s.fail(framePath+".time", "invalid_keyframe", "keyframes must be strictly ordered within the clip")
 		}
 		s.verifyTransform(frame.Transform, framePath+".transform")
+		if trackType == "video" && clip.Opacity >= 1 && transformExposesBlackBars(frame.Transform) {
+			s.result.Diagnostics = append(s.result.Diagnostics, document.Diagnostic{
+				Path:     framePath + ".transform",
+				Code:     "transform_exposes_black_bars",
+				Severity: "warning",
+				Message:  "keyframe pan exceeds the edge-safe margin of its zoom (positionX/positionY are percentages -100..100, not pixels; keep |pos| <= 50*(zoom-1) or use a motion preset)",
+			})
+		}
 		last = frame.Time
 	}
+}
+
+func (s *compilation) isNarrationClip(track document.Track, clip document.Clip, asset document.Asset) bool {
+	if strings.HasPrefix(asset.File, "voice_") || track.ID == "recipe/audio/narration" || strings.Contains(strings.ToLower(track.Name+" "+track.ID), "narration") {
+		return true
+	}
+	for _, jobs := range [][]document.Job{s.input.Document.Jobs, s.input.Document.Before} {
+		for _, job := range jobs {
+			if job.Type == "speech.generate" && job.ResultAssetID != "" && (job.ResultAssetID == clip.AssetID || job.ResultAssetID == asset.File) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func transformExposesBlackBars(t document.Transform) bool {
+	if t.ZoomX < 1 || t.ZoomY < 1 || t.Rotation != 0 || t.Pitch != 0 || t.Yaw != 0 {
+		return false
+	}
+	if t.PositionX == 0 && t.PositionY == 0 {
+		return false
+	}
+	// Off-screen slides (>= 50%) are intentional overlays/transitions rather than camera pans.
+	if t.PositionX <= -50 || t.PositionX >= 50 || t.PositionY <= -50 || t.PositionY >= 50 {
+		return false
+	}
+	minX, maxX := (0.5-(1-t.AnchorX)*t.ZoomX)*100, (t.AnchorX*t.ZoomX-0.5)*100
+	minY, maxY := (0.5-(1-t.AnchorY)*t.ZoomY)*100, (t.AnchorY*t.ZoomY-0.5)*100
+	const eps = 0.05
+	return t.PositionX < minX-eps || t.PositionX > maxX+eps || t.PositionY < minY-eps || t.PositionY > maxY+eps
 }
 
 func (s *compilation) sceneNarrationPair(left, right document.Clip) bool {

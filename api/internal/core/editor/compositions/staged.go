@@ -36,6 +36,9 @@ func compileStaged(ctx context.Context, input compiler.Input, root, session stri
 	draft.Document.After = nil
 	preview := engine.Compile(draft)
 	if HasErrors(preview) || preview.Composition == nil {
+		if len(doc.Before) > 0 && len(assets) > 0 && preview.Recovery == nil {
+			preview.Recovery = recoveryEnvelope(doc, input.Bindings, assets)
+		}
 		return preview, nil
 	}
 

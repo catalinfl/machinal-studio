@@ -2,6 +2,7 @@ package mcpserver
 
 import (
 	"encoding/json"
+	"fmt"
 	"slices"
 	"strings"
 
@@ -136,7 +137,7 @@ func reviewEditorialPlan(plan composition.Composition) editorialReview {
 		review.Treatments = append(review.Treatments, editorialTreatment{Kind: "effect", ID: effect.ID, Preset: effect.Preset,
 			TrackID: effect.TrackID, ClipID: effect.OwnerClipID, Start: effect.Start.Seconds(), Duration: effect.Duration.Seconds(), Origin: origin})
 	}
-	review.Notices = editorialNotices(review)
+	review.Notices = editorialNotices(review, plan)
 	review.TotalJunctions, review.TotalTreatments = len(review.Junctions), len(review.Treatments)
 	review.Truncated = review.TotalJunctions > editorialDetailLimit || review.TotalTreatments > editorialDetailLimit
 	review.Junctions = review.Junctions[:min(len(review.Junctions), editorialDetailLimit)]
@@ -179,7 +180,7 @@ func reviewJunction(trackID string, left, right document.Clip, transitions []doc
 	return junction
 }
 
-func editorialNotices(review editorialReview) []document.Diagnostic {
+func editorialNotices(review editorialReview, plan composition.Composition) []document.Diagnostic {
 	notices := []document.Diagnostic{}
 	if len(review.Junctions) > 0 && !slices.ContainsFunc(review.Junctions, func(junction editorialJunction) bool { return junction.Kind != "cut" }) {
 		notices = append(notices, document.Diagnostic{Code: "all_junctions_are_cuts", Severity: "info", Path: "editorialReview.junctions",
@@ -189,5 +190,100 @@ func editorialNotices(review editorialReview) []document.Diagnostic {
 		notices = append(notices, document.Diagnostic{Code: "no_recipe_effects", Severity: "info", Path: "editorialReview.treatments",
 			Message: "No recipe-level visual effects are present on visible video tracks. Check the effect score; scene-internal effects are unknown, and intentionally untreated/minimal edits are valid."})
 	}
+	assetsByID := make(map[string]document.Asset, len(plan.Assets))
+	for _, asset := range plan.Assets {
+		assetsByID[asset.ID] = asset
+	}
+	var maxVideoEnd, maxNarrationEnd document.Time
+	allStaticImages := len(plan.Assets) > 0 && review.VisualClips > 0
+	exposedBlackBars := false
+	for _, track := range plan.Tracks {
+		if track.Type == "video" && !track.Hidden {
+			for _, clip := range track.Clips {
+				if clip.Opacity <= 0 {
+					continue
+				}
+				if end := clip.End(); end > maxVideoEnd {
+					maxVideoEnd = end
+				}
+				asset, exists := assetsByID[clip.AssetID]
+				if !exists || asset.Kind != "image" {
+					allStaticImages = false
+				}
+				if clip.Opacity >= 1 && !exposedBlackBars {
+					if editorialTransformExposesBlackBars(clip.Transform) || slices.ContainsFunc(clip.TransformKeyframes, func(kf document.Keyframe) bool { return editorialTransformExposesBlackBars(kf.Transform) }) {
+						exposedBlackBars = true
+					}
+				}
+			}
+		}
+		if track.Type == "audio" && !track.Muted && !track.Hidden {
+			isNarrationTrack := track.ID == "recipe/audio/narration" || strings.Contains(strings.ToLower(track.Name+" "+track.ID), "narration")
+			for _, clip := range track.Clips {
+				if clip.Volume <= 0 {
+					continue
+				}
+				asset, exists := assetsByID[clip.AssetID]
+				if !exists || asset.Kind != "audio" {
+					continue
+				}
+				isNarration := isNarrationTrack || strings.HasPrefix(asset.File, "voice_")
+				if !isNarration {
+					continue
+				}
+				if end := clip.End(); end > maxNarrationEnd {
+					maxNarrationEnd = end
+				}
+				if asset.Duration > 0 && (clip.InPoint > document.Seconds(0.15) || clip.OutPoint < asset.Duration-document.Seconds(0.15)) {
+					notices = append(notices, document.Diagnostic{
+						Code: "narration_audio_truncated", Severity: "warning", Path: "tracks." + track.ID + "." + clip.ID,
+						Message: fmt.Sprintf("Narration clip %q uses %.2fs–%.2fs of %s (full duration %.2fs). Extend outPoint and video timeline so speech is not cut off.", clip.ID, clip.InPoint.Seconds(), clip.OutPoint.Seconds(), asset.File, asset.Duration.Seconds()),
+					})
+				}
+			}
+		}
+	}
+	if maxNarrationEnd > 0 && maxVideoEnd > 0 && maxVideoEnd < maxNarrationEnd-document.Seconds(0.1) {
+		notices = append(notices, document.Diagnostic{
+			Code: "video_shorter_than_narration", Severity: "warning", Path: "editorialReview.tracks",
+			Message: fmt.Sprintf("Visible video ends at %.2fs while narration continues until %.2fs. Extend visual clips/scenes to cover the full narration.", maxVideoEnd.Seconds(), maxNarrationEnd.Seconds()),
+		})
+	}
+	if exposedBlackBars {
+		notices = append(notices, document.Diagnostic{
+			Code: "transform_exposes_black_bars", Severity: "warning", Path: "editorialReview.treatments",
+			Message: "A video clip transform pans beyond the edge-safe margin of its zoom (positionX/positionY are percentages -100..100, not pixels; keep |pos| <= 50*(zoom-1) or use built-in edge-safe motion presets).",
+		})
+	}
+	if slices.ContainsFunc(plan.TextItems, func(item document.TextItem) bool {
+		return item.IsCaption && item.StrokeWidth == 0 && item.BackgroundOpacity == 0
+	}) {
+		notices = append(notices, document.Diagnostic{
+			Code: "low_contrast_captions", Severity: "warning", Path: "editorialReview.texts",
+			Message: "Captions have zero strokeWidth and zero backgroundOpacity, making text washed out over bright or detailed video. Add a dark pill background or stroke.",
+		})
+	}
+	if allStaticImages {
+		notices = append(notices, document.Diagnostic{
+			Code: "static_images_without_scenes", Severity: "info", Path: "editorialReview.tracks",
+			Message: "All visible video clips are static images with no Svelte/Hyperframes scenes. Unless a photo-only slideshow was requested, discover installed Hyperframes templates via get_library_reference(topic=component-discovery) and compile animated scenes with compile_scene.",
+		})
+	}
 	return notices
+}
+
+func editorialTransformExposesBlackBars(t document.Transform) bool {
+	if t.ZoomX < 1 || t.ZoomY < 1 || t.Rotation != 0 || t.Pitch != 0 || t.Yaw != 0 {
+		return false
+	}
+	if t.PositionX == 0 && t.PositionY == 0 {
+		return false
+	}
+	if t.PositionX <= -50 || t.PositionX >= 50 || t.PositionY <= -50 || t.PositionY >= 50 {
+		return false
+	}
+	minX, maxX := (0.5-(1-t.AnchorX)*t.ZoomX)*100, (t.AnchorX*t.ZoomX-0.5)*100
+	minY, maxY := (0.5-(1-t.AnchorY)*t.ZoomY)*100, (t.AnchorY*t.ZoomY-0.5)*100
+	const eps = 0.05
+	return t.PositionX < minX-eps || t.PositionX > maxX+eps || t.PositionY < minY-eps || t.PositionY > maxY+eps
 }

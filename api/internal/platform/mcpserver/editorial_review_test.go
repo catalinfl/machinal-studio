@@ -210,3 +210,37 @@ func TestProductionReferenceAndEntryPointsExposeBoundedCriticWorkflow(t *testing
 		}
 	}
 }
+
+func TestEditorialReviewFlagsTruncatedNarrationBlackBarsLowContrastCaptionsAndStaticSlideshow(t *testing.T) {
+	imgClip := editorialClip("img1", 0, 36)
+	imgClip.AssetID = "img.png"
+	imgClip.Transform = document.IdentityTransform()
+	imgClip.TransformKeyframes = []document.Keyframe{
+		{Time: 0, Transform: document.Transform{ZoomX: 1.15, ZoomY: 1.15, LinkZoom: true, AnchorX: 0.5, AnchorY: 0.5, PositionX: -20}},
+		{Time: document.Seconds(36), Transform: document.Transform{ZoomX: 1.15, ZoomY: 1.15, LinkZoom: true, AnchorX: 0.5, AnchorY: 0.5, PositionX: 20}},
+	}
+	voClip := document.Clip{ID: "vo", AssetID: "voice_test.mp3", Start: 0, InPoint: 0, OutPoint: document.Seconds(36), PlaybackRate: 1, Volume: 100}
+	plan := composition.Composition{
+		Assets: []document.Asset{
+			{ID: "img.png", File: "img.png", Kind: "image", Version: "sha256:a"},
+			{ID: "voice_test.mp3", File: "voice_test.mp3", Kind: "audio", Version: "sha256:b", Duration: document.Seconds(37.48), HasAudio: true},
+		},
+		Tracks: []document.Track{
+			{ID: "v1", Type: "video", Clips: []document.Clip{imgClip}},
+			{ID: "a1", Type: "audio", Name: "Narration", Clips: []document.Clip{voClip}},
+		},
+		TextItems: []document.TextItem{
+			{ID: "cap0", Text: "Test", Start: 0, Duration: document.Seconds(2), TextStyle: document.TextStyle{IsCaption: true, StrokeWidth: 0, BackgroundOpacity: 0}},
+		},
+	}
+	review := reviewEditorialPlan(plan)
+	codes := make(map[string]bool)
+	for _, n := range review.Notices {
+		codes[n.Code] = true
+	}
+	for _, want := range []string{"narration_audio_truncated", "transform_exposes_black_bars", "low_contrast_captions", "static_images_without_scenes"} {
+		if !codes[want] {
+			t.Errorf("editorialReview missing expected notice %q; got %+v", want, review.Notices)
+		}
+	}
+}

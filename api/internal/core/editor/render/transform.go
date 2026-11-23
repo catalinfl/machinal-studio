@@ -67,6 +67,63 @@ func normalizeKeyframes(keyframes []transformKeyframe) []transformKeyframe {
 	return points
 }
 
+const (
+	edgeSafeAutoZoomCap    = 1.16 // gentle overscan when a full-bleed pan forgot to add zoom
+	edgeSafeSlideThreshold = 50.0 // pans >= 50% are intentional off-screen slide transitions
+)
+
+// edgeSafeCameraKeyframes keeps full-bleed animated camera pan/zoom moves
+// (such as Ken Burns) inside the source frame so they never reveal black bars.
+// Shrunk PiP clips (zoom < 1), rotated/tilted clips and off-screen slides are left untouched.
+func edgeSafeCameraKeyframes(base transform, keyframes []transformKeyframe) []transformKeyframe {
+	if len(keyframes) < 2 || transformHasRotation(base, keyframes) || transformHasTilt(base, keyframes) {
+		return keyframes
+	}
+	points := normalizeKeyframes(keyframes)
+	hasPan := false
+	for _, point := range points {
+		t := point.Transform
+		if t.ZoomX < 1-keyframeTimeEps || t.ZoomY < 1-keyframeTimeEps {
+			return keyframes
+		}
+		if math.Abs(t.PositionX) >= edgeSafeSlideThreshold || math.Abs(t.PositionY) >= edgeSafeSlideThreshold {
+			return keyframes
+		}
+		if math.Abs(t.PositionX) > keyframeTimeEps || math.Abs(t.PositionY) > keyframeTimeEps {
+			hasPan = true
+		}
+	}
+	if !hasPan {
+		return keyframes
+	}
+	for i := range points {
+		t := points[i].Transform
+		// If a pan keyframe is at 1.0x zoom, apply a small overscan zoom so the pan can move without black edges.
+		if t.ZoomX <= 1+keyframeTimeEps && math.Abs(t.PositionX) > keyframeTimeEps {
+			needed := 1 + 2*math.Abs(t.PositionX)/100
+			t.ZoomX = max(t.ZoomX, min(edgeSafeAutoZoomCap, needed))
+		}
+		if t.ZoomY <= 1+keyframeTimeEps && math.Abs(t.PositionY) > keyframeTimeEps {
+			needed := 1 + 2*math.Abs(t.PositionY)/100
+			t.ZoomY = max(t.ZoomY, min(edgeSafeAutoZoomCap, needed))
+		}
+		if t.LinkZoom {
+			z := max(t.ZoomX, t.ZoomY)
+			t.ZoomX, t.ZoomY = z, z
+		}
+		minX, maxX := (0.5-(1-t.AnchorX)*t.ZoomX)*100, (t.AnchorX*t.ZoomX-0.5)*100
+		minY, maxY := (0.5-(1-t.AnchorY)*t.ZoomY)*100, (t.AnchorY*t.ZoomY-0.5)*100
+		if minX <= maxX {
+			t.PositionX = max(minX, min(maxX, t.PositionX))
+		}
+		if minY <= maxY {
+			t.PositionY = max(minY, min(maxY, t.PositionY))
+		}
+		points[i].Transform = t
+	}
+	return points
+}
+
 func getTransformValue(value string, transform transform) float64 {
 	switch value {
 	case "zoomX":
@@ -316,6 +373,9 @@ func clipTransformFilter(clip clip, width, height int, segmentOffset, segmentDur
 		return ""
 	}
 	keyframes := clip.TransformKeyframes
+	if clipVisualOpacity(clip) >= 1 {
+		keyframes = edgeSafeCameraKeyframes(base, keyframes)
+	}
 	expressions := buildTransformExpressions(base, keyframes, segmentOffset, fps)
 	filters := make([]string, 0, 6)
 

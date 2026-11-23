@@ -3,6 +3,8 @@ import { readFile } from 'node:fs/promises';
 
 const MiB = 1024 * 1024;
 const minParallelScenePIDs = 384;
+const baseRenderPIDs = 64;
+const pidsPerSceneWorker = 72;
 const presets = new Set(['ultrafast', 'superfast', 'veryfast', 'faster', 'fast', 'medium', 'slow', 'slower', 'veryslow']);
 
 export function renderOptions(config, env = process.env, resources = {}) {
@@ -11,10 +13,13 @@ export function renderOptions(config, env = process.env, resources = {}) {
   const perWorker = Math.max(384 * MiB, config.width * config.height * 160);
   // Leave room for Node, PNG buffers and FFmpeg instead of using every free byte.
   const memoryWorkers = Math.max(1, Math.floor((memory - 512 * MiB) / perWorker));
+  const pidWorkers = Number.isFinite(resources.pidsAvailable)
+    ? Math.max(1, Math.floor((resources.pidsAvailable - baseRenderPIDs) / pidsPerSceneWorker))
+    : Infinity;
   const requested = env.SCENE_WORKERS === undefined || env.SCENE_WORKERS === 'auto'
     ? Math.min(4, cpus)
     : integerOption(env.SCENE_WORKERS, 'SCENE_WORKERS', 1, 16);
-  const workers = Math.min(requested, memoryWorkers, config.durationInFrames);
+  const workers = Math.min(requested, memoryWorkers, pidWorkers, config.durationInFrames);
   const threads = env.SCENE_ENCODER_THREADS === undefined || env.SCENE_ENCODER_THREADS === 'auto'
     ? Math.min(4, Math.max(1, cpus - workers))
     : integerOption(env.SCENE_ENCODER_THREADS, 'SCENE_ENCODER_THREADS', 1, 32);
@@ -32,7 +37,9 @@ export function renderConcurrency(resources, value = 'auto') {
 }
 
 export function sharedRenderResources(resources, concurrency) {
-  return { cpus: Math.max(1, Math.floor(resources.cpus / concurrency)), memory: Math.floor(resources.memory / concurrency) };
+  const shared = { cpus: Math.max(1, Math.floor(resources.cpus / concurrency)), memory: Math.floor(resources.memory / concurrency) };
+  if (Number.isFinite(resources.pidsAvailable)) shared.pidsAvailable = Math.floor(resources.pidsAvailable / concurrency);
+  return shared;
 }
 
 function integerOption(value, name, min, max) {

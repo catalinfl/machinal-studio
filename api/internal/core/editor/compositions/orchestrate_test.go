@@ -59,6 +59,10 @@ func TestCompileAndGenerateMaterializesCaptions(t *testing.T) {
 	if len(result.Composition.TextItems) != 1 || result.Composition.TextItems[0].Text != "Salut lume" {
 		t.Fatalf("captions missing: %+v", result.Composition.TextItems)
 	}
+	caption := result.Composition.TextItems[0]
+	if caption.FontFamily != "montserrat" || caption.FontWeight != 700 || caption.StrokeWidth <= 0 || caption.BackgroundOpacity <= 0 {
+		t.Fatalf("default captions lack legible styling: %+v", caption)
+	}
 	if len(result.Document.Jobs[0].ResultTextIDs) != 1 {
 		t.Fatalf("job not materialized: %+v", result.Document.Jobs)
 	}
@@ -279,5 +283,52 @@ func TestCompileAndGenerateSpeechJobMissingText(t *testing.T) {
 	defer response.Body.Close()
 	if response.StatusCode == 200 {
 		t.Fatal("speech job without text was accepted")
+	}
+}
+
+func TestCompileStagedRetainsRecoveryAssetsOnDraftError(t *testing.T) {
+	var written string
+	previous := generateImageCall
+	generateImageCall = func(ctx context.Context, dataDir string, safeJoin func(string) (string, error), prompt, model, aspect, background string) (imagegen.GeneratedImage, error) {
+		path, err := safeJoin("recovery-cover.png")
+		if err != nil {
+			t.Fatal(err)
+		}
+		written = path
+		if err := os.WriteFile(path, []byte("fake-png"), 0644); err != nil {
+			t.Fatal(err)
+		}
+		return imagegen.GeneratedImage{Name: "recovery-cover.png", Width: 1080, Height: 1920}, nil
+	}
+	defer func() {
+		generateImageCall = previous
+		if written != "" {
+			os.Remove(written)
+		}
+	}()
+
+	app := fiber.New()
+	app.Post("/compositions/compile-and-generate", CompileAndGenerate)
+	body := []byte(`{"document":"version: 1\nmode: assemble\nbefore:\n  - {id: cover, type: image.generate, prompt: test}\n", "assets":[]}`)
+	request := httptest.NewRequest("POST", "/compositions/compile-and-generate", bytes.NewReader(body))
+	request.Header.Set("Content-Type", "application/json")
+	response, err := app.Test(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer response.Body.Close()
+	data, err := io.ReadAll(response.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if response.StatusCode != 422 {
+		t.Fatalf("expected 422 invalid_duration, got %d: %s", response.StatusCode, data)
+	}
+	var result composition.Result
+	if err := json.Unmarshal(data, &result); err != nil {
+		t.Fatal(err)
+	}
+	if result.Recovery == nil || len(result.Recovery.Assets) != 1 || result.Recovery.Assets[0].File != "recovery-cover.png" {
+		t.Fatalf("expected materialized assets in recovery envelope, got: %+v", result.Recovery)
 	}
 }

@@ -800,6 +800,39 @@ func TestClipTransformFilterUsesCommandableShearValues(t *testing.T) {
 	}
 }
 
+func TestEdgeSafeCameraKeyframesAvoidBlackBarsWithoutAffectingPiP(t *testing.T) {
+	base := normalizeTransform(nil)
+	// Case 1: Pan with oversized percentage (mistaken pixels) gets clamped to zoom margin.
+	k1 := base
+	k1.ZoomX, k1.ZoomY, k1.PositionX = 1.15, 1.15, -20
+	k2 := base
+	k2.ZoomX, k2.ZoomY, k2.PositionX = 1.15, 1.15, 20
+	safe := edgeSafeCameraKeyframes(base, []transformKeyframe{{Time: 0, Transform: k1}, {Time: 4, Transform: k2}})
+	if math.Abs(safe[0].Transform.PositionX-(-7.5)) > 1e-6 || math.Abs(safe[1].Transform.PositionX-7.5) > 1e-6 {
+		t.Fatalf("oversized pan was not clamped to edge-safe margin +-7.5%%: %+v", safe)
+	}
+
+	// Case 2: Pan at 1.0x zoom automatically adds overscan zoom so panning works without black bars.
+	p1 := base
+	p1.ZoomX, p1.ZoomY, p1.PositionX = 1.0, 1.0, -4
+	p2 := base
+	p2.ZoomX, p2.ZoomY, p2.PositionX = 1.0, 1.0, 4
+	autoZoomed := edgeSafeCameraKeyframes(base, []transformKeyframe{{Time: 0, Transform: p1}, {Time: 4, Transform: p2}})
+	if autoZoomed[0].Transform.ZoomX < 1.079 || math.Abs(autoZoomed[0].Transform.PositionX-(-4)) > 1e-6 {
+		t.Fatalf("1.0x pan did not receive automatic overscan zoom: %+v", autoZoomed)
+	}
+
+	// Case 3: Shrunk PiP overlay (zoom < 1) must stay untouched.
+	pip1 := base
+	pip1.ZoomX, pip1.ZoomY, pip1.PositionX = 0.6, 0.6, -24
+	pip2 := base
+	pip2.ZoomX, pip2.ZoomY, pip2.PositionX = 0.6, 0.6, 24
+	pipResult := edgeSafeCameraKeyframes(base, []transformKeyframe{{Time: 0, Transform: pip1}, {Time: 4, Transform: pip2}})
+	if pipResult[0].Transform.PositionX != -24 || pipResult[0].Transform.ZoomX != 0.6 {
+		t.Fatalf("PiP transform was unexpectedly modified: %+v", pipResult)
+	}
+}
+
 func TestBuildFilterAnimatesBlurParameters(t *testing.T) {
 	ramp := &ramp{
 		Mode: "in-out", Curve: "ease-in-out", Amount: 0.25,

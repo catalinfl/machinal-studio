@@ -305,19 +305,7 @@ func materializeCaptionJob(ctx context.Context, root, session string, doc docume
 		deduped = append(deduped, word)
 		lastEnd = word.End
 	}
-	style := document.DefaultTextStyle()
-	style.HighlightMode = "word"
-	width, height := 1920.0, 1080.0
-	switch doc.Output.Aspect {
-	case "portrait", "9:16":
-		width, height = 1080, 1920
-	case "classic", "4:3":
-		width = 1440
-	}
-	style.X, style.Y = width/2, height*0.8
-	if width == 1080 {
-		style.Y = height * 0.76
-	}
+	style := document.DefaultCaptionStyle(doc.Output.Aspect)
 	if missingWordTimes {
 		sort.SliceStable(phrases, func(i, j int) bool { return phrases[i].Start < phrases[j].Start })
 		return compiler.MaterializePhraseCaptions(doc, job.ID, phrases, style)

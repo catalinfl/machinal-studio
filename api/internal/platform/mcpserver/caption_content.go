@@ -94,6 +94,13 @@ func reviewCaptionContent(doc document.Document, plans ...dialogueTimeline) map[
 			review["reason"] = "Dialogue requires distinct audible, untrimmed speech clips with non-overlapping timeline intervals."
 			return review
 		}
+	} else if len(speech) == 1 && len(plans) > 0 && len(plans[0].Tracks) > 0 {
+		if truncatedSpeechClip(speech[0], plans[0]) {
+			review["status"] = "review_required"
+			review["narrationTruncated"] = true
+			review["reason"] = "Speech audio clip is trimmed shorter than its measured duration; extend outPoint and video clips to cover the full narration."
+			return review
+		}
 	}
 	explicit := map[string]bool{}
 	for _, job := range captions {
@@ -152,6 +159,33 @@ func reviewCaptionContent(doc document.Document, plans ...dialogueTimeline) map[
 	review["truncated"] = len(differences) > maxCaptionDifferences
 	review["differences"] = differences[:min(len(differences), maxCaptionDifferences)]
 	return review
+}
+
+func truncatedSpeechClip(job document.Job, timeline dialogueTimeline) bool {
+	var assetDuration document.Time
+	for _, asset := range timeline.Assets {
+		if asset.ID == job.ResultAssetID || asset.File == job.ResultAssetID {
+			assetDuration = asset.Duration
+			break
+		}
+	}
+	if assetDuration <= 0 {
+		return false
+	}
+	for _, track := range timeline.Tracks {
+		if track.Type != "audio" || track.Muted || track.Hidden {
+			continue
+		}
+		for _, clip := range track.Clips {
+			if clip.Volume <= 0 || clip.AssetID != job.ResultAssetID {
+				continue
+			}
+			if clip.InPoint > document.Seconds(0.15) || clip.OutPoint < assetDuration-document.Seconds(0.15) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func orderSpeechClips(speech []document.Job, timeline dialogueTimeline) bool {

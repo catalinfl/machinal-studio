@@ -57,3 +57,36 @@ func DefaultTextStyle() TextStyle {
 		Animation: "none", AnimationDuration: Seconds(0.45), Opacity: 1, HighlightMode: "none",
 		HighlightColor: "#fff36d", HighlightBackgroundColor: "#000000", HighlightAnimation: "pop"}
 }
+
+// DefaultCaptionStyle returns a high-contrast, legible default style for newly
+// generated captions when the recipe does not supply an explicit captions style.
+func DefaultCaptionStyle(aspect string) TextStyle {
+	style := DefaultTextStyle()
+	style.IsCaption = true
+	style.FontFamily = "montserrat"
+	style.FontWeight = 700
+	style.FontSize = 64
+	style.Color = "#ffffff"
+	style.StrokeColor = "#0b0b0c"
+	style.StrokeWidth = 4
+	style.BackgroundColor = "#0b0b0c"
+	style.BackgroundOpacity = 0.78
+	style.BackgroundPadding = 18
+	style.BackgroundRadius = 14
+	style.HighlightMode = "word"
+	style.HighlightColor = "#f4ea58"
+	style.HighlightAnimation = "pop"
+	width, height := 1920.0, 1080.0
+	switch aspect {
+	case "portrait", "9:16":
+		width, height = 1080, 1920
+		style.FontSize = 58
+	case "classic", "4:3":
+		width = 1440
+	}
+	style.X, style.Y = width/2, height*0.8
+	if width == 1080 {
+		style.Y = height * 0.76
+	}
+	return style
+}

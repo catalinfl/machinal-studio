@@ -44,6 +44,14 @@ func schemaFor(kind reflect.Type) map[string]any {
 		if kind == reflect.TypeFor[Output]() {
 			properties["fit"] = map[string]any{"enum": []string{string(VideoFitContain), string(VideoFitCover)}, "default": string(VideoFitContain), "description": "contain shows the whole image with bars; cover fills the output frame with a centered crop (left/right for landscape footage in portrait output)"}
 		}
+		if kind == reflect.TypeFor[Transform]() {
+			properties["zoomX"] = map[string]any{"type": "number", "minimum": 0.01, "maximum": 40, "description": "Horizontal scale multiplier (1 = 100% full frame). Values > 1 zoom in and provide 50*(zoomX-1)% edge-safe pan margin per side."}
+			properties["zoomY"] = map[string]any{"type": "number", "minimum": 0.01, "maximum": 40, "description": "Vertical scale multiplier (1 = 100% full frame). Values > 1 zoom in and provide 50*(zoomY-1)% edge-safe pan margin per side."}
+			properties["positionX"] = map[string]any{"type": "number", "minimum": -100, "maximum": 100, "description": "Horizontal pan offset as a PERCENTAGE of canvas width (-100 to 100), NOT pixels. To avoid black bars on centered full-bleed clips (anchorX=0.5), keep |positionX| <= 50*(zoomX-1), or use built-in edge-safe motion presets (ken-burns, zoom-in, zoom-out, pan-left, pan-right, drift)."}
+			properties["positionY"] = map[string]any{"type": "number", "minimum": -100, "maximum": 100, "description": "Vertical pan offset as a PERCENTAGE of canvas height (-100 to 100), NOT pixels. To avoid black bars on centered full-bleed clips (anchorY=0.5), keep |positionY| <= 50*(zoomY-1), or use built-in edge-safe motion presets."}
+			properties["anchorX"] = map[string]any{"type": "number", "minimum": 0, "maximum": 1, "description": "Normalized horizontal transform origin (0 = left, 0.5 = center, 1 = right)."}
+			properties["anchorY"] = map[string]any{"type": "number", "minimum": 0, "maximum": 1, "description": "Normalized vertical transform origin (0 = top, 0.5 = center, 1 = bottom)."}
+		}
 		if kind == reflect.TypeFor[TextStyle]() || kind == reflect.TypeFor[TextItem]() {
 			properties["anchor"] = map[string]any{"enum": []string{"left", "center", "right"}, "default": "center", "description": "Horizontal reference point for x, independent of text alignment; use left when text should start at x"}
 		}
