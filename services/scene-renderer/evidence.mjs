@@ -66,7 +66,18 @@ export async function inspectEvidence(input, signal) {
       if (bytes > maxEvidenceBytes) throw new SceneDiagnosticError('Evidence exceeds the thumbnail output limit; request fewer frames');
       result.push({ frame, time: frame / input.config.fps, width, height, mimeType: 'image/jpeg', data: image.toString('base64'), ...diagnostics });
     }
-    return { frames: result, environment: { browserVersion: browser.version(), bundleVersion }, motionVerified: false, audioVerified: false, limitations: 'Sampled scene thumbnails compiled with the reported runtime bundle/browser, not final-composition inspection or aesthetic approval. Object bounds describe annotated DOM elements, not pixel occlusion or internal Three.js meshes. Still frames do not verify motion or audio; JPEG backing does not verify export alpha.' };
+    const allSampledFramesIdentical = result.length >= 2 && result.every(item => item.data === result[0].data);
+    return {
+      frames: result,
+      environment: { browserVersion: browser.version(), bundleVersion },
+      motionVerified: false,
+      audioVerified: false,
+      ...(allSampledFramesIdentical ? {
+        allSampledFramesIdentical: true,
+        staticSceneWarning: `All sampled frames (${frames.join(', ')}) rendered identical pixels. Verify the component derives motion reactively from useScene() ($derived(scene.frame.time)) or SceneThree update(frame) rather than static defaults.`,
+      } : {}),
+      limitations: 'Sampled scene thumbnails compiled with the reported runtime bundle/browser, not final-composition inspection or aesthetic approval. Object bounds describe annotated DOM elements, not pixel occlusion or internal Three.js meshes. Still frames do not verify motion or audio; JPEG backing does not verify export alpha.',
+    };
   } finally {
     signal?.removeEventListener('abort', abort);
     try { await browser?.close(); }

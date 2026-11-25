@@ -18,6 +18,31 @@ test('explicit 3D rejects SVG substitutes and unused imports, but accepts an imp
   assert.doesNotThrow(() => validateSceneDesign(parse('<p>2D</p>'), '2d'));
 });
 
+test('rejects Remotion-style timing/canvas props, non-reactive useScene snapshots, timers, and reactive scenes without useScene', () => {
+  for (const [source, expected] of [
+    [`<script>let { frame = 0, fps = 30, durationInFrames = 180 } = $props(); const t = $derived(frame / fps);</script><div style="opacity:{t}">Hi</div>`, /does not pass `frame, fps, durationInFrames`/],
+    [`<script lang="ts">let { frame = 0, width = 1080, height = 1920 } = $props<{ frame?: number }>();</script><div>{frame}</div>`, /does not pass `frame, width, height`/],
+    [`<script>export let frame = 0; export let fps = 30;</script><div>{frame}</div>`, /does not pass `frame, fps`/],
+    [`<script>const props = $props(); const t = $derived(props.frame / 30);</script><div>{t}</div>`, /does not pass `frame`/],
+    [`<script>import { SceneCanvas, useScene } from '@direction/scene-svelte'; const { frame } = useScene(); const t = $derived(frame.time);</script><SceneCanvas>{t}</SceneCanvas>`, /Do not destructure `const \{ frame \} = useScene\(\)`/],
+    [`<script>import { SceneCanvas, useScene } from '@direction/scene-svelte'; const scene = useScene(); const t = scene.frame.time;</script><SceneCanvas>{t}</SceneCanvas>`, /Non-reactive top-level read of `scene\.frame`/],
+    [`<script>import { SceneCanvas, useScene } from '@direction/scene-svelte'; const scene = useScene(); const p = Math.min(1, scene.frame.time / 0.5);</script><SceneCanvas>{p}</SceneCanvas>`, /Non-reactive top-level read of `scene\.frame`/],
+    [`<script>let x = $state(0); const op = $derived(x);</script><div style="opacity:{op}">Hi</div>`, /does not read frame time from `useScene\(\)` or `SceneThree`/],
+    [`<script>import { progressAt } from '@direction/scene-runtime'; const p = progressAt(0, 0, 1);</script><div style="opacity:{p}">Hi</div>`, /does not read frame time from `useScene\(\)` or `SceneThree`/],
+    [`<script>requestAnimationFrame(() => {});</script><div>Hi</div>`, /requestAnimationFrame\(\)` is non-deterministic/],
+  ]) {
+    assert.throws(() => validateSceneDesign(parse(source), '2d'), expected, source);
+  }
+
+  for (const valid of [
+    `<script>import { SceneCanvas, useScene } from '@direction/scene-svelte'; let { images = {}, parameters = {} } = $props(); const scene = useScene(); const { width, height } = scene.frame.config; const t = $derived(scene.frame.time);</script><SceneCanvas><div style="width:{width}px;height:{height}px;opacity:{t}"><img src={images.image_1} alt="" /></div></SceneCanvas>`,
+    `<script>import { SceneCanvas, useScene } from '@direction/scene-svelte'; const scene = useScene(); $effect(() => { const t = scene.frame.time; void t; });</script><SceneCanvas><div>ok</div></SceneCanvas>`,
+    `<script>import { SceneCanvas } from '@direction/scene-svelte'; let { images = {} } = $props();</script><SceneCanvas><img src={images.image_1} alt="" /></SceneCanvas>`,
+  ]) {
+    assert.doesNotThrow(() => validateSceneDesign(parse(valid), '2d'), valid);
+  }
+});
+
 test('scene fonts embed every documented family and extended Latin glyph ranges', async () => {
   const css = await embeddedSceneFonts();
   for (const family of ['Direction Sans', 'Direction Serif', 'Direction Mono', 'Montserrat', 'Open Sans', 'Oswald', 'Playfair Display', 'IBM Plex Sans', 'Lato']) {

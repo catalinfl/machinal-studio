@@ -20,3 +20,14 @@ test('does not confuse unrelated local objects with media props or invent dynami
   assert.doesNotThrow(() => validateInput({ component: `<script>const images={image_1:'label'};</script><p>{images.image_1}</p>`, config }));
   assert.doesNotThrow(() => validateInput({ component: `<script>let {images={}}=$props(); const id='image_1';</script><p>{images[id]}</p>`, config }));
 });
+
+test('rejects top-level image_1/video_1/model_1 props that stay empty at runtime', () => {
+  for (const [component, expected] of [
+    [`<script>let { image_1 = '' } = $props();</script><img src={image_1} alt="" />`, /does not pass `image_1` as top-level props.*images\.image_1/s],
+    [`<script>export let image_1 = '';</script><img src={image_1} alt="" />`, /does not pass `image_1` as top-level props.*images\.image_1/s],
+    [`<script>const props = $props();</script><img src={props.image_2} alt="" />`, /does not pass `image_2` as top-level props.*images\.image_2/s],
+    [`<script lang="ts">let { video_1 = '', model_1 = '' } = $props<{ video_1?: string }>();</script><p>{video_1}{model_1}</p>`, /does not pass `video_1, model_1` as top-level props/],
+  ]) {
+    assert.throws(() => validateInput({ component, config, images: { image_1: png, image_2: png } }), expected, component);
+  }
+});
