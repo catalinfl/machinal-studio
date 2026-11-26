@@ -58,6 +58,7 @@ func (s *compilation) plan() {
 	for _, override := range doc.Overrides {
 		s.applyOverride(override, "overrides")
 	}
+	s.resolveOmittedClipOutPoints()
 	s.applyCommands()
 	s.applyRules()
 	s.expandTreatments()
@@ -274,7 +275,7 @@ func (s *compilation) placeJobResults() {
 			duration = asset.Duration
 		}
 		if asset.Kind != "image" && duration > asset.Duration {
-			s.fail(path+".duration", "source_bounds", "placement duration exceeds asset duration")
+			s.fail(path+".duration", "source_bounds", fmt.Sprintf("placement duration (%.3fs) exceeds asset %q (%s) duration (%.3fs)", duration.Seconds(), asset.ID, asset.File, asset.Duration.Seconds()))
 			continue
 		}
 		if duration < MinimumClipDuration {
@@ -314,6 +315,23 @@ func (s *compilation) materializeTexts() {
 		}
 		repairCaptionEncoding(&materialized)
 		s.composition.TextItems[index] = materialized
+	}
+}
+
+func (s *compilation) resolveOmittedClipOutPoints() {
+	for trackIndex := range s.composition.Tracks {
+		track := &s.composition.Tracks[trackIndex]
+		for clipIndex := range track.Clips {
+			clip := &track.Clips[clipIndex]
+			if clip.OutPoint != 0 || clip.InPoint < 0 {
+				continue
+			}
+			asset, exists := s.assets[clip.AssetID]
+			if !exists || asset.Kind == "image" || asset.Duration <= clip.InPoint {
+				continue
+			}
+			clip.OutPoint = asset.Duration
+		}
 	}
 }
 

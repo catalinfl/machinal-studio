@@ -126,7 +126,7 @@ func (s *compilation) placeGenerated() {
 			duration = asset.Duration
 		}
 		if duration < MinimumClipDuration || asset.Kind != "image" && duration > asset.Duration {
-			s.fail(path+".duration", "source_bounds", "placement duration does not fit the generated asset")
+			s.fail(path+".duration", "source_bounds", fmt.Sprintf("placement duration (%.3fs) does not fit generated asset %q (%s) duration (%.3fs)", duration.Seconds(), asset.ID, asset.File, asset.Duration.Seconds()))
 			continue
 		}
 		trackID := "recipe/" + placement.Track.Type + "/" + placement.Track.Role

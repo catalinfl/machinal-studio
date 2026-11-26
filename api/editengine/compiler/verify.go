@@ -43,6 +43,7 @@ func (s *compilation) verify(allowEmpty bool) {
 		}
 		s.verifyOverlaps(*track, path)
 	}
+	s.verifyNarrationCoverage()
 	if clips > MaxClips {
 		s.fail("tracks", "limit", fmt.Sprintf("at most %d expanded clips", MaxClips))
 	}
@@ -90,20 +91,14 @@ func (s *compilation) verifyClip(track document.Track, clip document.Clip, track
 		s.fail(path+".volume", "invalid_volume", "volume must be 0–200 percent")
 	}
 	if clip.Start < 0 || clip.InPoint < 0 || clip.OutPoint <= clip.InPoint || clip.Duration() < MinimumClipDuration {
-		s.fail(path, "invalid_interval", "clip needs nonnegative times and at least 100ms of timeline duration")
+		message := "clip needs nonnegative times and at least 100ms of timeline duration"
+		if asset.Kind != "image" && asset.Duration > 0 {
+			message = fmt.Sprintf("%s (asset %q %s duration is %.3fs; set inPoint: 0, outPoint: %.3f to use full asset)", message, asset.ID, asset.File, asset.Duration.Seconds(), asset.Duration.Seconds())
+		}
+		s.fail(path, "invalid_interval", message)
 	}
 	if asset.Kind != "image" && clip.OutPoint > asset.Duration {
-		s.fail(path+".outPoint", "source_bounds", "source interval exceeds asset duration")
-	}
-	if trackType == "audio" && asset.Kind == "audio" && asset.Duration > 0 && clip.Volume > 0 && s.isNarrationClip(track, clip, asset) {
-		if missing := asset.Duration - clip.OutPoint; missing > document.Seconds(0.15) {
-			s.result.Diagnostics = append(s.result.Diagnostics, document.Diagnostic{
-				Path:     path + ".outPoint",
-				Code:     "narration_truncated",
-				Severity: "warning",
-				Message:  fmt.Sprintf("narration clip %q ends at %.2fs, truncating %.2fs of %s (%.2fs); extend outPoint and video timeline to cover full speech", clip.ID, clip.OutPoint.Seconds(), missing.Seconds(), asset.File, asset.Duration.Seconds()),
-			})
-		}
+		s.fail(path+".outPoint", "source_bounds", fmt.Sprintf("source outPoint (%.3fs) exceeds asset %q (%s) duration (%.3fs); set outPoint: %.3f (never guess a smaller number that truncates audio/speech)", clip.OutPoint.Seconds(), asset.ID, asset.File, asset.Duration.Seconds(), asset.Duration.Seconds()))
 	}
 	if !catalog.FiniteRange(clip.Opacity, 0, 1) || clip.FadeIn < 0 || clip.FadeOut < 0 || clip.FadeIn > clip.Duration() || clip.FadeOut > clip.Duration() {
 		s.fail(path, "invalid_compositing", "opacity must be 0–1 and fades must fit the clip")
@@ -143,8 +138,116 @@ func (s *compilation) verifyClip(track document.Track, clip document.Clip, track
 	}
 }
 
+func (s *compilation) verifyNarrationCoverage() {
+	type narrationCoverage struct {
+		asset        document.Asset
+		minInPoint   document.Time
+		maxOutPoint  document.Time
+		lastClipID   string
+		lastClipPath string
+	}
+	byAsset := make(map[string]*narrationCoverage)
+	var assetOrder []string
+	var maxVideoEnd, maxNarrationEnd document.Time
+
+	for trackIndex, track := range s.composition.Tracks {
+		if track.Hidden {
+			continue
+		}
+		if track.Type == "video" {
+			for _, clip := range track.Clips {
+				if clip.Opacity <= 0 {
+					continue
+				}
+				if end := clip.End(); end > maxVideoEnd {
+					maxVideoEnd = end
+				}
+			}
+			continue
+		}
+		if track.Type != "audio" || track.Muted {
+			continue
+		}
+		for clipIndex, clip := range track.Clips {
+			if clip.Volume <= 0 {
+				continue
+			}
+			asset, exists := s.assets[clip.AssetID]
+			if !exists || asset.Kind != "audio" || asset.Duration <= 0 {
+				continue
+			}
+			// Scene-linked narration segments intentionally slice a shared voiceover per scene.
+			if clip.LinkedClipID != "" {
+				if _, linked := s.findClip(clip.LinkedClipID); linked != nil && s.sceneNarrationPair(clip, *linked) {
+					continue
+				}
+			}
+			if !s.isNarrationClip(track, clip, asset) {
+				continue
+			}
+			if end := clip.End(); end > maxNarrationEnd {
+				maxNarrationEnd = end
+			}
+			clipPath := fmt.Sprintf("tracks[%d].clips[%d]", trackIndex, clipIndex)
+			cov, seen := byAsset[asset.ID]
+			if !seen {
+				byAsset[asset.ID] = &narrationCoverage{
+					asset:        asset,
+					minInPoint:   clip.InPoint,
+					maxOutPoint:  clip.OutPoint,
+					lastClipID:   clip.ID,
+					lastClipPath: clipPath,
+				}
+				assetOrder = append(assetOrder, asset.ID)
+				continue
+			}
+			if clip.InPoint < cov.minInPoint {
+				cov.minInPoint = clip.InPoint
+			}
+			if clip.OutPoint >= cov.maxOutPoint {
+				cov.maxOutPoint = clip.OutPoint
+				cov.lastClipID = clip.ID
+				cov.lastClipPath = clipPath
+			}
+		}
+	}
+
+	const tolerance = document.Time(150_000) // 150ms
+	for _, id := range assetOrder {
+		cov := byAsset[id]
+		if missing := cov.asset.Duration - cov.maxOutPoint; missing > tolerance {
+			s.fail(
+				cov.lastClipPath+".outPoint",
+				"narration_truncated",
+				fmt.Sprintf("narration clip %q ends at outPoint %.3fs, truncating the last %.3fs of %s (full duration %.3fs); set outPoint: %.3f and extend video timeline to cover the full speech",
+					cov.lastClipID, cov.maxOutPoint.Seconds(), missing.Seconds(), cov.asset.File, cov.asset.Duration.Seconds(), cov.asset.Duration.Seconds()),
+			)
+		}
+		if cov.minInPoint > tolerance {
+			s.result.Diagnostics = append(s.result.Diagnostics, document.Diagnostic{
+				Path:     cov.lastClipPath + ".inPoint",
+				Code:     "narration_leading_trimmed",
+				Severity: "warning",
+				Message:  fmt.Sprintf("narration clip %q starts at inPoint %.3fs of %s (full duration %.3fs); verify the opening speech is not clipped", cov.lastClipID, cov.minInPoint.Seconds(), cov.asset.File, cov.asset.Duration.Seconds()),
+			})
+		}
+	}
+	if maxVideoEnd > 0 && maxNarrationEnd > 0 && maxVideoEnd < maxNarrationEnd-tolerance {
+		s.fail(
+			"tracks",
+			"video_shorter_than_narration",
+			fmt.Sprintf("visible video ends at %.3fs while narration continues until %.3fs (%.3fs of speech has no video); extend visual clips/scenes to at least %.3fs",
+				maxVideoEnd.Seconds(), maxNarrationEnd.Seconds(), (maxNarrationEnd - maxVideoEnd).Seconds(), maxNarrationEnd.Seconds()),
+		)
+	}
+}
+
 func (s *compilation) isNarrationClip(track document.Track, clip document.Clip, asset document.Asset) bool {
-	if strings.HasPrefix(asset.File, "voice_") || track.ID == "recipe/audio/narration" || strings.Contains(strings.ToLower(track.Name+" "+track.ID), "narration") {
+	lowerFile := strings.ToLower(asset.File)
+	if strings.HasPrefix(lowerFile, "voice_") || strings.HasPrefix(lowerFile, "narration_") {
+		return true
+	}
+	if track.ID == "recipe/audio/narration" {
 		return true
 	}
 	for _, jobs := range [][]document.Job{s.input.Document.Jobs, s.input.Document.Before} {
@@ -152,6 +255,22 @@ func (s *compilation) isNarrationClip(track document.Track, clip document.Clip, 
 			if job.Type == "speech.generate" && job.ResultAssetID != "" && (job.ResultAssetID == clip.AssetID || job.ResultAssetID == asset.File) {
 				return true
 			}
+		}
+	}
+	meta := strings.ToLower(track.Name + " " + track.ID + " " + clip.ID + " " + clip.AssetID)
+	for _, nonNarration := range []string{"sfx", "sound_effect", "sound-effect", "music", "ambience", "ambient", "bgm", "foley"} {
+		if strings.Contains(meta, nonNarration) {
+			return false
+		}
+	}
+	for _, cue := range []string{"narration", "narrator", "voiceover", "voice-over", "voice_over", "voice", "speech"} {
+		if strings.Contains(meta, cue) {
+			return true
+		}
+	}
+	for _, token := range strings.FieldsFunc(meta, func(r rune) bool { return !(r >= 'a' && r <= 'z' || r >= '0' && r <= '9') }) {
+		if token == "vo" {
+			return true
 		}
 	}
 	return false
